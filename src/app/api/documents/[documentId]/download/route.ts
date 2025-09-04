@@ -3,10 +3,10 @@ import { getDocumentForDownload } from '@/lib/database-s3';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { documentId: string } }
+  { params }: { params: Promise<{ documentId: string }> }
 ) {
   try {
-    const { documentId } = params;
+    const { documentId } = await params;
     
     const document = await getDocumentForDownload(documentId);
     

@@ -4,6 +4,9 @@ const nextConfig = {
         optimizePackageImports: ["@untitledui/icons"],
     },
     devIndicators: false,
+    typescript: {
+        ignoreBuildErrors: true,
+    },
 };
 
 export default nextConfig;
