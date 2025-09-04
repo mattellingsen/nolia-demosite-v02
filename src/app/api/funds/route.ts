@@ -101,7 +101,6 @@ export async function POST(request: NextRequest) {
         description: fund.description,
         status: fund.status,
         createdAt: fund.createdAt,
-        documentsCount: fund.documents.length,
         applicationFormAnalysis: fund.applicationFormAnalysis,
         selectionCriteriaAnalysis: fund.selectionCriteriaAnalysis,
         goodExamplesAnalysis: fund.goodExamplesAnalysis

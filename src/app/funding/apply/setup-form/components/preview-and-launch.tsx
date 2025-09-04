@@ -183,7 +183,7 @@ export const PreviewAndLaunch: React.FC<PreviewAndLaunchProps> = ({
                             Applications can now be submitted through your AI-powered form.
                         </p>
                         <div className="flex items-center justify-center gap-4">
-                            <Button size="md" color="success" iconLeading={LinkExternal01} href={shareableUrl} target="_blank">
+                            <Button size="md" color="primary" iconLeading={LinkExternal01} href={shareableUrl} target="_blank">
                                 View Live Form
                             </Button>
                             <Button size="md" color="secondary" onClick={() => setActiveTab('embed')}>
@@ -265,7 +265,7 @@ export const PreviewAndLaunch: React.FC<PreviewAndLaunchProps> = ({
                 {activeTab === 'embed' && (
                     <div className="space-y-6">
                         <div className="text-center">
-                            <FeaturedIcon size="lg" color="purple" theme="light" icon={Code01} className="mx-auto mb-4" />
+                            <FeaturedIcon size="lg" color="brand" theme="light" icon={Code01} className="mx-auto mb-4" />
                             <h3 className="text-lg font-semibold text-primary mb-2">Embed Your AI Form</h3>
                             <p className="text-secondary">Copy and paste this code into your website to embed the application form.</p>
                         </div>
@@ -274,7 +274,7 @@ export const PreviewAndLaunch: React.FC<PreviewAndLaunchProps> = ({
                         <div className="bg-gray-900 rounded-lg p-6 relative">
                             <Button
                                 size="sm"
-                                color={embedCodeCopied ? "success" : "secondary"}
+                                color={embedCodeCopied ? "primary" : "secondary"}
                                 iconLeading={embedCodeCopied ? CheckCircle : Copy01}
                                 onClick={copyEmbedCode}
                                 className="absolute top-4 right-4"
@@ -417,7 +417,7 @@ export const PreviewAndLaunch: React.FC<PreviewAndLaunchProps> = ({
                     {isLaunched && (
                         <Button
                             size="lg"
-                            color="success"
+                            color="primary"
                             iconLeading={LinkExternal01}
                             href={shareableUrl}
                             target="_blank"

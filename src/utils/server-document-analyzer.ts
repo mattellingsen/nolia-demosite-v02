@@ -1,8 +1,6 @@
 // Server-side document analyzer using Node.js libraries
 // This runs in API routes where pdf-parse and mammoth are available
 
-import * as pdfParse from 'pdf-parse';
-import * as mammoth from 'mammoth';
 import { DocumentAnalysis, CriteriaAnalysis } from './browser-document-analyzer';
 
 /**
@@ -16,14 +14,16 @@ export async function extractTextFromFile(file: File): Promise<string> {
         if (file.type === 'text/plain') {
             return await file.text();
         } else if (file.type === 'application/pdf') {
-            // Use pdf-parse for real PDF text extraction
-            const data = await pdfParse(buffer);
+            // Use pdf-parse for real PDF text extraction with dynamic import
+            const pdfParse = await import('pdf-parse');
+            const data = await pdfParse.default(buffer);
             return data.text;
         } else if (
             file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
             file.type === 'application/msword'
         ) {
-            // Use mammoth for real Word document text extraction
+            // Use mammoth for real Word document text extraction with dynamic import
+            const mammoth = await import('mammoth');
             const result = await mammoth.extractRawText({ buffer });
             return result.value;
         } else {

@@ -3,10 +3,10 @@ import { getFundWithDocuments } from '@/lib/database-s3';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { fundId: string } }
+  { params }: { params: Promise<{ fundId: string }> }
 ) {
   try {
-    const { fundId } = params;
+    const { fundId } = await params;
     
     const fund = await getFundWithDocuments(fundId);
     

@@ -267,7 +267,7 @@ export const ConversationalPreview: React.FC<ConversationalPreviewProps> = ({
                 <div className="flex items-center gap-1">
                     <ButtonUtility
                         size="sm"
-                        color={conversation.webSearchEnabled ? "brand" : "tertiary"}
+                        color={conversation.webSearchEnabled ? "secondary" : "tertiary"}
                         icon={Eye}
                         tooltip="Web search enabled"
                         onClick={toggleWebSearch}
@@ -278,7 +278,7 @@ export const ConversationalPreview: React.FC<ConversationalPreviewProps> = ({
                     />
                     <ButtonUtility
                         size="sm"
-                        color={conversation.mcpIntegrationsEnabled ? "brand" : "tertiary"}
+                        color={conversation.mcpIntegrationsEnabled ? "secondary" : "tertiary"}
                         icon={Zap}
                         tooltip="MCP integrations enabled"
                         onClick={toggleMCPIntegrations}
