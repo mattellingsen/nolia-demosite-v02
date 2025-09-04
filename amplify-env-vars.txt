@@ -1,0 +1,10 @@
+# Copy these to AWS Amplify Console → Environment Variables
+
+DATABASE_URL=postgresql://postgres:YOURPASSWORD@nolia-funding-db.xxxxx.us-east-1.rds.amazonaws.com:5432/postgres
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=your-access-key
+AWS_SECRET_ACCESS_KEY=your-secret-key
+S3_BUCKET_DOCUMENTS=nolia-funding-documents-599065966827
+NODE_ENV=production
+
+# IMPORTANT: Replace the values with your actual credentials!
