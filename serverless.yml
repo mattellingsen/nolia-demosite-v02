@@ -1,0 +1,87 @@
+service: nolia-funding-api
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: us-east-1
+  stage: dev
+  environment:
+    DATABASE_URL: ${env:DATABASE_URL}
+    S3_BUCKET_DOCUMENTS: nolia-funding-documents-599065966827
+    AWS_REGION: us-east-1
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - s3:GetObject
+        - s3:PutObject
+        - s3:DeleteObject
+      Resource: 
+        - "arn:aws:s3:::nolia-funding-documents-599065966827/*"
+    - Effect: Allow
+      Action:
+        - rds:DescribeDBInstances
+      Resource: "*"
+
+functions:
+  analyzeDocument:
+    handler: src/lambda/analyze-document.handler
+    timeout: 60
+    events:
+      - http:
+          path: analyze/document
+          method: post
+          cors: true
+
+  analyzeCriteria:
+    handler: src/lambda/analyze-criteria.handler
+    timeout: 60
+    events:
+      - http:
+          path: analyze/criteria
+          method: post
+          cors: true
+
+  createFund:
+    handler: src/lambda/funds.handler
+    timeout: 60
+    events:
+      - http:
+          path: funds
+          method: post
+          cors: true
+      - http:
+          path: funds
+          method: get
+          cors: true
+
+  getFund:
+    handler: src/lambda/fund-detail.handler
+    timeout: 30
+    events:
+      - http:
+          path: funds/{id}
+          method: get
+          cors: true
+
+  downloadDocument:
+    handler: src/lambda/download-document.handler
+    timeout: 30
+    events:
+      - http:
+          path: documents/{id}/download
+          method: get
+          cors: true
+
+plugins:
+  - serverless-offline
+
+package:
+  exclude:
+    - node_modules/**
+    - .next/**
+    - out/**
+    - .git/**
+  include:
+    - src/**
+    - prisma/**
+    - package.json

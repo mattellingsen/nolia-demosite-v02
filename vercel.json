@@ -1,0 +1,20 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "functions": {
+    "src/app/api/analyze/document/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/analyze/criteria/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/funds/route.ts": {
+      "maxDuration": 60
+    }
+  },
+  "env": {
+    "NODE_ENV": "production"
+  }
+}

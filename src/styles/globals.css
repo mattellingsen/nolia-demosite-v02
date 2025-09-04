@@ -1,0 +1,87 @@
+@import "tailwindcss";
+@import "./theme.css";
+@import "./typography.css";
+
+@plugin "@tailwindcss/typography";
+@plugin "tailwindcss-react-aria-components";
+@plugin "tailwindcss-animate";
+
+@custom-variant dark (&:where(.dark-mode, .dark-mode *));
+@custom-variant label (& [data-label]);
+@custom-variant focus-input-within (&:has(input:focus));
+
+@utility scrollbar-hide {
+    /* For Webkit-based browsers (Chrome, Safari and Opera) */
+    &::-webkit-scrollbar {
+        display: none;
+        -webkit-appearance: none;
+    }
+
+    /* For IE, Edge and Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+}
+
+@utility transition-inherit-all {
+    transition-property: inherit;
+    transition-duration: inherit;
+    transition-timing-function: inherit;
+}
+
+html,
+body {
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-font-variant-ligatures: contextual;
+    font-variant-ligatures: contextual;
+    -webkit-font-kerning: normal;
+    font-kerning: normal;
+}
+
+/* Display text classes use display font */
+.text-display-xs,
+.text-display-sm,
+.text-display-md,
+.text-display-lg,
+.text-display-xl,
+.text-display-2xl,
+h1.text-display-xs,
+h1.text-display-sm,
+h1.text-display-md,
+h1.text-display-lg,
+h1.text-display-xl,
+h1.text-display-2xl {
+    font-family: var(--font-dm-serif-display, "DM Serif Display"), Georgia, "Times New Roman", Times, serif !important;
+}
+
+/* Specific rule for the hero heading to ensure it works */
+.mt-4.text-display-md.font-medium.text-primary,
+.relative.overflow-hidden.bg-primary .text-display-md,
+.relative.overflow-hidden.bg-primary .text-display-lg,
+.relative.overflow-hidden.bg-primary .text-display-xl,
+h1 {
+    font-family: var(--font-dm-serif-display, "DM Serif Display"), Georgia, "Times New Roman", Times, serif !important;
+}
+
+/* Hide the default expand arrow on Safari.  */
+details summary::-webkit-details-marker {
+    display: none;
+}
+
+/* Hide default arrows from number inputs. */
+/* Chrome, Safari, Edge, Opera */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+/* Firefox */
+input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+/* Hide the default clear button (X) from search inputs. */
+input[type="search"]::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+}

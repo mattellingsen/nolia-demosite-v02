@@ -1,0 +1,64 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums for the funding system
+enum DocumentType {
+  APPLICATION_FORM
+  SELECTION_CRITERIA
+  GOOD_EXAMPLES
+}
+
+enum FundStatus {
+  DRAFT
+  ACTIVE
+  CLOSED
+}
+
+// Fund model - represents a funding program/scheme
+model Fund {
+  id          String     @id @default(uuid())
+  name        String
+  description String?
+  status      FundStatus @default(DRAFT)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  
+  // Analysis results from uploaded documents
+  applicationFormAnalysis    Json? // DocumentAnalysis from step 1
+  selectionCriteriaAnalysis Json? // CriteriaAnalysis from step 2
+  goodExamplesAnalysis      Json? // Analysis from step 3
+  
+  // Relationships
+  documents   FundDocument[]
+  
+  @@map("funds")
+}
+
+// FundDocument model - stores file metadata with S3 keys
+model FundDocument {
+  id           String      @id @default(uuid())
+  fundId       String
+  documentType DocumentType
+  filename     String
+  mimeType     String
+  fileSize     Int
+  s3Key        String      // S3 object key for file access
+  uploadedAt   DateTime    @default(now())
+  
+  // Relationships
+  fund         Fund        @relation(fields: [fundId], references: [id], onDelete: Cascade)
+  
+  @@map("fund_documents")
+}
