@@ -1,0 +1,18 @@
+# Commands to run after RDS database is created
+
+# 1. Get the security group ID from your RDS instance
+aws rds describe-db-instances --db-instance-identifier nolia-funding-db --profile springload-dev --query 'DBInstances[0].VpcSecurityGroups[0].VpcSecurityGroupId' --output text
+
+# 2. Open PostgreSQL port (5432) to allow connections
+aws ec2 authorize-security-group-ingress \
+  --group-id SECURITY_GROUP_ID_FROM_STEP_1 \
+  --protocol tcp \
+  --port 5432 \
+  --cidr 0.0.0.0/0 \
+  --profile springload-dev
+
+# 3. Get the RDS endpoint URL
+aws rds describe-db-instances --db-instance-identifier nolia-funding-db --profile springload-dev --query 'DBInstances[0].Endpoint.Address' --output text
+
+# 4. Test connection (replace with your actual values)
+# psql postgresql://postgres:YOUR_PASSWORD@YOUR_ENDPOINT:5432/postgres

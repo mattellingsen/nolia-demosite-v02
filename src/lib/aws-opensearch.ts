@@ -3,10 +3,10 @@ import { OpenSearchClient } from '@aws-sdk/client-opensearch';
 
 // Initialize OpenSearch client
 const openSearchClient = new OpenSearchClient({
-  region: process.env.AWS_REGION || 'us-east-1',
+  region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+    accessKeyId: process.env.NOLIA_AWS_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.NOLIA_AWS_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY!,
   },
 });
 
