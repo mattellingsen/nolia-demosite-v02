@@ -48,10 +48,10 @@ export async function initializeRAGSystem(): Promise<{
   // Test AWS Bedrock connection
   try {
     const bedrockClient = new BedrockRuntimeClient({
-      region: process.env.AWS_REGION || 'us-east-1',
+      region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',
       credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+        accessKeyId: process.env.NOLIA_AWS_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID!,
+        secretAccessKey: process.env.NOLIA_AWS_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY!,
       },
     });
 
@@ -118,10 +118,10 @@ export async function ragHealthCheck(): Promise<{
   // Test Bedrock (simplified check)
   try {
     const bedrockClient = new BedrockRuntimeClient({
-      region: process.env.AWS_REGION || 'us-east-1',
+      region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',
       credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+        accessKeyId: process.env.NOLIA_AWS_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID!,
+        secretAccessKey: process.env.NOLIA_AWS_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY!,
       },
     });
     services.bedrock = 'up'; // If client creation succeeds, consider it up
@@ -178,7 +178,7 @@ export function getRAGConfig(): {
   return {
     enabled: Boolean(
       process.env.OPENSEARCH_ENDPOINT &&
-      process.env.AWS_ACCESS_KEY_ID &&
+      (process.env.NOLIA_AWS_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID) &&
       process.env.AWS_SECRET_ACCESS_KEY
     ),
     services: {
@@ -187,7 +187,7 @@ export function getRAGConfig(): {
         index: 'funding-documents',
       },
       bedrock: {
-        region: process.env.AWS_REGION || 'us-east-1',
+        region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',
         model: 'anthropic.claude-3-sonnet-20240229-v1:0',
       },
       embeddings: {

@@ -1,0 +1,11 @@
+# Update your .env.production and Amplify Environment Variables with this format:
+
+DATABASE_URL="postgresql://postgres:YOUR_RDS_PASSWORD@YOUR_RDS_ENDPOINT:5432/postgres"
+
+# Example:
+# DATABASE_URL="postgresql://postgres:MySecurePassword123@nolia-funding-db.abc123.us-east-1.rds.amazonaws.com:5432/postgres"
+
+# IMPORTANT: 
+# 1. Replace YOUR_RDS_PASSWORD with the password you set in RDS console
+# 2. Replace YOUR_RDS_ENDPOINT with the endpoint from RDS console
+# 3. Update this in BOTH .env.production AND AWS Amplify Environment Variables
