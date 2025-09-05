@@ -2,10 +2,8 @@
 import { NextResponse } from 'next/server';
 
 export async function GET() {
-  // Only show this in development for security
-  if (process.env.NODE_ENV === 'production') {
-    return NextResponse.json({ error: 'Not available in production' }, { status: 403 });
-  }
+  // Show limited debug info in production
+  const isProduction = process.env.NODE_ENV === 'production';
 
   return NextResponse.json({
     nodeEnv: process.env.NODE_ENV,
@@ -16,7 +14,8 @@ export async function GET() {
     hasNoliaRegion: Boolean(process.env.NOLIA_AWS_REGION),
     hasNoliaAccessKey: Boolean(process.env.NOLIA_AWS_ACCESS_KEY_ID),
     hasRegularRegion: Boolean(process.env.AWS_REGION),
-    availableEnvKeys: Object.keys(process.env).filter(key => 
+    // Only show env keys in development for security
+    availableEnvKeys: isProduction ? ['HIDDEN_IN_PRODUCTION'] : Object.keys(process.env).filter(key => 
       key.includes('OPENSEARCH') || 
       key.includes('OPENAI') || 
       key.includes('ADMIN') ||
