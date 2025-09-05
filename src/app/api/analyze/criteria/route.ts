@@ -40,11 +40,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file sizes (10MB limit each)
-    const oversizedFiles = files.filter(file => file.size > 10 * 1024 * 1024);
+    // Validate file sizes (2MB limit each for Lambda compatibility)
+    const oversizedFiles = files.filter(file => file.size > 2 * 1024 * 1024);
     if (oversizedFiles.length > 0) {
       return NextResponse.json(
-        { error: 'Some files exceed 10MB limit. Please reduce file sizes.' },
+        { error: 'Some files exceed 2MB limit. Please reduce file sizes.' },
+        { status: 400 }
+      );
+    }
+
+    // Check total payload size (5MB total limit for Lambda)
+    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+    if (totalSize > 5 * 1024 * 1024) {
+      return NextResponse.json(
+        { error: 'Total file size exceeds 5MB limit. Please upload fewer files or reduce file sizes.' },
         { status: 400 }
       );
     }
