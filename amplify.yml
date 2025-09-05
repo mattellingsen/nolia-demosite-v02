@@ -5,6 +5,7 @@ frontend:
       commands:
         - nvm use 18
         - npm ci
+        - echo "DATABASE_URL=$DATABASE_URL" >> .env.production
         - echo "OPENSEARCH_ENDPOINT=$OPENSEARCH_ENDPOINT" >> .env.production
         - echo "OPENSEARCH_USERNAME=$OPENSEARCH_USERNAME" >> .env.production
         - echo "OPENSEARCH_PASSWORD=$OPENSEARCH_PASSWORD" >> .env.production
