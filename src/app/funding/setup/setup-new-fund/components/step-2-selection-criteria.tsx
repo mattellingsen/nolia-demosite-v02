@@ -7,6 +7,7 @@ import { type CriteriaAnalysis } from "@/utils/browser-document-analyzer";
 import { Button } from "@/components/base/buttons/button";
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
 import { FileUpload } from "@/components/application/file-upload/file-upload-base";
+import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
 
 interface Step2Props {
     formData: any;
@@ -201,10 +202,11 @@ export const Step2SelectionCriteria: React.FC<Step2Props> = ({
                         
                         {isAnalyzing && (
                             <div className="flex justify-center py-6">
-                                <div className="flex items-center gap-3">
-                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-brand-600"></div>
-                                    <p className="text-sm text-secondary">Analyzing criteria documents...</p>
-                                </div>
+                                <LoadingIndicator 
+                                    type="dot-circle" 
+                                    size="md" 
+                                    label="Analyzing criteria documents..." 
+                                />
                             </div>
                         )}
                     </FileUpload.Root>
