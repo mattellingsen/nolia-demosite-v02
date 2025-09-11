@@ -19,7 +19,7 @@ if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
 // S3 client configuration - supports both IAM Role and explicit credentials
 const s3Client = new S3Client({
-  region: process.env.AWS_REGION || 'us-east-1',
+  region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'us-east-1',
   // Use explicit credentials if available (local dev), otherwise use IAM Role (production)
   ...(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY ? {
     credentials: {
