@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
+import { useFunds } from "@/hooks/useFunds";
 import {
     ArrowRight,
     CheckDone01,
@@ -12,6 +13,7 @@ import {
     Plus,
     Send01,
     Trash01,
+    TrendUp02,
     UploadCloud01,
 } from "@untitledui/icons";
 import type { SortDescriptor } from "react-aria-components";
@@ -81,10 +83,20 @@ const fundCards = [
 
 export const ApplyDashboard = () => {
     const [mounted, setMounted] = useState(false);
+    
+    // Fetch funds data for the right sidebar
+    const { data: funds = [], isLoading: fundsLoading, error: fundsError } = useFunds();
+    const activeFunds = funds.filter(fund => fund.status === 'ACTIVE');
 
     useEffect(() => {
         setMounted(true);
     }, []);
+
+    // Calculate real stats
+    const activeFormsCount = 0; // Forms created, not funds
+    const applicationsCount = 0; // Real applications count
+    const completionRate = 0; // Real completion rate
+    const avgTime = "0min"; // Real avg time
 
     if (!mounted) {
         return null;
@@ -110,6 +122,11 @@ export const ApplyDashboard = () => {
                         href: "/funding/assess",
                         icon: CheckDone01,
                     },
+                    {
+                        label: "Analytics",
+                        href: "/funding/analytics",
+                        icon: TrendUp02,
+                    },
                 ]}
             />
             <main className="flex min-w-0 flex-1 flex-col gap-8 pt-8 pb-12">
@@ -131,28 +148,25 @@ export const ApplyDashboard = () => {
                     <div className="flex flex-col gap-2 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary ring-inset">
                         <p className="text-sm font-medium text-tertiary">Active Forms</p>
                         <div className="flex items-baseline gap-2">
-                            <p className="text-display-sm font-semibold text-primary">4</p>
+                            <p className="text-display-sm font-semibold text-primary">{activeFormsCount}</p>
                         </div>
                     </div>
                     <div className="flex flex-col gap-2 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary ring-inset">
                         <p className="text-sm font-medium text-tertiary">Applications This Month</p>
                         <div className="flex items-baseline gap-2">
-                            <p className="text-display-sm font-semibold text-primary">240</p>
-                            <p className="text-sm font-semibold text-success-primary">{formatCurrency(2400)}</p>
+                            <p className="text-display-sm font-semibold text-primary">{applicationsCount}</p>
                         </div>
                     </div>
                     <div className="flex flex-col gap-2 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary ring-inset">
                         <p className="text-sm font-medium text-tertiary">Completion Rate</p>
                         <div className="flex items-baseline gap-2">
-                            <p className="text-display-sm font-semibold text-primary">67%</p>
-                            <p className="text-sm font-medium text-success-primary">+12%</p>
+                            <p className="text-display-sm font-semibold text-primary">{completionRate}%</p>
                         </div>
                     </div>
                     <div className="flex flex-col gap-2 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary ring-inset">
                         <p className="text-sm font-medium text-tertiary">Avg. Time to Complete</p>
                         <div className="flex items-baseline gap-2">
-                            <p className="text-display-sm font-semibold text-primary">24min</p>
-                            <p className="text-sm font-medium text-error-primary">-3min</p>
+                            <p className="text-display-sm font-semibold text-primary">{avgTime}</p>
                         </div>
                     </div>
                 </div>
@@ -246,34 +260,6 @@ export const ApplyDashboard = () => {
                         </div>
                         
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                            {/* Existing fund cards - duplicated */}
-                            {[...fundCards, ...fundCards].map((card, index) => (
-                                <div key={`${card.id}-${index}`} className="w-full h-40 relative flex">
-                                    <div className={`w-full h-full flex flex-col justify-between overflow-hidden rounded-2xl p-4 bg-linear-to-b ${card.gradient} before:pointer-events-none before:absolute before:inset-0 before:z-1 before:rounded-[inherit] before:mask-linear-135 before:mask-linear-to-white/20 before:ring-1 before:ring-white/30 before:ring-inset`}>
-                                        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-1/2 bg-gray-800 rounded-b-2xl"></div>
-                                        
-                                        <div className="relative flex items-center justify-between px-1 pt-1">
-                                            <div className="text-md leading-[normal] font-semibold text-white">{card.title}</div>
-                                            <ButtonUtility 
-                                                size="xs" 
-                                                color="tertiary" 
-                                                tooltip="Delete" 
-                                                icon={Trash01} 
-                                                className="text-white hover:text-gray-200 !bg-transparent !border-0" 
-                                            />
-                                        </div>
-
-                                        <div className="relative flex items-end justify-between gap-3">
-                                            <div className="flex min-w-0 flex-col gap-2">
-                                                <p className="text-xs leading-snug font-semibold text-white" style={{wordBreak: "break-word"}}>
-                                                    {card.description}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                            
                             {/* Create new application form card */}
                             <a href="/funding/apply/setup-form" className="w-full h-40 relative flex cursor-pointer hover:opacity-90 transition-opacity">
                                 <div className="w-full h-full flex flex-col justify-center items-center overflow-hidden rounded-2xl p-4 bg-gray-800">
@@ -301,61 +287,55 @@ export const ApplyDashboard = () => {
                             Add fund
                         </Button>
                     </div>
+                    {mounted && (
                     <Carousel.Root className="flex flex-col gap-5">
                         <Carousel.Content overflowHidden={false} className="gap-5">
-                            <Carousel.Item className="basis-auto">
-                                <div className="w-68 h-40 relative flex">
-                                    <div className="w-full h-full flex flex-col justify-between overflow-hidden rounded-2xl p-4 bg-linear-to-b from-[#A5C0EE] to-[#FBC5EC] before:pointer-events-none before:absolute before:inset-0 before:z-1 before:rounded-[inherit] before:mask-linear-135 before:mask-linear-to-white/20 before:ring-1 before:ring-white/30 before:ring-inset">
-                                        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-1/2 bg-gray-800 rounded-b-2xl"></div>
-                                        
-                                        <div className="relative flex items-center justify-between px-1 pt-1">
-                                            <div className="text-md leading-[normal] font-semibold text-white">New to R&D</div>
-                                            <ButtonUtility size="xs" color="tertiary" tooltip="Delete" icon={Trash01} className="text-white hover:text-gray-200 !bg-transparent !border-0" />
-                                        </div>
+                            {activeFunds.map((fund, index) => {
+                                const gradients = [
+                                    "from-[#A5C0EE] to-[#FBC5EC]",
+                                    "from-[#FBC2EB] to-[#A18CD1]",
+                                    "from-[#84FAB0] to-[#8FD3F4]",
+                                    "from-[#FFEAA7] to-[#FAB1A0]",
+                                ];
+                                const gradient = gradients[index % gradients.length];
+                                
+                                return (
+                                    <Carousel.Item key={fund.id} className="basis-auto">
+                                        <div className="w-68 h-40 relative flex">
+                                            <div className={`w-full h-full flex flex-col justify-between overflow-hidden rounded-2xl p-4 bg-linear-to-b ${gradient} before:pointer-events-none before:absolute before:inset-0 before:z-1 before:rounded-[inherit] before:mask-linear-135 before:mask-linear-to-white/20 before:ring-1 before:ring-white/30 before:ring-inset`}>
+                                                <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-1/2 bg-gray-800 rounded-b-2xl"></div>
+                                                
+                                                <div className="relative flex items-center justify-between px-1 pt-1">
+                                                    <div className="text-md leading-[normal] font-semibold text-white">{fund.name}</div>
+                                                    {mounted && <ButtonUtility size="xs" color="tertiary" tooltip="Delete" icon={Trash01} className="text-white hover:text-gray-200 !bg-transparent !border-0" />}
+                                                </div>
 
-                                        <div className="relative flex items-end justify-between gap-3">
-                                            <div className="flex min-w-0 flex-col gap-2">
-                                                <p className="text-xs leading-snug font-semibold text-white" style={{wordBreak: "break-word"}}>
-                                                    Kick start your first commercial research and development (R&D) project.
-                                                </p>
+                                                <div className="relative flex items-end justify-between gap-3">
+                                                    <div className="flex min-w-0 flex-col gap-2">
+                                                        <p className="text-xs leading-snug font-semibold text-white" style={{wordBreak: "break-word"}}>
+                                                            {fund.description}
+                                                        </p>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                </div>
-                            </Carousel.Item>
-                            <Carousel.Item className="basis-auto">
-                                <div className="w-68 h-40 relative flex">
-                                    <div className="w-full h-full flex flex-col justify-between overflow-hidden rounded-2xl p-4 bg-linear-to-b from-[#FBC2EB] to-[#A18CD1] before:pointer-events-none before:absolute before:inset-0 before:z-1 before:rounded-[inherit] before:mask-linear-135 before:mask-linear-to-white/20 before:ring-1 before:ring-white/30 before:ring-inset">
-                                        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-1/2 bg-gray-800 rounded-b-2xl"></div>
-                                        
-                                        <div className="relative flex items-center justify-between px-1 pt-1">
-                                            <div className="text-md leading-[normal] font-semibold text-white">Student Experience</div>
-                                            <ButtonUtility size="xs" color="tertiary" tooltip="Delete" icon={Trash01} className="text-white hover:text-gray-200 !bg-transparent !border-0" />
-                                        </div>
-
-                                        <div className="relative flex items-end justify-between gap-3">
-                                            <div className="flex min-w-0 flex-col gap-2">
-                                                <p className="text-xs leading-snug font-semibold text-white" style={{wordBreak: "break-word"}}>
-                                                    Fund innovative businesses to employ tertiary-level students.
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </Carousel.Item>
+                                    </Carousel.Item>
+                                );
+                            })}
                         </Carousel.Content>
 
                         <div className="flex flex-col gap-4">
                             <div className="flex flex-col gap-2">
                                 <div className="flex justify-between gap-4">
                                     <p className="text-sm font-medium text-primary">This month</p>
-                                    <span className="text-sm text-tertiary">240 Applications</span>
+                                    <span className="text-sm text-tertiary">{applicationsCount} Applications</span>
                                 </div>
-                                <ProgressBar value={60} />
+                                <ProgressBar value={0} />
                             </div>
-                            <CarouselIndicator size="lg" framed={false} />
+                            {activeFunds.length > 0 && <CarouselIndicator size="lg" framed={false} />}
                         </div>
                     </Carousel.Root>
+                    )}
                 </div>
 
                 <div className="flex flex-col gap-5 border-t border-secondary px-6 pt-6">

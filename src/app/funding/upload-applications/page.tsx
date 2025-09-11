@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ArrowLeft } from "@untitledui/icons";
 import { SidebarNavigationSlim } from "@/components/application/app-navigation/sidebar-navigation/sidebar-slim";
 import { Button } from "@/components/base/buttons/button";
+import { Select } from "@/components/base/select/select";
 import { 
     CheckDone01,
     Edit05,
@@ -15,6 +16,8 @@ import {
     Trash01,
     Monitor04,
     File02,
+    Folder,
+    TrendUp02,
 } from "@untitledui/icons";
 
 import { Carousel } from "@/components/application/carousel/carousel-base";
@@ -29,6 +32,8 @@ import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-ic
 import { UploadInterface } from "./components/upload-interface";
 import { AssessmentProcessor, AssessmentResult } from "./components/assessment-processor";
 import { AssessmentResults } from "./components/assessment-results";
+import { useFunds } from "@/hooks/useFunds";
+import { Dot } from "@/components/foundations/dot-icon";
 
 type WorkflowStep = 'upload' | 'processing' | 'results';
 
@@ -37,6 +42,9 @@ const UploadApplicationsPage = () => {
     const [currentStep, setCurrentStep] = useState<WorkflowStep>('upload');
     const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
     const [assessmentResults, setAssessmentResults] = useState<AssessmentResult[]>([]);
+    const [selectedFund, setSelectedFund] = useState<any>(null);
+    
+    const { data: funds, isLoading: fundsLoading, error: fundsError } = useFunds();
 
     // Progress steps data for Untitled UI Progress component
     const progressSteps = [
@@ -96,25 +104,32 @@ const UploadApplicationsPage = () => {
             case 'upload':
                 return (
                     <div className="space-y-6">
-                        <UploadInterface 
-                            mode={uploadMode} 
-                            onFilesUploaded={handleFilesUploaded}
-                        />
-                        
-                        {/* Upload Mode Toggle - moved under uploader */}
-                        <div className="flex justify-center">
-                            <ButtonGroup 
-                                defaultSelectedKeys={[uploadMode]} 
-                                selectionMode="single"
-                                onSelectionChange={(keys) => {
-                                    const selected = Array.from(keys)[0] as 'single' | 'bulk';
-                                    if (selected) setUploadMode(selected);
-                                }}
-                            >
-                                <ButtonGroupItem id="single">Single Application</ButtonGroupItem>
-                                <ButtonGroupItem id="bulk">Bulk Upload</ButtonGroupItem>
-                            </ButtonGroup>
-                        </div>
+                        {selectedFund && (
+                            <div className="flex justify-center">
+                                <div className="w-full max-w-2xl relative">
+                                    {/* Upload Mode Toggle - positioned top right of uploader with dots */}
+                                    <div className="absolute top-2 right-2 z-10">
+                                        <ButtonGroup 
+                                            defaultSelectedKeys={[uploadMode]} 
+                                            selectionMode="single"
+                                            size="sm"
+                                            onSelectionChange={(keys) => {
+                                                const selected = Array.from(keys)[0] as 'single' | 'bulk';
+                                                if (selected) setUploadMode(selected);
+                                            }}
+                                        >
+                                            <ButtonGroupItem id="single">Single Application</ButtonGroupItem>
+                                            <ButtonGroupItem id="bulk">Bulk Upload</ButtonGroupItem>
+                                        </ButtonGroup>
+                                    </div>
+                                    
+                                    <UploadInterface 
+                                        mode={uploadMode} 
+                                        onFilesUploaded={handleFilesUploaded}
+                                    />
+                                </div>
+                            </div>
+                        )}
                     </div>
                 );
             
@@ -122,6 +137,7 @@ const UploadApplicationsPage = () => {
                 return (
                     <AssessmentProcessor 
                         files={uploadedFiles}
+                        selectedFund={selectedFund}
                         onAssessmentComplete={handleAssessmentComplete}
                     />
                 );
@@ -157,6 +173,11 @@ const UploadApplicationsPage = () => {
                         href: "/funding/assess",
                         icon: CheckDone01,
                     },
+                    {
+                        label: "Analytics",
+                        href: "/funding/analytics",
+                        icon: TrendUp02,
+                    },
                 ]}
             />
             <main className="flex min-w-0 flex-1 flex-col gap-8 pt-8 pb-12">
@@ -168,11 +189,11 @@ const UploadApplicationsPage = () => {
                             color="tertiary"
                             iconLeading={ArrowLeft}
                             href="/funding"
-                            className="self-start"
+                            className="self-start [&_svg]:!text-brand-600"
                         >
                             Back
                         </Button>
-                        <div className="flex flex-col gap-1">
+                        <div className="flex flex-col gap-1 text-center">
                             <p className="text-md font-semibold text-tertiary">Upload & Assess</p>
                             <p className="text-display-md font-semibold text-primary">Application Upload</p>
                         </div>
@@ -182,13 +203,91 @@ const UploadApplicationsPage = () => {
                 {/* Progress Steps - Centered */}
                 <div className="flex justify-center px-4 lg:px-8">
                     <Progress.IconsWithText
-                        type="number"
+                        type="featured-icon"
                         orientation="horizontal"
                         size="md"
                         items={progressSteps}
-                        className="max-w-md"
+                        className="max-w-4xl"
                     />
                 </div>
+
+                {/* Fund Selection */}
+                <div className="flex justify-center px-4 lg:px-8">
+                    <div className="w-full max-w-md">
+                        <div className="mb-4 text-center">
+                            <p className="text-lg text-secondary">
+                                Select the fund to assess against
+                            </p>
+                        </div>
+                        <div className="relative select-custom">
+                            {fundsError ? (
+                                <div className="p-3 bg-error-50 border border-error-200 rounded-lg text-error-700">
+                                    Failed to load funds. Please try refreshing the page.
+                                </div>
+                            ) : funds && funds.length === 0 ? (
+                                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                                    <p className="text-sm text-blue-800">
+                                        <strong>No funds available.</strong> You need to create a fund first in the Setup section before uploading applications.
+                                    </p>
+                                    <Button 
+                                        size="sm" 
+                                        color="primary" 
+                                        href="/funding/setup"
+                                        className="mt-2"
+                                    >
+                                        Go to Setup
+                                    </Button>
+                                </div>
+                            ) : (
+                                <Select
+                                    placeholder={fundsLoading ? "Loading funds..." : "Select fund"}
+                                    size="md"
+                                    items={funds ? funds.map(fund => ({ 
+                                        id: fund.id, 
+                                        label: fund.name,
+                                        supportingText: fund.status.toLowerCase()
+                                    })) : []}
+                                    placeholderIcon={Folder}
+                                    className="w-full"
+                                    isDisabled={fundsLoading || !funds || funds.length === 0}
+                                    selectedKey={selectedFund?.id}
+                                    onSelectionChange={(selectedId) => {
+                                        if (selectedId) {
+                                            const fund = funds?.find(fund => fund.id === selectedId);
+                                            setSelectedFund(fund);
+                                        }
+                                    }}
+                                >
+                                    {(item) => <Select.Item key={item.id}>{item.label}</Select.Item>}
+                                </Select>
+                            )}
+                            <style jsx global>{`
+                                .select-custom button {
+                                    border: 1px solid #3497B8 !important;
+                                    box-shadow: 0 0 0 8px #F2FAFC !important;
+                                    border-radius: 0.5rem !important;
+                                }
+                                .select-custom button:focus {
+                                    border: 1px solid #3497B8 !important;
+                                    box-shadow: 0 0 0 8px #F2FAFC !important;
+                                }
+                            `}</style>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Upload Instructions - only show when fund is selected */}
+                {selectedFund && (
+                    <div className="flex justify-center px-4 lg:px-8">
+                        <div className="w-full max-w-md">
+                            <div className="text-center">
+                                <p className="text-lg text-secondary">
+                                    Upload document(s) to assess.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Main Content */}
                 <div className="px-4 lg:px-8">

@@ -1,29 +1,31 @@
 "use client";
 
 import { useState } from "react";
-import { Eye, Code01, ArrowLeft, Rocket01, Copy01, LinkExternal01, Settings01, CheckCircle, Monitor04, Phone, MessageChatCircle } from "@untitledui/icons";
+import { Eye, Code01, ArrowLeft, Rocket01, Copy01, LinkExternal01, Settings01, CheckCircle, Monitor04, Phone, MessageChatCircle, AlertCircle } from "@untitledui/icons";
 import { Button } from "@/components/base/buttons/button";
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
 import { ButtonGroup, ButtonGroupItem } from "@/components/base/button-group/button-group";
+import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
 import { ConversationalPreview } from "./conversational-preview";
+import { useCreateFund, type CreateFundData } from "@/hooks/useFunds";
 
 interface PreviewAndLaunchProps {
     formData: any;
     onPrevious: () => void;
-    onSave: () => void;
-    onLaunch: () => void;
 }
 
 export const PreviewAndLaunch: React.FC<PreviewAndLaunchProps> = ({ 
     formData, 
-    onPrevious,
-    onSave,
-    onLaunch
+    onPrevious
 }) => {
     const [activeTab, setActiveTab] = useState<'conversational' | 'preview' | 'embed' | 'settings'>('conversational');
     const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile'>('desktop');
-    const [isLaunched, setIsLaunched] = useState(false);
     const [embedCodeCopied, setEmbedCodeCopied] = useState(false);
+    const [fundId, setFundId] = useState<string>('');
+    const [isLaunched, setIsLaunched] = useState(false);
+    
+    // Use the fund creation hook
+    const createFund = useCreateFund();
     
     // Generate embed code
     const embedCode = `<div id="nolia-application-form"></div>
@@ -43,10 +45,10 @@ export const PreviewAndLaunch: React.FC<PreviewAndLaunchProps> = ({
   });
 </script>`;
 
-    const shareableUrl = `https://apply.nolia.ai/form/${generateFormId()}`;
+    const shareableUrl = fundId ? `https://apply.nolia.ai/form/${fundId}` : `https://apply.nolia.ai/form/${generateFormId()}`;
 
     function generateFormId(): string {
-        return 'form_' + Math.random().toString(36).substr(2, 9);
+        return fundId || 'form_' + Math.random().toString(36).substr(2, 9);
     }
 
     const copyEmbedCode = async () => {
@@ -59,9 +61,29 @@ export const PreviewAndLaunch: React.FC<PreviewAndLaunchProps> = ({
         }
     };
 
-    const handleLaunch = () => {
-        setIsLaunched(true);
-        onLaunch();
+    const handleLaunch = async () => {
+        if (!formData.fundName || !formData.applicationForm) {
+            console.error('Missing required fund data');
+            return;
+        }
+
+        try {
+            const fundData: CreateFundData = {
+                fundName: formData.fundName,
+                applicationForm: formData.applicationForm,
+                applicationFormAnalysis: formData.applicationFormAnalysis,
+                selectionCriteria: formData.selectionCriteria || [],
+                selectionCriteriaAnalysis: formData.selectionCriteriaAnalysis,
+                goodExamples: formData.goodExamples || [],
+                goodExamplesAnalysis: formData.goodExamplesAnalysis,
+            };
+
+            const createdFund = await createFund.mutateAsync(fundData);
+            setFundId(createdFund.id);
+            setIsLaunched(true);
+        } catch (error) {
+            console.error('Failed to create fund:', error);
+        }
     };
 
     const mockFormPreview = () => (
@@ -183,7 +205,7 @@ export const PreviewAndLaunch: React.FC<PreviewAndLaunchProps> = ({
                             Applications can now be submitted through your AI-powered form.
                         </p>
                         <div className="flex items-center justify-center gap-4">
-                            <Button size="md" color="success" iconLeading={LinkExternal01} href={shareableUrl} target="_blank">
+                            <Button size="md" color="primary" iconLeading={LinkExternal01} href={shareableUrl} target="_blank">
                                 View Live Form
                             </Button>
                             <Button size="md" color="secondary" onClick={() => setActiveTab('embed')}>
@@ -388,53 +410,70 @@ export const PreviewAndLaunch: React.FC<PreviewAndLaunchProps> = ({
                     color="tertiary"
                     iconLeading={ArrowLeft}
                     onClick={onPrevious}
-                    disabled={isLaunched}
+                    isDisabled={createFund.isPending}
                 >
                     Previous
                 </Button>
                 
                 <div className="flex items-center gap-4">
-                    {!isLaunched && (
-                        <>
-                            <Button
-                                size="lg"
-                                color="secondary"
-                                onClick={onSave}
-                            >
-                                Save Draft
-                            </Button>
-                            <Button
-                                size="lg"
-                                color="primary"
-                                iconTrailing={Rocket01}
-                                onClick={handleLaunch}
-                            >
-                                Launch AI Form
-                            </Button>
-                        </>
+                    {createFund.isError && (
+                        <div className="flex items-center gap-2 text-error-600">
+                            <AlertCircle className="w-4 h-4" />
+                            <span className="text-sm">Failed to create fund</span>
+                        </div>
                     )}
                     
-                    {isLaunched && (
+                    {!createFund.isSuccess && (
                         <Button
                             size="lg"
-                            color="success"
-                            iconLeading={LinkExternal01}
-                            href={shareableUrl}
-                            target="_blank"
+                            color="primary"
+                            iconTrailing={createFund.isPending ? undefined : Rocket01}
+                            onClick={handleLaunch}
+                            isDisabled={createFund.isPending || !formData.fundName || !formData.applicationForm}
                         >
-                            View Live Form
+                            {createFund.isPending && (
+                                <LoadingIndicator type="dot-circle" size="sm" />
+                            )}
+                            {createFund.isPending ? 'Creating Fund...' : 'Create & Launch Fund'}
                         </Button>
+                    )}
+                    
+                    {createFund.isSuccess && (
+                        <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2 text-success-600">
+                                <CheckCircle className="w-5 h-5" />
+                                <span className="text-sm font-medium">Fund Created Successfully!</span>
+                            </div>
+                            <Button
+                                size="lg"
+                                color="success"
+                                iconLeading={LinkExternal01}
+                                href="/funding/setup"
+                            >
+                                View Fund Dashboard
+                            </Button>
+                        </div>
                     )}
                 </div>
             </div>
 
             {/* Final Help Text */}
-            {!isLaunched && (
+            {!createFund.isSuccess && (
                 <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
                     <p className="text-sm text-purple-800">
-                        <strong>Ready to go live?</strong> Once launched, your AI application form will be 
+                        <strong>Ready to go live?</strong> Once created, your AI application form will be 
                         available 24/7 to guide applicants and automatically validate submissions according 
                         to your criteria. You can always modify settings later.
+                    </p>
+                </div>
+            )}
+            
+            {createFund.isSuccess && (
+                <div className="bg-success-50 rounded-lg p-4 border border-success-200">
+                    <p className="text-sm text-success-800">
+                        <strong>🎉 Your fund has been created!</strong> The AI system has processed your documents 
+                        and is ready to assess applications. You can now view your fund in the dashboard and 
+                        start receiving applications.
                     </p>
                 </div>
             )}

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, DM_Serif_Display } from "next/font/google";
 import { RouteProvider } from "@/providers/router-provider";
 import { Theme } from "@/providers/theme";
+import { QueryProvider } from "@/providers/query-provider";
 import { cx } from "@/utils/cx";
 import "@/styles/globals.css";
 
@@ -37,7 +38,9 @@ export default function RootLayout({
         <html lang="en" suppressHydrationWarning>
             <body className={cx(inter.variable, dmSerifDisplay.variable, "bg-primary antialiased")}>
                 <RouteProvider>
-                    <Theme>{children}</Theme>
+                    <QueryProvider>
+                        <Theme>{children}</Theme>
+                    </QueryProvider>
                 </RouteProvider>
             </body>
         </html>

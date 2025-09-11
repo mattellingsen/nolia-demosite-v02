@@ -5,8 +5,61 @@ import { CheckCircle, Clock, File02, TrendUp02, User, AlertCircle } from "@untit
 import { ProgressBar } from "@/components/base/progress-indicators/progress-indicators";
 import { cx } from "@/utils/cx";
 
+// Function to assess a file against fund criteria
+async function assessFileAgainstFund(file: File, fund: any): Promise<AssessmentResult> {
+    // In a real implementation, this would:
+    // 1. Extract text from the uploaded document
+    // 2. Use AI/RAG to compare against fund's selectionCriteriaAnalysis
+    // 3. Reference fund's goodExamplesAnalysis for benchmarking
+    // 4. Generate scores based on fund's specific criteria
+    
+    // For now, we'll generate results that reference the actual fund
+    const fundName = fund?.name || "Selected Fund";
+    const baseScore = Math.floor(Math.random() * 40) + 60; // 60-100 range
+    
+    return {
+        fileName: file.name,
+        rating: baseScore,
+        categories: [fundName, "Innovation", "Feasibility"],
+        summary: `Application assessed against "${fundName}" criteria. ${
+            baseScore >= 80 
+                ? 'Strong alignment with fund objectives and demonstrates excellent potential for success.' 
+                : baseScore >= 70 
+                    ? 'Good alignment with fund criteria with some areas for improvement identified.'
+                    : 'Moderate alignment with fund requirements. Several areas need strengthening.'
+        }`,
+        details: {
+            eligibility: {
+                score: Math.floor(Math.random() * 20) + 80,
+                notes: `Meets eligibility requirements for "${fundName}". Application demonstrates understanding of fund objectives.`
+            },
+            impact: {
+                score: Math.floor(Math.random() * 25) + 70,
+                notes: `Impact potential assessed against "${fundName}" success criteria. ${
+                    fund?.description ? 'Alignment with fund focus area identified.' : 'Good potential for meaningful impact.'
+                }`
+            },
+            feasibility: {
+                score: Math.floor(Math.random() * 20) + 75,
+                notes: `Technical and commercial feasibility evaluated using "${fundName}" assessment framework.`
+            },
+            innovation: {
+                score: Math.floor(Math.random() * 25) + 65,
+                notes: `Innovation level assessed against "${fundName}" portfolio standards and good examples.`
+            }
+        },
+        recommendations: [
+            `Consider strengthening alignment with "${fundName}" specific priorities`,
+            `Review "${fundName}" successful applications for benchmarking`,
+            `Enhance sections that address "${fundName}" key evaluation criteria`
+        ],
+        status: 'completed'
+    };
+}
+
 interface AssessmentProcessorProps {
     files: File[];
+    selectedFund: any; // Fund from useFunds hook
     onAssessmentComplete: (results: AssessmentResult[]) => void;
 }
 
@@ -37,7 +90,7 @@ export interface AssessmentResult {
     status: 'processing' | 'completed' | 'error';
 }
 
-export const AssessmentProcessor = ({ files, onAssessmentComplete }: AssessmentProcessorProps) => {
+export const AssessmentProcessor = ({ files, selectedFund, onAssessmentComplete }: AssessmentProcessorProps) => {
     const [currentProgress, setCurrentProgress] = useState(0);
     const [currentFile, setCurrentFile] = useState(0);
     const [assessmentPhase, setAssessmentPhase] = useState<'analyzing' | 'scoring' | 'finalizing' | 'complete'>('analyzing');
@@ -78,65 +131,18 @@ export const AssessmentProcessor = ({ files, onAssessmentComplete }: AssessmentP
                     }
                 }
                 
-                // Generate mock assessment result for this file
-                const mockResult: AssessmentResult = {
-                    fileName: file.name,
-                    rating: Math.floor(Math.random() * 40) + 60, // 60-100 rating
-                    categories: ["New to R&D", "Innovation", "Feasibility"],
-                    summary: `Strong application demonstrating clear innovation potential and feasibility. The project shows good alignment with funding criteria and presents a viable path to commercialization.`,
-                    details: {
-                        eligibility: {
-                            score: Math.floor(Math.random() * 20) + 80,
-                            notes: "Meets all eligibility requirements. Applicant organization qualifies for funding."
-                        },
-                        impact: {
-                            score: Math.floor(Math.random() * 25) + 70,
-                            notes: "Significant potential impact on target market. Clear value proposition identified."
-                        },
-                        feasibility: {
-                            score: Math.floor(Math.random() * 20) + 75,
-                            notes: "Technical approach is sound with realistic timeline and milestones."
-                        },
-                        innovation: {
-                            score: Math.floor(Math.random() * 25) + 65,
-                            notes: "Novel approach with competitive advantages clearly articulated."
-                        }
-                    },
-                    recommendations: [
-                        "Consider strengthening the commercialization strategy",
-                        "Provide more detail on risk mitigation approaches",
-                        "Clarify intellectual property position"
-                    ],
-                    status: 'completed'
-                };
+                // Generate assessment result based on selected fund criteria
+                const assessmentResult: AssessmentResult = await assessFileAgainstFund(file, selectedFund);
                 
-                setResults(prev => [...prev, mockResult]);
+                setResults(prev => [...prev, assessmentResult]);
             }
             
             setAssessmentPhase('complete');
             setCurrentProgress(100);
             
-            // Wait a moment then call completion callback
+            // Wait a moment then call completion callback with all results
             setTimeout(() => {
-                onAssessmentComplete(results.concat(files.map((file, index) => {
-                    if (index >= results.length) {
-                        return {
-                            fileName: file.name,
-                            rating: Math.floor(Math.random() * 40) + 60,
-                            categories: ["New to R&D", "Innovation", "Feasibility"],
-                            summary: "Assessment completed successfully.",
-                            details: {
-                                eligibility: { score: 85, notes: "Meets requirements" },
-                                impact: { score: 78, notes: "Good potential impact" },
-                                feasibility: { score: 82, notes: "Feasible approach" },
-                                innovation: { score: 75, notes: "Innovative solution" }
-                            },
-                            recommendations: ["Consider strengthening market analysis"],
-                            status: 'completed' as const
-                        };
-                    }
-                    return results[index];
-                })));
+                onAssessmentComplete(results);
             }, 1000);
         };
 

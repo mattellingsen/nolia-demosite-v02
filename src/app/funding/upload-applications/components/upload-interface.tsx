@@ -110,7 +110,7 @@ export const UploadInterface = ({ mode, onFilesUploaded }: UploadInterfaceProps)
                         onSizeLimitExceed={(files) => {
                             console.log('Size limit exceeded:', files);
                         }}
-                        className="!bg-brand-secondary-25 !ring-1 !ring-brand-secondary-600 min-h-64 py-12 !flex !items-center !justify-center"
+                        className="!bg-white !border !border-brand-secondary-600 min-h-64 py-12 !flex !items-center !justify-center !rounded-lg upload-dropzone-shadow"
                     />
                     
                     {uploadedFiles.length > 0 && (
@@ -130,6 +130,12 @@ export const UploadInterface = ({ mode, onFilesUploaded }: UploadInterfaceProps)
                         </FileUpload.List>
                     )}
                 </FileUpload.Root>
+                
+                <style jsx global>{`
+                    .upload-dropzone-shadow {
+                        box-shadow: 0 0 0 8px #F2FAFC !important;
+                    }
+                `}</style>
             </div>
         </div>
     );

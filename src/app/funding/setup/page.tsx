@@ -1,3 +1,5 @@
+"use client";
+
 import { SetupDashboard } from "../../setup-dashboard";
 
 export default function SetupPage() {

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { useCreateFund } from "@/hooks/useFunds";
 import { 
     UploadCloud01, 
     ArrowRight, 
@@ -17,6 +19,7 @@ import { Button } from "@/components/base/buttons/button";
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
 import { FileUpload } from "@/components/application/file-upload/file-upload-base";
 import { Badge } from "@/components/base/badges/badges";
+import { Toggle } from "@/components/base/toggle/toggle";
 
 interface Step5Props {
     formData: any;
@@ -49,10 +52,13 @@ export const Step5TestAssessment: React.FC<Step5Props> = ({
     onNext,
     onPrevious
 }) => {
+    const router = useRouter();
+    const createFund = useCreateFund();
     const [testApplications, setTestApplications] = useState<TestApplication[]>([]);
     const [isRunningTest, setIsRunningTest] = useState(false);
     const [uploadError, setUploadError] = useState<string>('');
     const [testResults, setTestResults] = useState<{passes: number; fails: number; total: number} | null>(null);
+    const [isCreatingFund, setIsCreatingFund] = useState(false);
 
     const handleFileUpload = useCallback(async (files: FileList) => {
         const fileArray = Array.from(files);
@@ -83,7 +89,7 @@ export const Step5TestAssessment: React.FC<Step5Props> = ({
             name: file.name,
             file,
             status: 'pending',
-            expectedResult: Math.random() > 0.3 ? 'pass' : 'fail' // Mock expected results
+            expectedResult: 'pass' // Default to pass
         }));
 
         setTestApplications(prev => [...prev, ...newApplications]);
@@ -113,20 +119,30 @@ export const Step5TestAssessment: React.FC<Step5Props> = ({
             // Simulate processing time
             await new Promise(resolve => setTimeout(resolve, 2000));
             
-            // Mock assessment results
-            const mockAssessment = {
-                score: Math.floor(Math.random() * 40) + 60, // 60-100
-                criteriaScore: Math.floor(Math.random() * 30) + 70,
-                innovation: Math.floor(Math.random() * 20) + 80,
+            // Mock assessment results - make scores consistent with pass/fail
+            const shouldPass = Math.random() > 0.3; // 70% chance to pass
+            
+            const mockAssessment = shouldPass ? {
+                score: Math.floor(Math.random() * 25) + 75, // 75-100 for pass
+                criteriaScore: Math.floor(Math.random() * 25) + 75,
+                innovation: Math.floor(Math.random() * 25) + 75,
                 financial: Math.floor(Math.random() * 25) + 75,
-                team: Math.floor(Math.random() * 20) + 80,
-                market: Math.floor(Math.random() * 30) + 70,
-                risk: Math.floor(Math.random() * 15) + 85
+                team: Math.floor(Math.random() * 25) + 75,
+                market: Math.floor(Math.random() * 25) + 75,
+                risk: Math.floor(Math.random() * 25) + 75
+            } : {
+                score: Math.floor(Math.random() * 25) + 40, // 40-74 for fail
+                criteriaScore: Math.floor(Math.random() * 25) + 40,
+                innovation: Math.floor(Math.random() * 35) + 40,
+                financial: Math.floor(Math.random() * 35) + 40,
+                team: Math.floor(Math.random() * 35) + 40,
+                market: Math.floor(Math.random() * 35) + 40,
+                risk: Math.floor(Math.random() * 35) + 40
             };
             
             const passed = mockAssessment.score >= 75;
             const feedback = passed 
-                ? "Strong application meeting all key criteria. Innovation score particularly impressive."
+                ? "Strong application meeting all key criteria. Innovation and team scores particularly impressive."
                 : "Application falls short in several key areas. Consider strengthening financial projections and market analysis.";
             
             // Update with final results
@@ -143,21 +159,60 @@ export const Step5TestAssessment: React.FC<Step5Props> = ({
         
         setIsRunningTest(false);
         
-        // Calculate test results
-        const passes = testApplications.filter(app => app.status === 'pass' || (app.status === 'pending' && Math.random() > 0.3)).length;
-        const fails = testApplications.length - passes;
-        setTestResults({ passes, fails, total: testApplications.length });
+        // Calculate test results after all assessments are complete
+        setTestApplications(prev => {
+            const passes = prev.filter(app => app.status === 'pass').length;
+            const fails = prev.filter(app => app.status === 'fail').length;
+            setTestResults({ passes, fails, total: prev.length });
+            return prev;
+        });
     };
 
-    const setExpectedResult = (id: string, expected: 'pass' | 'fail') => {
+    const toggleExpectedResult = (id: string, shouldPass: boolean) => {
         setTestApplications(prev => prev.map(app => 
-            app.id === id ? { ...app, expectedResult: expected } : app
+            app.id === id ? { 
+                ...app, 
+                expectedResult: shouldPass ? 'pass' : 'fail' 
+            } : app
         ));
     };
 
     const hasApplications = testApplications.length > 0;
     const allTested = testApplications.every(app => app.status === 'pass' || app.status === 'fail');
     const canContinue = hasApplications && allTested && testResults;
+
+    const handleCompleteFund = async () => {
+        if (!formData.fundName || !formData.applicationForm) {
+            alert('Missing required fund data');
+            return;
+        }
+
+        setIsCreatingFund(true);
+        
+        try {
+            const fundData = {
+                fundName: formData.fundName,
+                description: `AI-powered fund created through setup wizard`,
+                applicationForm: formData.applicationForm,
+                applicationFormAnalysis: formData.applicationFormAnalysis,
+                selectionCriteria: formData.selectionCriteria,
+                selectionCriteriaAnalysis: formData.selectionCriteriaAnalysis,
+                goodExamples: formData.goodExamples,
+                goodExamplesAnalysis: formData.goodExamplesAnalysis,
+            };
+
+            await createFund.mutateAsync(fundData);
+            
+            // Redirect to setup dashboard
+            router.push('/funding/setup');
+            
+        } catch (error) {
+            console.error('Error creating fund:', error);
+            alert('Failed to create fund. Please try again.');
+        } finally {
+            setIsCreatingFund(false);
+        }
+    };
 
     const getStatusBadge = (status: TestApplication['status']) => {
         switch (status) {
@@ -192,6 +247,14 @@ export const Step5TestAssessment: React.FC<Step5Props> = ({
             {/* Upload Area */}
             <div className="flex justify-center">
                 <div className="w-full max-w-2xl">
+                    {/* Pro Tip */}
+                    <div className="bg-warning-50 rounded-lg p-4 border border-warning-200 mb-5">
+                        <p className="text-sm text-warning-800">
+                            <strong>Pro tip:</strong> Upload applications you've previously assessed so you can verify 
+                            Nolia reaches the same conclusions. This helps ensure your fund setup is accurate 
+                            before going live.
+                        </p>
+                    </div>
                     <FileUpload.Root>
                         <FileUpload.DropZone
                             hint="Upload test applications (PDF or Word documents, max. 10MB each)"
@@ -205,9 +268,14 @@ export const Step5TestAssessment: React.FC<Step5Props> = ({
                             onSizeLimitExceed={(files) => {
                                 setUploadError('File size must be less than 10MB.');
                             }}
-                            className="!bg-brand-secondary-25 !ring-1 !ring-brand-secondary-600 min-h-48 py-8 !flex !items-center !justify-center"
+                            className="!bg-white !border !border-brand-secondary-600 min-h-48 py-8 !flex !items-center !justify-center !rounded-lg upload-dropzone-custom"
                         />
                     </FileUpload.Root>
+                    <style jsx global>{`
+                        .upload-dropzone-custom {
+                            box-shadow: 0 0 0 8px #F2FAFC !important;
+                        }
+                    `}</style>
                 </div>
             </div>
 
@@ -244,7 +312,7 @@ export const Step5TestAssessment: React.FC<Step5Props> = ({
                                         <div className="flex-1">
                                             <div className="flex items-center gap-3 mb-2">
                                                 <p className="text-sm font-medium text-primary">{app.name}</p>
-                                                {getStatusBadge(app.status)}
+                                                {app.status !== 'pending' && getStatusBadge(app.status)}
                                                 {app.score && (
                                                     <span className="text-sm font-medium text-secondary">
                                                         Score: {app.score}/100
@@ -252,26 +320,15 @@ export const Step5TestAssessment: React.FC<Step5Props> = ({
                                                 )}
                                             </div>
                                             
-                                            {/* Expected Result Buttons */}
+                                            {/* Expected Result Toggle */}
                                             {app.status === 'pending' && (
-                                                <div className="flex items-center gap-2 mb-2">
-                                                    <span className="text-xs text-secondary">Expected:</span>
-                                                    <div className="flex gap-1">
-                                                        <Button
-                                                            size="sm"
-                                                            color={app.expectedResult === 'pass' ? 'success' : 'tertiary'}
-                                                            onClick={() => setExpectedResult(app.id, 'pass')}
-                                                        >
-                                                            Pass
-                                                        </Button>
-                                                        <Button
-                                                            size="sm"
-                                                            color={app.expectedResult === 'fail' ? 'error' : 'tertiary'}
-                                                            onClick={() => setExpectedResult(app.id, 'fail')}
-                                                        >
-                                                            Fail
-                                                        </Button>
-                                                    </div>
+                                                <div className="flex items-center gap-3 mb-2">
+                                                    <Toggle
+                                                        size="sm"
+                                                        label="Expected to pass"
+                                                        isSelected={app.expectedResult === 'pass'}
+                                                        onChange={(shouldPass) => toggleExpectedResult(app.id, shouldPass)}
+                                                    />
                                                 </div>
                                             )}
                                             
@@ -383,21 +440,13 @@ export const Step5TestAssessment: React.FC<Step5Props> = ({
                     size="lg"
                     color="primary"
                     iconTrailing={ArrowRight}
-                    onClick={onNext}
-                    isDisabled={!canContinue}
+                    onClick={handleCompleteFund}
+                    isDisabled={!canContinue || isCreatingFund}
                 >
-                    Continue to Preview
+                    {isCreatingFund ? 'Creating Fund...' : 'Complete Fund Setup'}
                 </Button>
             </div>
 
-            {/* Help Text */}
-            <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                <p className="text-sm text-blue-800">
-                    <strong>Pro tip:</strong> Upload applications you've previously assessed so you can verify 
-                    the AI system reaches the same conclusions. This helps ensure your fund setup is accurate 
-                    before going live.
-                </p>
-            </div>
         </div>
     );
 };

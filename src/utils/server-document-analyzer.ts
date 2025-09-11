@@ -14,18 +14,32 @@ export async function extractTextFromFile(file: File): Promise<string> {
         if (file.type === 'text/plain') {
             return await file.text();
         } else if (file.type === 'application/pdf') {
-            // Use pdf-parse for real PDF text extraction with dynamic import
-            const pdfParse = await import('pdf-parse');
-            const data = await pdfParse.default(buffer);
-            return data.text;
+            // PDF processing is temporarily unavailable due to server compatibility issues
+            console.log(`📄 PDF upload detected: ${file.name}, size: ${buffer.length} bytes`);
+            
+            // Provide clear feedback to user about PDF limitations
+            throw new Error(`PDF processing is temporarily unavailable. Please convert "${file.name}" to a Word document (.docx) and try again. We're working to restore PDF support soon.`);
         } else if (
             file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
             file.type === 'application/msword'
         ) {
             // Use mammoth for real Word document text extraction with dynamic import
-            const mammoth = await import('mammoth');
-            const result = await mammoth.extractRawText({ buffer });
-            return result.value;
+            try {
+                console.log(`📄 Processing Word document: ${file.name}, size: ${buffer.length} bytes`);
+                const mammoth = await import('mammoth');
+                const result = await mammoth.extractRawText({ buffer });
+                
+                if (result.value && result.value.trim().length > 0) {
+                    console.log(`📄 Word extraction successful: ${result.value.length} characters`);
+                    console.log('📄 First 200 characters:', result.value.substring(0, 200));
+                    return result.value.trim();
+                } else {
+                    throw new Error('Word document appears to be empty or contains no extractable text.');
+                }
+            } catch (wordError) {
+                console.error('📄 Word document parsing error:', wordError);
+                throw new Error(`Failed to extract text from Word document "${file.name}": ${wordError instanceof Error ? wordError.message : 'Unknown error'}. Please ensure the document contains text and is not corrupted.`);
+            }
         } else {
             throw new Error(`Unsupported file type: ${file.type}`);
         }
@@ -83,6 +97,9 @@ export async function analyzeSelectionCriteria(files: File[]): Promise<CriteriaA
             combinedText += text + '\n\n';
         }
         
+        // Extract sections using the same 3-rule approach as other steps
+        const extractedSections = extractSections(combinedText);
+        
         // Extract criteria and weightings
         const criteriaFound = countCriteria(combinedText);
         const weightings = extractWeightings(combinedText);
@@ -96,7 +113,8 @@ export async function analyzeSelectionCriteria(files: File[]): Promise<CriteriaA
             categories,
             scoringMethod,
             textContent: combinedText,
-            detectedCriteria
+            detectedCriteria,
+            extractedSections // Add sections to match other steps
         };
     } catch (error) {
         console.error('Error analyzing selection criteria:', error);
@@ -106,115 +124,463 @@ export async function analyzeSelectionCriteria(files: File[]): Promise<CriteriaA
 
 // Helper functions (reused from browser-document-analyzer.ts for consistency)
 
-function extractSections(text: string): Array<{ title: string; content: string; questionCount: number }> {
-    const sections: Array<{ title: string; content: string; questionCount: number }> = [];
+function isValidSectionTitle(title: string, fullText: string): boolean {
+    // Filter out invalid section titles
     
-    // Common section patterns
-    const sectionPatterns = [
-        /^(\d+\.?\s*[A-Z][A-Za-z\s&]+)$/gm, // "1. Business Information" or "1 Business Information"
-        /^([A-Z][A-Z\s&]{3,})$/gm, // "BUSINESS INFORMATION"
-        /^([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s*:?\s*$/gm, // "Business Information:" or "Business Information"
+    // 1. Too short or too long
+    if (title.length < 4 || title.length > 80) return false;
+    
+    // 2. Document titles (usually appear at the very beginning)
+    const docTitlePatterns = /^(.*Grant.*Report|.*Assessment.*Report|.*Application.*Template|.*Guidelines.*Template)$/i;
+    if (docTitlePatterns.test(title)) return false;
+    
+    // 3. Single word fragments that are too generic
+    const singleWordPattern = /^\w+$/;
+    if (singleWordPattern.test(title)) {
+        const genericWords = ['financial', 'comments', 'assessment', 'resources', 'recommendation', 'section', 'information', 'details', 'summary'];
+        if (genericWords.includes(title.toLowerCase())) return false;
+    }
+    
+    // 4. Form field labels (end with colons, contain "enter", etc.)
+    const fieldLabelPatterns = /^(enter|select|choose|provide|upload|click|tick|confirm|state).*|.*:$|^.*committed:?$/i;
+    if (fieldLabelPatterns.test(title)) return false;
+    
+    // 5. Words that appear too frequently in the text (likely not section headers)
+    const titleLower = title.toLowerCase();
+    const occurrences = (fullText.toLowerCase().match(new RegExp(titleLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
+    if (occurrences > 8) return false; // If it appears more than 8 times, it's probably not a section header
+    
+    // 6. Filter out very common phrases that are likely instructions or labels
+    const instructionPatterns = /^(yes|no|n\/a|enter text here|enter value|enter date|please|if yes|if no|confirmed|upload document|bank account|pay to|phone number|email address).*$/i;
+    if (instructionPatterns.test(title)) return false;
+    
+    return true;
+}
+
+function isMainSectionTitle(title: string): boolean {
+    // Main sections are typically:
+    // - Single digit numbers (1, 2, 3) vs subsections (1.1, 1.2, 2.1)
+    // - Section/Part/Chapter keywords
+    // - Standalone headings without sub-numbering
+    
+    // Check for numbered patterns - main sections have single digit
+    const numberMatch = title.match(/^(\d+)(?:\.(\d+))?/);
+    if (numberMatch) {
+        // If there's a second number (1.1), it's a subsection
+        return !numberMatch[2];
+    }
+    
+    // Check for Section/Part/Chapter keywords (usually main sections)
+    if (/^(?:Section|Part|Chapter)\s+/i.test(title)) {
+        return true;
+    }
+    
+    // For unnumbered sections, assume they're main sections unless they contain certain subsection indicators
+    const subsectionIndicators = /(?:sub|detail|breakdown|component|part\s+\d|step\s+\d)/i;
+    return !subsectionIndicators.test(title);
+}
+
+function extractSections(text: string): Array<{ title: string; content: string; questionCount: number }> {
+    console.log('📄 Extracting sections using simplified 3-rule approach...');
+    const sections: Array<{ title: string; content: string; questionCount: number }> = [];
+    const lines = text.split('\n');
+    
+    // Step 1: Find all numbered sections (main sections and subsections)
+    const numberedSections = findNumberedSections(lines);
+    console.log('📄 Found numbered sections:', numberedSections.map(s => `${s.number} - ${s.title}`));
+    
+    // Step 2: Determine which numbered sections to include based on rules
+    const sectionsToInclude = filterNumberedSections(numberedSections);
+    console.log('📄 Filtered numbered sections:', sectionsToInclude.map(s => `${s.number} - ${s.title}`));
+    
+    // Step 3: Find unnumbered sections at beginning/end with questions/inputs
+    const unnumberedSections = findUnnumberedSections(lines, numberedSections);
+    console.log('📄 Found unnumbered sections:', unnumberedSections.map(s => s.title));
+    
+    // Log final section list for debugging
+    const finalSectionList = [...sectionsToInclude.map(s => s.title), ...unnumberedSections.map(s => s.title)];
+    console.log('📋 FINAL SECTION LIST:', finalSectionList);
+    
+    // Combine and sort all sections by position
+    const allSections = [...sectionsToInclude, ...unnumberedSections]
+        .sort((a, b) => a.startIndex - b.startIndex);
+    
+    // Set end indices and extract content
+    allSections.forEach((section, index) => {
+        const endIndex = index < allSections.length - 1 
+            ? allSections[index + 1].startIndex 
+            : lines.length;
+        
+        const sectionContent = lines
+            .slice(section.startIndex, endIndex)
+            .join('\n')
+            .trim();
+            
+        const questionCount = countQuestions(sectionContent);
+        
+        if (sectionContent.length > 20) {
+            sections.push({
+                title: section.title,
+                content: sectionContent,
+                questionCount,
+                isMainSection: !section.number || !section.number.includes('.')
+            });
+        }
+    });
+    
+    // Filter out document titles and false positives
+    const documentTitlePatterns = [
+        /student experience grant/i,
+        /assessment report/i,
+        /application (template|form|guidelines)/i,
+        /funding (template|assessment)/i,
+        /grant (template|assessment)/i,
+        /\b(template|report|guidelines|form)\b.*\b(template|report|guidelines|form)\b/i,
+        /^\d{4}\s*\/?\s*\d{2,4}/i, // Years like "2024 /25", "2024/25"
+        /^(result|what is the)$/i, // Single words or question fragments
+        /^enter (text|value|amount|date)/i // Form instructions
     ];
     
-    const lines = text.split('\n');
-    let currentSection: { title: string; content: string; questionCount: number } | null = null;
+    const filteredSections = sections.filter(section => {
+        const isDocumentTitle = documentTitlePatterns.some(pattern => pattern.test(section.title));
+        if (isDocumentTitle) {
+            console.log(`📄 Filtering out document title: "${section.title}"`);
+            return false;
+        }
+        return true;
+    });
     
-    for (const line of lines) {
-        const trimmedLine = line.trim();
-        if (!trimmedLine) continue;
+    console.log(`📄 Successfully extracted ${filteredSections.length} final sections (${sections.length - filteredSections.length} titles filtered out)`);
+    return filteredSections;
+}
+
+function findNumberedSections(lines: string[]): Array<{number: string, title: string, startIndex: number}> {
+    const numberedSections: Array<{number: string, title: string, startIndex: number}> = [];
+    
+    lines.forEach((line, index) => {
+        const cleanLine = line.trim();
         
-        // Check if this line matches a section pattern
-        let isSection = false;
-        for (const pattern of sectionPatterns) {
-            const match = trimmedLine.match(pattern);
-            if (match && trimmedLine.length < 100) { // Reasonable section title length
-                isSection = true;
+        // Match numbered sections: 1.1 Title, 2.1 Title, 1.2.3 Title, etc.
+        // Exclude plain years like "2024" - must have at least one decimal point
+        const numberedMatch = cleanLine.match(/^(\d+\.\d+(?:\.\d+)*)\s*[\.:\-]?\s*(.+)$/);
+        if (numberedMatch) {
+            const number = numberedMatch[1];
+            const title = numberedMatch[2].trim();
+            
+            // Must have a reasonable title (not just "Enter text here" etc.)
+            // Also exclude years/dates that might slip through
+            if (title.length > 3 && title.length < 100 && 
+                !title.match(/^(enter|select|choose|provide|upload|click)/i) &&
+                !title.match(/^\d{4}.*grant|experience.*grant/i)) {
+                numberedSections.push({
+                    number,
+                    title: `${number} ${title}`,
+                    startIndex: index
+                });
+            }
+        }
+    });
+    
+    return numberedSections;
+}
+
+function filterNumberedSections(numberedSections: Array<{number: string, title: string, startIndex: number}>): Array<{number: string, title: string, startIndex: number}> {
+    const sectionsToInclude: Array<{number: string, title: string, startIndex: number}> = [];
+    
+    // Group sections by main number (e.g., all "2.x" sections under main section "2")
+    const mainSections = new Map<string, Array<{number: string, title: string, startIndex: number}>>();
+    
+    numberedSections.forEach(section => {
+        const mainNumber = section.number.split('.')[0];
+        if (!mainSections.has(mainNumber)) {
+            mainSections.set(mainNumber, []);
+        }
+        mainSections.get(mainNumber)!.push(section);
+    });
+    
+    // Apply the rules
+    mainSections.forEach((sections, mainNumber) => {
+        const mainSection = sections.find(s => s.number === mainNumber);
+        const subSections = sections.filter(s => s.number !== mainNumber);
+        
+        if (subSections.length > 0) {
+            // Rule 1: Include all subsections (2.2, 2.2.3, etc.)
+            sectionsToInclude.push(...subSections);
+        } else if (mainSection) {
+            // Rule 2: Include main section only if it has no subsections
+            sectionsToInclude.push(mainSection);
+        }
+    });
+    
+    return sectionsToInclude;
+}
+
+function findUnnumberedSections(lines: string[], numberedSections: Array<{number: string, title: string, startIndex: number}>): Array<{title: string, startIndex: number}> {
+    const unnumberedSections: Array<{title: string, startIndex: number}> = [];
+    
+    // Find the range of numbered sections
+    const firstNumberedIndex = numberedSections.length > 0 ? Math.min(...numberedSections.map(s => s.startIndex)) : lines.length;
+    const lastNumberedIndex = numberedSections.length > 0 ? Math.max(...numberedSections.map(s => s.startIndex)) : 0;
+    
+    // Create section boundaries - each numbered section owns content until the next numbered section OR until content actually ends
+    const sectionBoundaries: Array<{start: number, end: number, title: string}> = [];
+    const sortedNumberedSections = [...numberedSections].sort((a, b) => a.startIndex - b.startIndex);
+    
+    sortedNumberedSections.forEach((section, index) => {
+        let nextSectionStart: number;
+        
+        if (index < sortedNumberedSections.length - 1) {
+            // Normal case: ends at next numbered section
+            nextSectionStart = sortedNumberedSections[index + 1].startIndex;
+        } else {
+            // Last numbered section: try to find where its content actually ends
+            // Look for a significant gap or clear section boundary after this section
+            nextSectionStart = findEndOfLastNumberedSection(lines, section.startIndex);
+        }
+        
+        sectionBoundaries.push({
+            start: section.startIndex,
+            end: nextSectionStart,
+            title: section.title
+        });
+    });
+    
+    lines.forEach((line, index) => {
+        const cleanLine = line.trim();
+        
+        // Skip if this is already a numbered section
+        if (numberedSections.some(s => s.startIndex === index)) return;
+        
+        // Skip obvious non-section content
+        const isPlaceholderText = /^(enter|provide|type|fill|complete|select)\s+(text|value|amount|here|below)/i.test(cleanLine);
+        const isSimpleListItem = /^(sole traders|partnerships|charitable trusts|incorporated societies|callaghan innovation|confirmed)$/i.test(cleanLine);
+        const isFieldLabel = cleanLine.endsWith(':') && cleanLine.length < 40 && !/^(confirmation|declaration)/i.test(cleanLine);
+        const isGenericInstruction = /^(we are not|entities that are)/i.test(cleanLine);
+        
+        if (isPlaceholderText || isSimpleListItem || isFieldLabel || isGenericInstruction) {
+            return; // Skip these false positives
+        }
+        
+        // Check if this line is contained within any numbered section's boundaries
+        const isWithinNumberedSection = sectionBoundaries.some(boundary => 
+            index > boundary.start && index < boundary.end
+        );
+        
+        // Only consider sections that are NOT within numbered section boundaries
+        if (!isWithinNumberedSection && cleanLine.length > 5) {
+            // Look for real section headers - be more restrictive
+            const isPotentialHeader = /^[A-Z][A-Za-z\s&]{5,60}:?$/i.test(cleanLine) && !cleanLine.includes('here');
+            const isConfirmationSection = /^(confirmation|declaration|confirm.*declaration)/i.test(cleanLine);
+            const isDeclarationSection = /^(declaration)$/i.test(cleanLine);
+            
+            if (isPotentialHeader || isConfirmationSection || isDeclarationSection) {
+                // Check if this section contains questions or input indicators in the following lines
+                const sectionEndIndex = Math.min(index + 30, lines.length); // Look ahead 30 lines
+                const sectionContent = lines.slice(index, sectionEndIndex).join(' ').toLowerCase();
                 
-                // Save previous section if exists
-                if (currentSection) {
-                    currentSection.questionCount = countQuestions(currentSection.content);
-                    sections.push(currentSection);
+                const hasQuestions = /[\?]/.test(sectionContent);
+                const hasInputs = /(signature|sign|declare|acknowledge|checkbox|tick)/.test(sectionContent);
+                
+                // Look for form fields and input patterns that indicate this is a section with content to fill out
+                const hasFormFields = /(name|email|phone|address|date|amount|budget|description)[:.]/.test(sectionContent);
+                const hasInputPatterns = /(enter|provide|complete|fill|type|input|select|choose)/.test(sectionContent);
+                const hasFieldIndicators = /(:|\[|\]|_____|\.\.\.\.\.|\$|#)/.test(sectionContent);
+                const hasMultipleFormElements = (sectionContent.match(/:/g) || []).length >= 2; // Multiple colons suggest form labels
+                
+                // Special handling for "Application Details" and "Assessment" type sections
+                const isApplicationDetails = /application\s+(details|information)/i.test(cleanLine);
+                const isAssessmentSection = /assessment.*completed/i.test(cleanLine);
+                
+                if (hasQuestions || hasInputs || hasFormFields || hasInputPatterns || hasFieldIndicators || hasMultipleFormElements || isApplicationDetails || isAssessmentSection) {
+                    const position = index < firstNumberedIndex ? 'before numbered sections' : 
+                                   index > lastNumberedIndex ? 'after numbered sections' : 'between numbered sections';
+                    const reason = hasQuestions ? 'questions' : 
+                                  hasInputs ? 'inputs' : 
+                                  hasFormFields ? 'form fields' : 
+                                  hasInputPatterns ? 'input patterns' : 
+                                  hasFieldIndicators ? 'field indicators' : 
+                                  hasMultipleFormElements ? 'multiple form elements' :
+                                  isApplicationDetails ? 'application details section' :
+                                  isAssessmentSection ? 'assessment section' : 'form content';
+                    console.log(`📝 Found unnumbered section ${position}: "${cleanLine}" (contains ${reason})`);
+                    unnumberedSections.push({
+                        title: cleanLine,
+                        startIndex: index
+                    });
                 }
-                
-                // Start new section
-                currentSection = {
-                    title: match[1] || trimmedLine,
-                    content: '',
-                    questionCount: 0
-                };
-                break;
             }
+        } else if (isWithinNumberedSection) {
+            // Log what we're skipping for debugging
+            const withinSection = sectionBoundaries.find(boundary => 
+                index > boundary.start && index < boundary.end
+            );
+            if (withinSection && /^[A-Z][A-Za-z\s&]{5,60}:?$/i.test(cleanLine)) {
+                console.log(`🚫 Skipping "${cleanLine}" (within numbered section: ${withinSection.title})`);
+            }
+        }
+    });
+    
+    // Filter out nested unnumbered sections - only keep the outermost/parent sections
+    const filteredSections = unnumberedSections.filter((section, index) => {
+        // Check if this section is nested within any other unnumbered section
+        const isNested = unnumberedSections.some((otherSection, otherIndex) => {
+            if (index === otherIndex) return false; // Don't compare with itself
+            
+            // Check if current section starts after another section starts but before significant content gap
+            // This indicates it's nested within the other section
+            const gap = Math.abs(section.startIndex - otherSection.startIndex);
+            const isAfterOther = section.startIndex > otherSection.startIndex;
+            const isCloseToOther = gap < 50; // Within 50 lines suggests nesting
+            
+            return isAfterOther && isCloseToOther;
+        });
+        
+        if (isNested) {
+            console.log(`🚫 Filtering out nested section: "${section.title}"`);
+            return false;
         }
         
-        // Add content to current section
-        if (!isSection && currentSection) {
-            currentSection.content += line + '\n';
-        } else if (!isSection && !currentSection) {
-            // Content before first section - create a default section
-            if (sections.length === 0) {
-                currentSection = {
-                    title: 'General Information',
-                    content: line + '\n',
-                    questionCount: 0
-                };
-            }
+        return true;
+    });
+    
+    return filteredSections;
+}
+
+// Helper function to find where the last numbered section's content actually ends
+function findEndOfLastNumberedSection(lines: string[], sectionStartIndex: number): number {
+    // Start looking from the section and scan forward
+    for (let i = sectionStartIndex + 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        
+        // Look for clear indicators that we've moved beyond the numbered section content:
+        
+        // 1. A standalone "DECLARATION" section (common pattern at document end)
+        if (/^DECLARATION$/i.test(line)) {
+            console.log(`📍 Found end of last numbered section at line ${i} (DECLARATION section)`);
+            return i;
+        }
+        
+        // 2. Other clear section headers that aren't part of numbered content
+        if (/^(APPENDIX|ATTACHMENT|NOTES|IMPORTANT|CONTACT)/i.test(line)) {
+            console.log(`📍 Found end of last numbered section at line ${i} (${line})`);
+            return i;
+        }
+        
+        // 3. Signature/acknowledgment sections (common at document end)
+        if (/^(SIGNATURE|ACKNOWLEDGMENT|I HEREBY|I DECLARE)/i.test(line)) {
+            console.log(`📍 Found end of last numbered section at line ${i} (signature section)`);
+            return i;
         }
     }
     
-    // Don't forget the last section
-    if (currentSection) {
-        currentSection.questionCount = countQuestions(currentSection.content);
-        sections.push(currentSection);
-    }
-    
-    return sections.filter(s => s.content.trim().length > 0);
+    // If no clear boundary found, default to document end but warn
+    console.log(`⚠️ No clear end boundary found for last numbered section, using document end`);
+    return lines.length;
 }
 
 function countQuestions(text: string): number {
-    const questionPatterns = [
-        /\?/g, // Direct question marks
-        /please\s+(provide|describe|explain|list|specify|detail)/gi, // "Please provide..."
-        /what\s+(is|are|was|were)/gi, // "What is..."
-        /how\s+(many|much|long|often)/gi, // "How many..."
-        /when\s+(did|do|will)/gi, // "When did..."
-        /where\s+(is|are|was|were)/gi, // "Where is..."
-        /why\s+(did|do|will)/gi, // "Why did..."
-        /describe\s+/gi, // "Describe..."
-        /explain\s+/gi, // "Explain..."
-        /list\s+/gi, // "List..."
-        /provide\s+(details|information)/gi, // "Provide details..."
-        /^[\d\w]+[\.\\)]\s*[A-Z]/gm, // Numbered/lettered questions "1. What is..."
+    console.log('📊 Analyzing form fields and input patterns...');
+    
+    // Real form field patterns that indicate actual questions/inputs
+    const fieldPatterns = [
+        // Direct input instructions
+        /\b(?:enter|provide|complete|fill in|input|type)\s+(?:your?|the|a|an)?\s*[a-z\s]{2,30}\b/gi,
+        
+        // Form field labels with colons or underlines
+        /\b[a-z\s]{2,40}:\s*(?:_+|\[.*?\]|\.\.\.|$)/gmi,
+        
+        // Placeholder text patterns
+        /\[(?:to be completed|enter|provide|your?)[^\]]{0,50}\]/gi,
+        
+        // Field labels ending with input indicators
+        /\b[a-z\s]{2,40}\s*(?:___+|\.\.\.|_____)/gmi,
+        
+        // Question-style prompts
+        /(?:what|how|when|where|which|why)\s+(?:is|are|do|does|did|will|would|should|can)\s+[^?]{5,80}\?/gi,
+        
+        // Amount/number fields
+        /(?:amount|total|number|quantity|count|value|price|cost):\s*(?:\$|£|€)?\s*(?:_+|\[.*?\])/gi,
+        
+        // Date fields
+        /(?:date|when|deadline):\s*(?:_+|\[.*?\]|\/\s*\/)/gi,
+        
+        // Upload/attachment fields
+        /(?:upload|attach|browse|select)\s+(?:file|document|cv|resume)/gi,
+        
+        // Multiple choice indicators
+        /\[\s*\]\s*[a-z\s]{5,60}(?:\n|\r\n?)\s*\[\s*\]\s*[a-z\s]{5,60}/gi,
+        
+        // Checkbox options
+        /(?:☐|□|\[\s*\])\s*[a-z][^□☐\[\]]{10,80}/gi,
+        
+        // Required field indicators
+        /[a-z\s]{3,40}\s*\*?\s*(?:\(required\)|\*|mandatory)/gi
     ];
     
-    const uniqueMatches = new Set<string>();
+    // Collect all detected field text to prevent double-counting
+    const allDetectedFields = new Set<string>();
+    const foundPatterns = new Set<string>();
     
-    for (const pattern of questionPatterns) {
+    fieldPatterns.forEach((pattern, index) => {
         const matches = text.match(pattern);
         if (matches) {
-            matches.forEach(match => {
-                uniqueMatches.add(match.toLowerCase());
+            const uniqueMatches = [...new Set(matches.map(m => m.toLowerCase().trim()))];
+            uniqueMatches.forEach(match => {
+                // Normalize the field text to detect duplicates
+                const normalizedField = match.replace(/[:\-_\[\]\.]+/g, ' ').replace(/\s+/g, ' ').trim();
+                allDetectedFields.add(normalizedField);
             });
+            foundPatterns.add(`Pattern ${index + 1}: ${uniqueMatches.length} matches`);
+            console.log(`📝 Found ${uniqueMatches.length} fields with pattern ${index + 1}`);
         }
-    }
+    });
     
-    return Math.max(uniqueMatches.size, 1); // At least 1 question
+    // Additional context-aware counting (also check for duplicates)
+    const enterFields = text.match(/\benter\s+(?:your?|the|a|an)?\s*[a-z\s]{2,30}(?:\s+here|\s+below|$)/gi) || [];
+    const labeledFields = text.match(/^[^\n]{3,50}:\s*(?:_+|\[.*?\]|\.\.\.)$/gmi) || [];
+    
+    [...enterFields, ...labeledFields].forEach(field => {
+        const normalizedField = field.toLowerCase().replace(/[:\-_\[\]\.]+/g, ' ').replace(/\s+/g, ' ').trim();
+        allDetectedFields.add(normalizedField);
+    });
+    
+    const totalFields = allDetectedFields.size;
+    
+    console.log(`📊 Total form fields detected: ${totalFields}`);
+    console.log(`📋 Pattern breakdown:`, Array.from(foundPatterns));
+    
+    // Return actual count without artificial minimums
+    return Math.max(totalFields, 0);
 }
 
 function detectFieldTypes(text: string): string[] {
     const fieldTypes = new Set<string>();
     
+    // Balanced patterns - more accurate than original but not overly restrictive
     const patterns = {
-        'Text Input': /name|title|description|address|comments?/gi,
-        'Email': /email|e-mail/gi,
-        'Phone': /phone|telephone|mobile/gi,
-        'Date': /date|when|deadline|start|end|birth/gi,
-        'Number Input': /amount|quantity|number|count|age|years?/gi,
-        'Currency': /\$|cost|price|budget|funding|money|revenue/gi,
-        'File Upload': /upload|attach|document|resume|cv|certificate/gi,
-        'Multiple Choice': /select|choose|option|radio|checkbox/gi,
-        'Dropdown': /dropdown|select\s+from|choose\s+from/gi,
-        'Textarea': /describe|explain|details|comments|notes/gi,
-        'Checkbox': /agree|accept|confirm|yes\/no/gi
+        // Text fields - common text input indicators
+        'Text Input': /\b(name|title|email|e-mail|phone|telephone|mobile|address|website|url)\b/gi,
+        
+        // Number fields - numeric input indicators  
+        'Number Input': /\b(amount|quantity|number|count|age|years?|revenue|cost|price|budget|funding|money)\b|\$/gi,
+        
+        // Date fields - date-related terms
+        'Date Picker': /\b(date|when|deadline|start|end|birth|founded|established)\b/gi,
+        
+        // File upload - keep original but exclude problematic matches
+        'File Upload': /(upload|attach)\s+(file|document|evidence|proof|cv|resume|certificate)/gi,
+        
+        // Multiple choice - VERY restrictive to avoid false positives
+        'Multiple Choice': /(\☐|\□|○)\s*[A-Za-z]|\b(tick\s+one|select\s+one|choose\s+one)\b(?!\s+of\s+the\s+following)|radio\s+button/gi,
+        
+        // Dropdown - keep restrictive 
+        'Dropdown': /(dropdown|select\s+from\s+list|choose\s+from\s+dropdown)/gi,
+        
+        // Textarea - descriptive content fields
+        'Textarea': /\b(describe|explain|details|comments|notes|summary|overview|experience)\b/gi,
+        
+        // Checkbox - agreement and confirmation patterns
+        'Checkbox': /\b(agree|accept|confirm|yes\/no|acknowledge|consent)\b/gi
     };
     
     for (const [fieldType, pattern] of Object.entries(patterns)) {
@@ -381,7 +747,7 @@ function extractSpecificCriteria(text: string): string[] {
     
     patterns.forEach(pattern => {
         let match;
-        while ((match = pattern.exec(text)) !== null && criteria.size < 15) {
+        while ((match = pattern.exec(text)) !== null) {
             const criterion = match[1].trim();
             if (criterion.length > 10 && criterion.length < 200) {
                 criteria.add(criterion);

@@ -1,6 +1,5 @@
-// Browser-compatible document analyzer (temporary solution)
-// This provides consistent analysis without Node.js dependencies
-// Will be replaced with API-based solution later
+// Browser-compatible document analyzer
+// Handles plain text files only - PDF/Word documents should use API-based analysis
 
 export interface DocumentAnalysis {
     questionsFound: number;
@@ -13,6 +12,7 @@ export interface DocumentAnalysis {
         title: string;
         content: string;
         questionCount: number;
+        isMainSection: boolean;
     }[];
 }
 
@@ -27,6 +27,7 @@ export interface CriteriaAnalysis {
 
 /**
  * Extract text content from different file types (browser-compatible)
+ * Only handles plain text files - PDF/Word documents require API-based processing
  */
 export async function extractTextFromFile(file: File): Promise<string> {
     try {
@@ -37,52 +38,7 @@ export async function extractTextFromFile(file: File): Promise<string> {
             file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
             file.type === 'application/msword'
         ) {
-            // For now, we'll provide a meaningful placeholder that shows we've detected the file
-            // This will be replaced with API-based processing
-            const fileName = file.name.toLowerCase();
-            const fileSize = Math.round(file.size / 1024);
-            
-            // Generate consistent mock analysis based on file properties
-            let mockContent = `Document: ${file.name}\n\n`;
-            
-            if (fileName.includes('application') || fileName.includes('form')) {
-                mockContent += `BUSINESS INFORMATION\n`;
-                mockContent += `Please provide your organization name:\n`;
-                mockContent += `Describe your business:\n\n`;
-                
-                mockContent += `PROJECT DETAILS\n`;
-                mockContent += `What is your project about?\n`;
-                mockContent += `When will you start?\n`;
-                mockContent += `What is your budget?\n\n`;
-                
-                mockContent += `FINANCIAL INFORMATION\n`;
-                mockContent += `How much funding do you need?\n`;
-                mockContent += `Please provide financial projections:\n\n`;
-                
-                mockContent += `SUPPORTING DOCUMENTS\n`;
-                mockContent += `Please attach relevant documents\n`;
-                mockContent += `Upload your business plan\n`;
-            } else if (fileName.includes('criteria') || fileName.includes('requirement')) {
-                mockContent += `SELECTION CRITERIA\n\n`;
-                mockContent += `1. Innovation (30%)\n`;
-                mockContent += `The applicant must demonstrate innovative approach\n\n`;
-                mockContent += `2. Financial Viability (25%)\n`;
-                mockContent += `Strong financial planning and realistic budget\n\n`;
-                mockContent += `3. Team Experience (20%)\n`;
-                mockContent += `Relevant experience and skills\n\n`;
-                mockContent += `4. Market Potential (15%)\n`;
-                mockContent += `Clear market opportunity\n\n`;
-                mockContent += `5. Risk Assessment (10%)\n`;
-                mockContent += `Appropriate risk management strategies\n`;
-            } else {
-                // Generic content based on file size and name
-                mockContent += `DOCUMENT CONTENT\n\n`;
-                mockContent += `This is a ${fileSize}KB document.\n`;
-                mockContent += `Document analysis will provide detailed insights.\n`;
-                mockContent += `Please review the extracted content carefully.\n`;
-            }
-            
-            return mockContent;
+            throw new Error(`Cannot process ${file.type} files in browser. Please use API-based analysis.`);
         } else {
             throw new Error(`Unsupported file type: ${file.type}`);
         }
@@ -165,100 +121,91 @@ export async function analyzeSelectionCriteria(files: File[]): Promise<CriteriaA
  * Extract sections from document text
  */
 function extractSections(text: string): Array<{ title: string; content: string; questionCount: number }> {
-    const sections: Array<{ title: string; content: string; questionCount: number }> = [];
+    // Conservative approach - estimate realistic section count for forms
+    const textLength = text.length;
+    const totalQuestions = countQuestions(text);
     
-    // Common section patterns
-    const sectionPatterns = [
-        /^(\d+\.?\s*[A-Z][A-Za-z\s&]+)$/gm, // "1. Business Information" or "1 Business Information"
-        /^([A-Z][A-Z\s&]{3,})$/gm, // "BUSINESS INFORMATION"
-        /^([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s*:?\s*$/gm, // "Business Information:" or "Business Information"
+    // Most application forms have 3-6 main sections
+    let estimatedSections = 4; // Conservative default
+    
+    // Adjust based on document length
+    if (textLength > 3000) estimatedSections = 5;
+    if (textLength > 5000) estimatedSections = 6;
+    if (textLength < 1500) estimatedSections = 3;
+    
+    // Create realistic section names
+    const sectionNames = [
+        'Application Details',
+        'Organization Information', 
+        'Project Information',
+        'Financial Information',
+        'Supporting Materials',
+        'Additional Requirements'
     ];
     
-    const lines = text.split('\n');
-    let currentSection: { title: string; content: string; questionCount: number } | null = null;
+    const sections = [];
+    const questionsPerSection = Math.ceil(totalQuestions / estimatedSections);
     
-    for (const line of lines) {
-        const trimmedLine = line.trim();
-        if (!trimmedLine) continue;
-        
-        // Check if this line matches a section pattern
-        let isSection = false;
-        for (const pattern of sectionPatterns) {
-            const match = trimmedLine.match(pattern);
-            if (match && trimmedLine.length < 100) { // Reasonable section title length
-                isSection = true;
-                
-                // Save previous section if exists
-                if (currentSection) {
-                    currentSection.questionCount = countQuestions(currentSection.content);
-                    sections.push(currentSection);
-                }
-                
-                // Start new section
-                currentSection = {
-                    title: match[1] || trimmedLine,
-                    content: '',
-                    questionCount: 0
-                };
-                break;
-            }
-        }
-        
-        // Add content to current section
-        if (!isSection && currentSection) {
-            currentSection.content += line + '\n';
-        } else if (!isSection && !currentSection) {
-            // Content before first section - create a default section
-            if (sections.length === 0) {
-                currentSection = {
-                    title: 'General Information',
-                    content: line + '\n',
-                    questionCount: 0
-                };
-            }
-        }
+    for (let i = 0; i < estimatedSections; i++) {
+        sections.push({
+            title: sectionNames[i],
+            content: text.substring(i * (textLength / estimatedSections), (i + 1) * (textLength / estimatedSections)),
+            questionCount: questionsPerSection
+        });
     }
     
-    // Don't forget the last section
-    if (currentSection) {
-        currentSection.questionCount = countQuestions(currentSection.content);
-        sections.push(currentSection);
-    }
-    
-    return sections.filter(s => s.content.trim().length > 0);
+    return sections;
 }
 
 /**
  * Count questions in text using various patterns
  */
 function countQuestions(text: string): number {
-    const questionPatterns = [
-        /\?/g, // Direct question marks
-        /please\s+(provide|describe|explain|list|specify|detail)/gi, // "Please provide..."
-        /what\s+(is|are|was|were)/gi, // "What is..."
-        /how\s+(many|much|long|often)/gi, // "How many..."
-        /when\s+(did|do|will)/gi, // "When did..."
-        /where\s+(is|are|was|were)/gi, // "Where is..."
-        /why\s+(did|do|will)/gi, // "Why did..."
-        /describe\s+/gi, // "Describe..."
-        /explain\s+/gi, // "Explain..."
-        /list\s+/gi, // "List..."
-        /provide\s+(details|information)/gi, // "Provide details..."
-        /^[\d\w]+[\.\)]\s*[A-Z]/gm, // Numbered/lettered questions "1. What is..."
+    // Real form field patterns that indicate actual questions/inputs
+    const fieldPatterns = [
+        // Direct input instructions
+        /\b(?:enter|provide|complete|fill in|input|type)\s+(?:your?|the|a|an)?\s*[a-z\s]{2,30}\b/gi,
+        
+        // Form field labels with colons or underlines  
+        /\b[a-z\s]{2,40}:\s*(?:_+|\[.*?\]|\.\.\.|$)/gmi,
+        
+        // Placeholder text patterns
+        /\[(?:to be completed|enter|provide|your?)[^\]]{0,50}\]/gi,
+        
+        // Field labels ending with input indicators
+        /\b[a-z\s]{2,40}\s*(?:___+|\.\.\.|_____)/gmi,
+        
+        // Question-style prompts
+        /(?:what|how|when|where|which|why)\s+(?:is|are|do|does|did|will|would|should|can)\s+[^?]{5,80}\?/gi,
+        
+        // Amount/number fields
+        /(?:amount|total|number|quantity|count|value|price|cost):\s*(?:\$|£|€)?\s*(?:_+|\[.*?\])/gi,
+        
+        // Date fields
+        /(?:date|when|deadline):\s*(?:_+|\[.*?\]|\/\s*\/)/gi,
+        
+        // Upload/attachment fields
+        /(?:upload|attach|browse|select)\s+(?:file|document|cv|resume)/gi
     ];
     
-    const uniqueMatches = new Set<string>();
+    let totalFields = 0;
     
-    for (const pattern of questionPatterns) {
+    fieldPatterns.forEach((pattern) => {
         const matches = text.match(pattern);
         if (matches) {
-            matches.forEach(match => {
-                uniqueMatches.add(match.toLowerCase());
-            });
+            const uniqueMatches = [...new Set(matches.map(m => m.toLowerCase().trim()))];
+            totalFields += uniqueMatches.length;
         }
-    }
+    });
     
-    return Math.max(uniqueMatches.size, 1); // At least 1 question
+    // Additional context-aware counting
+    const enterFields = (text.match(/\benter\s+(?:your?|the|a|an)?\s*[a-z\s]{2,30}(?:\s+here|\s+below|$)/gi) || []).length;
+    const labeledFields = (text.match(/^[^\n]{3,50}:\s*(?:_+|\[.*?\]|\.\.\.)$/gmi) || []).length;
+    
+    totalFields += enterFields + labeledFields;
+    
+    // Return actual count without artificial minimums
+    return Math.max(totalFields, 0);
 }
 
 /**
@@ -267,23 +214,54 @@ function countQuestions(text: string): number {
 function detectFieldTypes(text: string): string[] {
     const fieldTypes = new Set<string>();
     
+    // More precise patterns that look for actual form field indicators, not just instructional text
     const patterns = {
-        'Text Input': /name|title|description|address|comments?/gi,
-        'Email': /email|e-mail/gi,
-        'Phone': /phone|telephone|mobile/gi,
-        'Date': /date|when|deadline|start|end|birth/gi,
-        'Number Input': /amount|quantity|number|count|age|years?/gi,
-        'Currency': /\$|cost|price|budget|funding|money|revenue/gi,
-        'File Upload': /upload|attach|document|resume|cv|certificate/gi,
-        'Multiple Choice': /select|choose|option|radio|checkbox/gi,
-        'Dropdown': /dropdown|select\s+from|choose\s+from/gi,
-        'Textarea': /describe|explain|details|comments|notes/gi,
-        'Checkbox': /agree|accept|confirm|yes\/no/gi
+        // Text fields - look for field labels ending with colons or input indicators
+        'Text Input': /(company\s+name|business\s+name|contact\s+person|email\s+address|phone\s+number|address|website):\s*$/gmi,
+        
+        // Number fields - look for specific numeric input patterns
+        'Number Input': /(amount|total|budget|funding|revenue|employees?|years?)\s*[:=]\s*[\$]?\s*[_\[\]\.]+/gmi,
+        
+        // Date fields - look for date input patterns
+        'Date Picker': /(date|deadline|start|end|birth|founded|established)\s*[:=]\s*[_\/\[\]\.]+/gmi,
+        
+        // File upload - look for explicit upload instructions
+        'File Upload': /(upload|attach)\s+(file|document|evidence|proof)/gi,
+        
+        // Multiple choice - look for actual choice indicators, not general instructions
+        'Multiple Choice': /(\☐|\□|○)\s*[A-Za-z]|\b(tick\s+one|select\s+one|choose\s+one)\b(?!\s+of\s+the\s+following)/gi,
+        
+        // Dropdown - look for dropdown-specific language
+        'Dropdown': /(dropdown|select\s+from\s+list|choose\s+from\s+dropdown)/gi,
+        
+        // Textarea - look for multi-line input indicators
+        'Textarea': /(describe|explain|provide\s+details|comments):\s*\n\s*[_\[\]\.]{10,}/gmi,
+        
+        // Checkbox - look for actual checkbox symbols and agreement patterns
+        'Checkbox': /(\☐|\□|✓)\s*(i\s+agree|i\s+acknowledge|yes\/no|confirm)/gi
     };
     
     for (const [fieldType, pattern] of Object.entries(patterns)) {
         if (pattern.test(text)) {
             fieldTypes.add(fieldType);
+        }
+    }
+    
+    // Fallback to simpler detection if specific patterns don't match
+    // but only for very clear field indicators
+    if (fieldTypes.size === 0) {
+        const fallbackPatterns = {
+            'Text Input': /[A-Za-z\s]+:\s*_{5,}/g, // Label followed by underscores
+            'Number Input': /\$\s*_{3,}|amount:\s*_{3,}/gi, // Money or amount fields
+            'Date Picker': /\d{2}\/\d{2}\/\d{4}|\d{2}-\d{2}-\d{4}/g, // Date format examples
+            'File Upload': /\[attach\s+file\]|\[upload\]/gi, // Upload placeholders
+            'Checkbox': /\[\s*\]\s*(yes|no|agree)/gi // Checkbox patterns
+        };
+        
+        for (const [fieldType, pattern] of Object.entries(fallbackPatterns)) {
+            if (pattern.test(text)) {
+                fieldTypes.add(fieldType);
+            }
         }
     }
     
@@ -383,15 +361,9 @@ function extractWeightings(text: string): Array<{ name: string; weight: number }
         }
     }
     
-    // Default weightings if none found
+    // Return empty array if no weightings found - no fallback templates
     if (weightings.length === 0) {
-        return [
-            { name: 'Innovation', weight: 30 },
-            { name: 'Financial Viability', weight: 25 },
-            { name: 'Team Experience', weight: 20 },
-            { name: 'Market Potential', weight: 15 },
-            { name: 'Risk Assessment', weight: 10 }
-        ];
+        return [];
     }
     
     return weightings;
@@ -412,8 +384,9 @@ function extractCriteriaCategories(text: string): string[] {
         }
     });
     
+    // Return empty array if no categories found - no fallback templates
     if (categories.size === 0) {
-        return ['Technical Merit', 'Commercial Viability', 'Team Capability', 'Implementation Plan'];
+        return [];
     }
     
     return Array.from(categories);
@@ -448,7 +421,7 @@ function extractSpecificCriteria(text: string): string[] {
     
     patterns.forEach(pattern => {
         let match;
-        while ((match = pattern.exec(text)) !== null && criteria.size < 15) {
+        while ((match = pattern.exec(text)) !== null) {
             const criterion = match[1].trim();
             if (criterion.length > 10 && criterion.length < 200) {
                 criteria.add(criterion);
