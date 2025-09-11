@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma, saveFundWithDocuments, getAllFunds, fileToBuffer } from '@/lib/database-s3';
 import { analyzeApplicationForm, analyzeSelectionCriteria } from '@/utils/server-document-analyzer';
+import { saveFundWithRAG } from '@/lib/rag-database';
 
 export async function POST(request: NextRequest) {
   try {
@@ -82,8 +83,8 @@ export async function POST(request: NextRequest) {
       goodExamplesAnalysis = await analyzeSelectionCriteria(goodExamplesFiles);
     }
 
-    // Save fund with all documents to database
-    const fund = await saveFundWithDocuments({
+    // Save fund with all documents and RAG integration
+    const fund = await saveFundWithRAG({
       name,
       description,
       applicationForm: applicationFormData,

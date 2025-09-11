@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Eye, Code01, ArrowLeft, Rocket01, Copy01, LinkExternal01, Settings01, CheckCircle, Monitor04, Phone, MessageChatCircle } from "@untitledui/icons";
+import { Code01, ArrowLeft, Rocket01, Copy01, LinkExternal01, Settings01, CheckCircle, MessageChatCircle } from "@untitledui/icons";
 import { Button } from "@/components/base/buttons/button";
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
 import { ButtonGroup, ButtonGroupItem } from "@/components/base/button-group/button-group";
 import { ConversationalPreview } from "./conversational-preview";
+import { CodeSnippet } from "@/components/application/code-snippet/code-snippet";
 
 interface PreviewAndLaunchProps {
     formData: any;
@@ -20,8 +21,7 @@ export const PreviewAndLaunch: React.FC<PreviewAndLaunchProps> = ({
     onSave,
     onLaunch
 }) => {
-    const [activeTab, setActiveTab] = useState<'conversational' | 'preview' | 'embed' | 'settings'>('conversational');
-    const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile'>('desktop');
+    const [activeTab, setActiveTab] = useState<'conversational' | 'embed' | 'settings'>('conversational');
     const [isLaunched, setIsLaunched] = useState(false);
     const [embedCodeCopied, setEmbedCodeCopied] = useState(false);
     
@@ -64,104 +64,17 @@ export const PreviewAndLaunch: React.FC<PreviewAndLaunchProps> = ({
         onLaunch();
     };
 
-    const mockFormPreview = () => (
-        <div className={`bg-white rounded-lg border shadow-sm ${previewMode === 'mobile' ? 'max-w-sm mx-auto' : 'w-full'}`}>
-            {/* Form Header */}
-            <div style={{ backgroundColor: formData.parameters?.customization?.brandColor || '#6366F1' }} className="p-6 text-white rounded-t-lg">
-                {formData.parameters?.customization?.logoUrl && (
-                    <img 
-                        src={formData.parameters.customization.logoUrl} 
-                        alt="Logo" 
-                        className="h-8 mb-4"
-                    />
-                )}
-                <h1 className="text-xl font-bold">AI Funding Application</h1>
-                <p className="text-sm opacity-90">Powered by AI • Real-time feedback enabled</p>
-            </div>
-            
-            {/* Form Content */}
-            <div className="p-6 space-y-6">
-                {/* Progress Bar */}
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-blue-600 h-2 rounded-full" style={{ width: '20%' }}></div>
-                </div>
-                
-                {/* Mock Questions */}
-                <div className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Organization Name *
-                        </label>
-                        <input 
-                            type="text" 
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                            placeholder="Enter your organization name"
-                        />
-                        <p className="text-xs text-green-600 mt-1">✓ Looks good!</p>
-                    </div>
-                    
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Project Description *
-                        </label>
-                        <textarea 
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                            rows={3}
-                            placeholder="Describe your project in detail..."
-                        ></textarea>
-                        <div className="flex justify-between text-xs text-gray-500 mt-1">
-                            <span>AI suggests: Be more specific about your innovation</span>
-                            <span>0 / 500 words</span>
-                        </div>
-                    </div>
-                    
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Funding Amount Requested *
-                        </label>
-                        <div className="relative">
-                            <span className="absolute left-3 top-2 text-gray-500">$</span>
-                            <input 
-                                type="number" 
-                                className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md"
-                                placeholder="0.00"
-                            />
-                        </div>
-                    </div>
-                </div>
-                
-                {/* AI Assistant */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <div className="flex items-start gap-3">
-                        <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                            <span className="text-white text-sm font-bold">AI</span>
-                        </div>
-                        <div className="flex-1">
-                            <p className="text-sm font-medium text-blue-900">AI Assistant</p>
-                            <p className="text-sm text-blue-800">
-                                Based on successful applications, consider including specific metrics 
-                                and timelines in your project description.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-                
-                <div className="flex justify-between">
-                    <Button size="md" color="secondary">Save Draft</Button>
-                    <Button size="md" color="primary">Continue</Button>
-                </div>
-            </div>
-        </div>
-    );
 
     return (
         <div className="max-w-6xl mx-auto space-y-8">
             {/* Header */}
             <div className="text-center space-y-4">
                 <div>
-                    <h2 className="text-display-sm font-semibold text-primary mb-2">
-                        {isLaunched ? 'AI Form Launched!' : 'Preview & Launch'}
-                    </h2>
+                    {isLaunched && (
+                        <h2 className="text-display-sm font-semibold text-primary mb-2">
+                            AI Form Launched!
+                        </h2>
+                    )}
                     <p className="text-lg text-secondary max-w-2xl mx-auto">
                         {isLaunched 
                             ? 'Your AI conversational form is now live and ready to guide applicants.'
@@ -200,24 +113,23 @@ export const PreviewAndLaunch: React.FC<PreviewAndLaunchProps> = ({
                     defaultSelectedKeys={[activeTab]} 
                     selectionMode="single"
                     onSelectionChange={(keys) => {
-                        const selected = Array.from(keys)[0] as 'conversational' | 'preview' | 'embed' | 'settings';
+                        const selected = Array.from(keys)[0] as 'conversational' | 'embed' | 'settings';
                         if (selected) setActiveTab(selected);
                     }}
                 >
-                    <ButtonGroupItem id="conversational" iconLeading={MessageChatCircle}>AI Chat Preview</ButtonGroupItem>
-                    <ButtonGroupItem id="preview" iconLeading={Eye}>Form Preview</ButtonGroupItem>
+                    <ButtonGroupItem id="conversational" iconLeading={MessageChatCircle}>ApplicationBot Preview</ButtonGroupItem>
                     <ButtonGroupItem id="embed" iconLeading={Code01}>Embed Code</ButtonGroupItem>
                     <ButtonGroupItem id="settings" iconLeading={Settings01}>Settings</ButtonGroupItem>
                 </ButtonGroup>
             </div>
 
             {/* Tab Content */}
-            <div className="bg-gray-50 rounded-lg border border-gray-200 p-8">
+            <div className="bg-gray-50 rounded-lg p-8">
                 {activeTab === 'conversational' && (
                     <div className="space-y-6">
                         <div className="text-center">
                             <FeaturedIcon size="lg" color="brand" theme="light" icon={MessageChatCircle} className="mx-auto mb-4" />
-                            <h3 className="text-lg font-semibold text-primary mb-2">AI Chat Preview</h3>
+                            <h3 className="text-lg font-semibold text-primary mb-2">ApplicationBot Preview</h3>
                             <p className="text-secondary">Experience how applicants will interact with your AI-powered form.</p>
                         </div>
 
@@ -234,34 +146,6 @@ export const PreviewAndLaunch: React.FC<PreviewAndLaunchProps> = ({
                     </div>
                 )}
 
-                {activeTab === 'preview' && (
-                    <div className="space-y-6">
-                        {/* Device Toggle */}
-                        <div className="flex justify-center">
-                            <ButtonGroup 
-                                defaultSelectedKeys={[previewMode]} 
-                                selectionMode="single"
-                                onSelectionChange={(keys) => {
-                                    const selected = Array.from(keys)[0] as 'desktop' | 'mobile';
-                                    if (selected) setPreviewMode(selected);
-                                }}
-                            >
-                                <ButtonGroupItem id="desktop" iconLeading={Monitor04}>Desktop</ButtonGroupItem>
-                                <ButtonGroupItem id="mobile" iconLeading={Phone}>Mobile</ButtonGroupItem>
-                            </ButtonGroup>
-                        </div>
-
-                        {/* Preview */}
-                        <div className="min-h-96">
-                            {mockFormPreview()}
-                        </div>
-
-                        <div className="text-center text-sm text-secondary">
-                            This is a preview of how your AI application form will look to applicants.
-                        </div>
-                    </div>
-                )}
-
                 {activeTab === 'embed' && (
                     <div className="space-y-6">
                         <div className="text-center">
@@ -271,19 +155,22 @@ export const PreviewAndLaunch: React.FC<PreviewAndLaunchProps> = ({
                         </div>
 
                         {/* Embed Code */}
-                        <div className="bg-gray-900 rounded-lg p-6 relative">
+                        <div className="relative">
                             <Button
                                 size="sm"
                                 color={embedCodeCopied ? "primary" : "secondary"}
                                 iconLeading={embedCodeCopied ? CheckCircle : Copy01}
                                 onClick={copyEmbedCode}
-                                className="absolute top-4 right-4"
+                                className="absolute top-4 right-4 z-10"
                             >
                                 {embedCodeCopied ? 'Copied!' : 'Copy'}
                             </Button>
-                            <pre className="text-sm text-green-400 overflow-x-auto pr-20">
-                                <code>{embedCode}</code>
-                            </pre>
+                            <CodeSnippet 
+                                code={embedCode}
+                                language="html"
+                                showLineNumbers={true}
+                                className="pr-20"
+                            />
                         </div>
 
                         {/* Alternative Options */}
@@ -355,28 +242,6 @@ export const PreviewAndLaunch: React.FC<PreviewAndLaunchProps> = ({
                             </div>
                         </div>
 
-                        {/* Form Stats Preview */}
-                        <div className="bg-white p-6 rounded-lg border border-gray-200">
-                            <h5 className="font-medium text-primary mb-4">Expected Performance</h5>
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                <div className="text-center">
-                                    <p className="text-2xl font-bold text-success-600">85%</p>
-                                    <p className="text-xs text-secondary">Completion Rate</p>
-                                </div>
-                                <div className="text-center">
-                                    <p className="text-2xl font-bold text-brand-600">3.2min</p>
-                                    <p className="text-xs text-secondary">Avg. Time</p>
-                                </div>
-                                <div className="text-center">
-                                    <p className="text-2xl font-bold text-warning-600">92%</p>
-                                    <p className="text-xs text-secondary">Quality Score</p>
-                                </div>
-                                <div className="text-center">
-                                    <p className="text-2xl font-bold text-purple-600">45%</p>
-                                    <p className="text-xs text-secondary">Time Savings</p>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 )}
             </div>
@@ -428,16 +293,6 @@ export const PreviewAndLaunch: React.FC<PreviewAndLaunchProps> = ({
                 </div>
             </div>
 
-            {/* Final Help Text */}
-            {!isLaunched && (
-                <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
-                    <p className="text-sm text-purple-800">
-                        <strong>Ready to go live?</strong> Once launched, your AI application form will be 
-                        available 24/7 to guide applicants and automatically validate submissions according 
-                        to your criteria. You can always modify settings later.
-                    </p>
-                </div>
-            )}
         </div>
     );
 };

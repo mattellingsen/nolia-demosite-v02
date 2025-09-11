@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
+import { useFunds, useDeleteFund } from "@/hooks/useFunds";
 import {
     ArrowRight,
     CheckDone01,
@@ -12,6 +13,7 @@ import {
     Plus,
     Send01,
     Trash01,
+    TrendUp02,
     UploadCloud01,
 } from "@untitledui/icons";
 import type { SortDescriptor } from "react-aria-components";
@@ -63,28 +65,39 @@ const lineData = [
     { date: "2025-09-01", A: 85, B: 50 },
 ];
 
-// Fund cards data
-const fundCards = [
-    {
-        id: 1,
-        title: "New to R&D",
-        description: "Kick start your first commercial research and development (R&D) project.",
-        gradient: "from-[#A5C0EE] to-[#FBC5EC]"
-    },
-    {
-        id: 2,
-        title: "Student Experience",
-        description: "Fund innovative businesses to employ tertiary-level students.",
-        gradient: "from-[#FBC2EB] to-[#A18CD1]"
-    }
-];
+// Generate gradient colors for funds
+const generateGradient = (index: number): string => {
+    const gradients = [
+        "from-[#A5C0EE] to-[#FBC5EC]",
+        "from-[#FBC2EB] to-[#A18CD1]",
+        "from-[#84FAB0] to-[#8FD3F4]",
+        "from-[#FFEAA7] to-[#FAB1A0]",
+        "from-[#A29BFE] to-[#FD79A8]",
+        "from-[#00B894] to-[#00CEC9]",
+    ];
+    return gradients[index % gradients.length];
+};
 
 export const SetupDashboard = () => {
     const [mounted, setMounted] = useState(false);
+    
+    // Fetch funds data
+    const { data: funds = [], isLoading: fundsLoading, error: fundsError } = useFunds();
+    const deleteFund = useDeleteFund();
 
     useEffect(() => {
         setMounted(true);
     }, []);
+
+    const handleDeleteFund = async (fundId: string) => {
+        if (window.confirm('Are you sure you want to delete this fund? This action cannot be undone.')) {
+            try {
+                await deleteFund.mutateAsync(fundId);
+            } catch (error) {
+                console.error('Failed to delete fund:', error);
+            }
+        }
+    };
 
     if (!mounted) {
         return null;
@@ -110,6 +123,11 @@ export const SetupDashboard = () => {
                         href: "/funding/assess",
                         icon: CheckDone01,
                     },
+                    {
+                        label: "Analytics",
+                        href: "/funding/analytics",
+                        icon: TrendUp02,
+                    },
                 ]}
             />
             <main className="flex min-w-0 flex-1 flex-col gap-8 pt-8 pb-12">
@@ -131,28 +149,38 @@ export const SetupDashboard = () => {
                     <div className="flex flex-col gap-2 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary ring-inset">
                         <p className="text-sm font-medium text-tertiary">Active Funds</p>
                         <div className="flex items-baseline gap-2">
-                            <p className="text-display-sm font-semibold text-primary">4</p>
+                            <p className="text-display-sm font-semibold text-primary">
+                                {fundsLoading ? '...' : funds.filter(f => f.status === 'ACTIVE').length}
+                            </p>
                         </div>
                     </div>
                     <div className="flex flex-col gap-2 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary ring-inset">
-                        <p className="text-sm font-medium text-tertiary">Funds This Month</p>
+                        <p className="text-sm font-medium text-tertiary">Total Funds</p>
                         <div className="flex items-baseline gap-2">
-                            <p className="text-display-sm font-semibold text-primary">2</p>
-                            <p className="text-sm font-semibold text-success-primary">{formatCurrency(24000)}</p>
+                            <p className="text-display-sm font-semibold text-primary">
+                                {fundsLoading ? '...' : funds.length}
+                            </p>
                         </div>
                     </div>
                     <div className="flex flex-col gap-2 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary ring-inset">
-                        <p className="text-sm font-medium text-tertiary">Setup Success Rate</p>
+                        <p className="text-sm font-medium text-tertiary">Draft Funds</p>
                         <div className="flex items-baseline gap-2">
-                            <p className="text-display-sm font-semibold text-primary">92%</p>
-                            <p className="text-sm font-medium text-success-primary">+8%</p>
+                            <p className="text-display-sm font-semibold text-primary">
+                                {fundsLoading ? '...' : funds.filter(f => f.status === 'DRAFT').length}
+                            </p>
                         </div>
                     </div>
                     <div className="flex flex-col gap-2 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary ring-inset">
-                        <p className="text-sm font-medium text-tertiary">Avg. Setup Time</p>
+                        <p className="text-sm font-medium text-tertiary">Recent Activity</p>
                         <div className="flex items-baseline gap-2">
-                            <p className="text-display-sm font-semibold text-primary">45min</p>
-                            <p className="text-sm font-medium text-success-primary">-12min</p>
+                            <p className="text-display-sm font-semibold text-primary">
+                                {fundsLoading ? '...' : funds.filter(f => {
+                                    const weekAgo = new Date();
+                                    weekAgo.setDate(weekAgo.getDate() - 7);
+                                    return new Date(f.createdAt) > weekAgo;
+                                }).length}
+                            </p>
+                            <p className="text-xs text-tertiary">this week</p>
                         </div>
                     </div>
                 </div>
@@ -246,33 +274,65 @@ export const SetupDashboard = () => {
                         </div>
                         
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                            {/* Existing fund cards - duplicated */}
-                            {[...fundCards, ...fundCards].map((card, index) => (
-                                <div key={`${card.id}-${index}`} className="w-full h-40 relative flex">
-                                    <div className={`w-full h-full flex flex-col justify-between overflow-hidden rounded-2xl p-4 bg-linear-to-b ${card.gradient} before:pointer-events-none before:absolute before:inset-0 before:z-1 before:rounded-[inherit] before:mask-linear-135 before:mask-linear-to-white/20 before:ring-1 before:ring-white/30 before:ring-inset`}>
-                                        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-1/2 bg-gray-800 rounded-b-2xl"></div>
-                                        
-                                        <div className="relative flex items-center justify-between px-1 pt-1">
-                                            <div className="text-md leading-[normal] font-semibold text-white">{card.title}</div>
-                                            <ButtonUtility 
-                                                size="xs" 
-                                                color="tertiary" 
-                                                tooltip="Delete" 
-                                                icon={Trash01} 
-                                                className="text-white hover:text-gray-200 !bg-transparent !border-0" 
-                                            />
-                                        </div>
-
-                                        <div className="relative flex items-end justify-between gap-3">
-                                            <div className="flex min-w-0 flex-col gap-2">
-                                                <p className="text-xs leading-snug font-semibold text-white" style={{wordBreak: "break-word"}}>
-                                                    {card.description}
-                                                </p>
+                            {/* Real fund cards */}
+                            {fundsLoading ? (
+                                // Loading skeletons
+                                Array.from({ length: 3 }).map((_, index) => (
+                                    <div key={`skeleton-${index}`} className="w-full h-40 relative flex">
+                                        <div className="w-full h-full flex flex-col justify-between overflow-hidden rounded-2xl p-4 bg-gray-200 animate-pulse">
+                                            <div className="flex items-center justify-between">
+                                                <div className="h-4 bg-gray-300 rounded w-24"></div>
+                                                <div className="h-6 w-6 bg-gray-300 rounded"></div>
+                                            </div>
+                                            <div className="flex flex-col gap-2">
+                                                <div className="h-3 bg-gray-300 rounded w-full"></div>
+                                                <div className="h-3 bg-gray-300 rounded w-2/3"></div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
+                                ))
+                            ) : (
+                                funds.map((fund, index) => (
+                                    <div key={fund.id} className="w-full h-40 relative flex">
+                                        <div className={`w-full h-full flex flex-col justify-between overflow-hidden rounded-2xl p-4 bg-linear-to-b ${generateGradient(index)} before:pointer-events-none before:absolute before:inset-0 before:z-1 before:rounded-[inherit] before:mask-linear-135 before:mask-linear-to-white/20 before:ring-1 before:ring-white/30 before:ring-inset`}>
+                                            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-1/2 bg-gray-800 rounded-b-2xl"></div>
+                                            
+                                            <div className="relative flex items-center justify-between px-1 pt-1">
+                                                <div className="text-md leading-[normal] font-semibold text-white">{fund.name}</div>
+                                                <ButtonUtility 
+                                                    size="xs" 
+                                                    color="tertiary" 
+                                                    tooltip="Delete" 
+                                                    icon={Trash01} 
+                                                    className="text-white hover:text-gray-200 !bg-transparent !border-0"
+                                                    onClick={() => handleDeleteFund(fund.id)}
+                                                    isDisabled={deleteFund.isPending}
+                                                />
+                                            </div>
+
+                                            <div className="relative flex items-end justify-between gap-3">
+                                                <div className="flex min-w-0 flex-col gap-2">
+                                                    <p className="text-xs leading-snug font-semibold text-white" style={{wordBreak: "break-word"}}>
+                                                        {fund.description || 'No description provided'}
+                                                    </p>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                                            fund.status === 'ACTIVE' ? 'bg-green-500/20 text-green-200' :
+                                                            fund.status === 'DRAFT' ? 'bg-yellow-500/20 text-yellow-200' :
+                                                            'bg-gray-500/20 text-gray-200'
+                                                        }`}>
+                                                            {fund.status}
+                                                        </span>
+                                                        <span className="text-xs text-white/70">
+                                                            {formatDate(new Date(fund.createdAt).getTime())}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
                             
                             {/* Setup new fund card */}
                             <a href="/funding/setup/setup-new-fund" className="w-full h-40 relative flex cursor-pointer hover:opacity-90 transition-opacity">
@@ -297,65 +357,62 @@ export const SetupDashboard = () => {
                 <div className="flex shrink-0 flex-col gap-5 overflow-x-clip px-6 pt-8">
                     <div className="flex justify-between">
                         <p className="text-lg font-semibold text-primary">Our funds</p>
-                        <Button size="md" color="link-gray" iconLeading={Plus}>
+                        <Button size="md" color="link-gray" iconLeading={Plus} href="/funding/setup/setup-new-fund">
                             Add fund
                         </Button>
                     </div>
-                    <Carousel.Root className="flex flex-col gap-5">
-                        <Carousel.Content overflowHidden={false} className="gap-5">
-                            <Carousel.Item className="basis-auto">
-                                <div className="w-68 h-40 relative flex">
-                                    <div className="w-full h-full flex flex-col justify-between overflow-hidden rounded-2xl p-4 bg-linear-to-b from-[#A5C0EE] to-[#FBC5EC] before:pointer-events-none before:absolute before:inset-0 before:z-1 before:rounded-[inherit] before:mask-linear-135 before:mask-linear-to-white/20 before:ring-1 before:ring-white/30 before:ring-inset">
-                                        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-1/2 bg-gray-800 rounded-b-2xl"></div>
-                                        
-                                        <div className="relative flex items-center justify-between px-1 pt-1">
-                                            <div className="text-md leading-[normal] font-semibold text-white">New to R&D</div>
-                                            <ButtonUtility size="xs" color="tertiary" tooltip="Delete" icon={Trash01} className="text-white hover:text-gray-200 !bg-transparent !border-0" />
-                                        </div>
+                    {funds.length > 0 && (
+                        <Carousel.Root className="flex flex-col gap-5">
+                            <Carousel.Content overflowHidden={false} className="gap-5">
+                                {funds.slice(0, 3).map((fund, index) => (
+                                    <Carousel.Item key={fund.id} className="basis-auto">
+                                        <div className="w-68 h-40 relative flex">
+                                            <div className={`w-full h-full flex flex-col justify-between overflow-hidden rounded-2xl p-4 bg-linear-to-b ${generateGradient(index)} before:pointer-events-none before:absolute before:inset-0 before:z-1 before:rounded-[inherit] before:mask-linear-135 before:mask-linear-to-white/20 before:ring-1 before:ring-white/30 before:ring-inset`}>
+                                                <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-1/2 bg-gray-800 rounded-b-2xl"></div>
+                                                
+                                                <div className="relative flex items-center justify-between px-1 pt-1">
+                                                    <div className="text-md leading-[normal] font-semibold text-white">{fund.name}</div>
+                                                    <ButtonUtility 
+                                                        size="xs" 
+                                                        color="tertiary" 
+                                                        tooltip="Delete" 
+                                                        icon={Trash01} 
+                                                        className="text-white hover:text-gray-200 !bg-transparent !border-0"
+                                                        onClick={() => handleDeleteFund(fund.id)}
+                                                    />
+                                                </div>
 
-                                        <div className="relative flex items-end justify-between gap-3">
-                                            <div className="flex min-w-0 flex-col gap-2">
-                                                <p className="text-xs leading-snug font-semibold text-white" style={{wordBreak: "break-word"}}>
-                                                    Kick start your first commercial research and development (R&D) project.
-                                                </p>
+                                                <div className="relative flex items-end justify-between gap-3">
+                                                    <div className="flex min-w-0 flex-col gap-2">
+                                                        <p className="text-xs leading-snug font-semibold text-white" style={{wordBreak: "break-word"}}>
+                                                            {fund.description || 'No description provided'}
+                                                        </p>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                </div>
-                            </Carousel.Item>
-                            <Carousel.Item className="basis-auto">
-                                <div className="w-68 h-40 relative flex">
-                                    <div className="w-full h-full flex flex-col justify-between overflow-hidden rounded-2xl p-4 bg-linear-to-b from-[#FBC2EB] to-[#A18CD1] before:pointer-events-none before:absolute before:inset-0 before:z-1 before:rounded-[inherit] before:mask-linear-135 before:mask-linear-to-white/20 before:ring-1 before:ring-white/30 before:ring-inset">
-                                        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-1/2 bg-gray-800 rounded-b-2xl"></div>
-                                        
-                                        <div className="relative flex items-center justify-between px-1 pt-1">
-                                            <div className="text-md leading-[normal] font-semibold text-white">Student Experience</div>
-                                            <ButtonUtility size="xs" color="tertiary" tooltip="Delete" icon={Trash01} className="text-white hover:text-gray-200 !bg-transparent !border-0" />
-                                        </div>
+                                    </Carousel.Item>
+                                ))}
+                            </Carousel.Content>
 
-                                        <div className="relative flex items-end justify-between gap-3">
-                                            <div className="flex min-w-0 flex-col gap-2">
-                                                <p className="text-xs leading-snug font-semibold text-white" style={{wordBreak: "break-word"}}>
-                                                    Fund innovative businesses to employ tertiary-level students.
-                                                </p>
-                                            </div>
-                                        </div>
+                            <div className="flex flex-col gap-4">
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex justify-between gap-4">
+                                        <p className="text-sm font-medium text-primary">This month</p>
+                                        <span className="text-sm text-tertiary">
+                                            {funds.filter(f => {
+                                                const monthAgo = new Date();
+                                                monthAgo.setMonth(monthAgo.getMonth() - 1);
+                                                return new Date(f.createdAt) > monthAgo;
+                                            }).length} Funds Setup
+                                        </span>
                                     </div>
+                                    <ProgressBar value={Math.min((funds.length / 10) * 100, 100)} />
                                 </div>
-                            </Carousel.Item>
-                        </Carousel.Content>
-
-                        <div className="flex flex-col gap-4">
-                            <div className="flex flex-col gap-2">
-                                <div className="flex justify-between gap-4">
-                                    <p className="text-sm font-medium text-primary">This month</p>
-                                    <span className="text-sm text-tertiary">2 Funds Setup</span>
-                                </div>
-                                <ProgressBar value={40} />
+                                <CarouselIndicator size="lg" framed={false} />
                             </div>
-                            <CarouselIndicator size="lg" framed={false} />
-                        </div>
-                    </Carousel.Root>
+                        </Carousel.Root>
+                    )}
                 </div>
 
                 <div className="flex flex-col gap-5 border-t border-secondary px-6 pt-6">

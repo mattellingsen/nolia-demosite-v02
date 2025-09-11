@@ -5,6 +5,8 @@ import { UploadCloud01, File02, ArrowRight, CheckCircle, AlertCircle } from "@un
 import { Button } from "@/components/base/buttons/button";
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
 import { FileUpload } from "@/components/application/file-upload/file-upload-base";
+import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
+import { InputBase } from "@/components/base/input/input";
 import { analyzeDocumentViaAPI } from "@/lib/api-client";
 import { type DocumentAnalysis } from "@/utils/browser-document-analyzer";
 
@@ -96,20 +98,54 @@ export const Step1UploadForm: React.FC<Step1Props> = ({
 
     return (
         <div className="max-w-4xl mx-auto space-y-8">
-            {/* Header */}
-            <div className="text-center space-y-4">
-                <div>
-                    <h2 className="text-display-sm font-semibold text-primary mb-2">
-                        Upload Your Application Form
-                    </h2>
-                    <p className="text-lg text-secondary max-w-2xl mx-auto">
-                        Upload your current application form so our AI can analyze the questions, format, 
-                        and structure to create an intelligent application bot.
-                    </p>
+            {/* Fund Name Input */}
+            <div className="flex justify-center">
+                <div className="w-full max-w-md">
+                    <div className="mb-4 text-center">
+                        <p className="text-lg text-secondary">
+                            1. Start by naming your fund.
+                        </p>
+                    </div>
+                    <div className="relative">
+                        <InputBase
+                            label="Fund Name"
+                            placeholder="Enter the name of your fund"
+                            value={formData.fundName || ''}
+                            onChange={(e) => updateFormData({ fundName: e.target.value })}
+                            size="md"
+                            isRequired
+                            className="w-full"
+                            style={{
+                                '--tw-shadow': '0 0 0 8px rgba(59, 130, 246, 0.1)',
+                                '--tw-ring-shadow': '0 0 0 8px rgba(59, 130, 246, 0.1)'
+                            }}
+                        />
+                        <style jsx global>{`
+                            * input {
+                                border: 1px solid #3497B8 !important;
+                                box-shadow: 0 0 0 8px #F2FAFC !important;
+                                border-radius: 0.5rem !important;
+                            }
+                            * input:focus {
+                                border: 1px solid #3497B8 !important;
+                                box-shadow: 0 0 0 8px #F2FAFC !important;
+                                outline: none !important;
+                                ring: none !important;
+                            }
+                            .upload-dropzone-custom {
+                                box-shadow: 0 0 0 8px #F2FAFC !important;
+                            }
+                        `}</style>
+                    </div>
                 </div>
             </div>
 
             {/* Upload Area */}
+            <div className="text-center mb-4">
+                <p className="text-lg text-secondary max-w-2xl mx-auto">
+                    2. Upload your current application form. We'll analyse the structure and add this to the system.
+                </p>
+            </div>
             <div className="flex justify-center">
                 <div className="w-full max-w-2xl">
                     <FileUpload.Root>
@@ -125,7 +161,7 @@ export const Step1UploadForm: React.FC<Step1Props> = ({
                             onSizeLimitExceed={(files) => {
                                 setUploadError('File size must be less than 10MB.');
                             }}
-                            className="!bg-brand-secondary-25 !ring-1 !ring-brand-secondary-600 min-h-64 py-12 !flex !items-center !justify-center"
+                            className="!bg-white !border !border-brand-secondary-600 min-h-64 py-12 !flex !items-center !justify-center !rounded-lg upload-dropzone-custom"
                         />
                         
                         {formData.applicationForm && (
@@ -151,10 +187,11 @@ export const Step1UploadForm: React.FC<Step1Props> = ({
 
                         {isAnalyzing && (
                             <div className="flex justify-center py-6">
-                                <div className="flex items-center gap-3">
-                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-brand-600"></div>
-                                    <p className="text-sm text-secondary">Analyzing your form...</p>
-                                </div>
+                                <LoadingIndicator 
+                                    type="dot-circle" 
+                                    size="md" 
+                                    label="Analyzing your form..." 
+                                />
                             </div>
                         )}
                     </FileUpload.Root>
@@ -179,22 +216,22 @@ export const Step1UploadForm: React.FC<Step1Props> = ({
                     
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                         <div className="bg-white rounded-lg p-4 border border-gray-200">
-                            <p className="text-2xl font-bold text-brand-600 mb-1">{analysis.questionsFound}</p>
+                            <p className="text-2xl font-bold text-success-600 mb-1">{analysis.questionsFound}</p>
                             <p className="text-sm text-secondary">Questions Found</p>
                         </div>
                         
                         <div className="bg-white rounded-lg p-4 border border-gray-200">
-                            <p className="text-2xl font-bold text-brand-600 mb-1">{analysis.fieldTypes.length}</p>
+                            <p className="text-2xl font-bold text-success-600 mb-1">{analysis.fieldTypes.length}</p>
                             <p className="text-sm text-secondary">Field Types</p>
                         </div>
                         
                         <div className="bg-white rounded-lg p-4 border border-gray-200">
-                            <p className="text-2xl font-bold text-brand-600 mb-1">{analysis.sections.length}</p>
+                            <p className="text-2xl font-bold text-success-600 mb-1">{analysis.sections.length}</p>
                             <p className="text-sm text-secondary">Sections</p>
                         </div>
                         
                         <div className="bg-white rounded-lg p-4 border border-gray-200">
-                            <p className="text-2xl font-bold text-brand-600 mb-1">{analysis.wordCount?.toLocaleString() || 'N/A'}</p>
+                            <p className="text-2xl font-bold text-success-600 mb-1">{analysis.wordCount?.toLocaleString() || 'N/A'}</p>
                             <p className="text-sm text-secondary">Word Count</p>
                         </div>
                         
@@ -211,33 +248,7 @@ export const Step1UploadForm: React.FC<Step1Props> = ({
 
                     <div className="space-y-6">
                         <div>
-                            <p className="text-sm font-medium text-primary mb-3">Detected Sections:</p>
-                            <div className="space-y-2">
-                                {analysis.extractedSections && analysis.extractedSections.length > 0 ? 
-                                    analysis.extractedSections.map((section, index) => (
-                                        <div key={index} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
-                                            <div>
-                                                <p className="text-sm font-medium text-primary">{section.title}</p>
-                                                <p className="text-xs text-secondary">{section.questionCount} questions found</p>
-                                            </div>
-                                            <span className="px-2 py-1 bg-success-50 text-success-700 text-xs font-medium rounded">
-                                                Section {index + 1}
-                                            </span>
-                                        </div>
-                                    )) : 
-                                    <div className="flex flex-wrap gap-2">
-                                        {analysis.sections.map((section, index) => (
-                                            <span key={index} className="px-3 py-1 bg-success-50 text-success-700 text-xs font-medium rounded-full">
-                                                {section}
-                                            </span>
-                                        ))}
-                                    </div>
-                                }
-                            </div>
-                        </div>
-                        
-                        <div>
-                            <p className="text-sm font-medium text-primary mb-3">Field Types Found:</p>
+                            <p className="text-sm font-medium text-primary mb-3">Field Types Detected:</p>
                             <div className="flex flex-wrap gap-2">
                                 {analysis.fieldTypes.map((type, index) => (
                                     <span key={index} className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded-full">
@@ -261,19 +272,12 @@ export const Step1UploadForm: React.FC<Step1Props> = ({
                     color="primary"
                     iconTrailing={ArrowRight}
                     onClick={onNext}
-                    isDisabled={!formData.applicationForm || isAnalyzing || !analysis}
+                    isDisabled={!formData.fundName?.trim() || !formData.applicationForm || isAnalyzing || !analysis}
                 >
                     Continue to Selection Criteria
                 </Button>
             </div>
 
-            {/* Help Text */}
-            <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                <p className="text-sm text-blue-800">
-                    <strong>Don't have a form yet?</strong> No problem! You can start from scratch by describing your 
-                    requirements in the next steps, and our AI will help you build one.
-                </p>
-            </div>
         </div>
     );
 };

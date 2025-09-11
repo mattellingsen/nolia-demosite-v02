@@ -12,6 +12,7 @@ import {
     Plus,
     Send01,
     Trash01,
+    TrendUp02,
     UploadCloud01,
 } from "@untitledui/icons";
 import type { SortDescriptor } from "react-aria-components";
@@ -273,6 +274,11 @@ export const Dashboard12 = () => {
                         href: "/funding/assess",
                         icon: CheckDone01,
                     },
+                    {
+                        label: "Analytics",
+                        href: "/funding/analytics",
+                        icon: TrendUp02,
+                    },
                 ]}
             />
             <main className="flex min-w-0 flex-1 flex-col gap-8 pt-8 pb-12">
@@ -370,7 +376,7 @@ export const Dashboard12 = () => {
                     <div className="flex flex-col flex-wrap justify-between gap-x-4 gap-y-6 lg:flex-row lg:items-center">
                         <p className="text-lg font-semibold text-primary">Applications received</p>
                         <div className="flex gap-3">
-                            <DateRangePicker />
+                            {mounted && <DateRangePicker />}
                             <Button size="md" color="secondary" iconLeading={FilterLines}>
                                 Apply filter
                             </Button>
@@ -428,8 +434,12 @@ export const Dashboard12 = () => {
 
                                         <Table.Cell className="px-4">
                                             <div className="flex justify-end gap-0.5">
-                                                <ButtonUtility size="xs" color="tertiary" tooltip="Delete" icon={Trash01} />
-                                                <ButtonUtility size="xs" color="tertiary" tooltip="Edit" icon={Edit01} />
+                                                {mounted && (
+                                                    <>
+                                                        <ButtonUtility size="xs" color="tertiary" tooltip="Delete" icon={Trash01} />
+                                                        <ButtonUtility size="xs" color="tertiary" tooltip="Edit" icon={Edit01} />
+                                                    </>
+                                                )}
                                             </div>
                                         </Table.Cell>
                                     </Table.Row>
@@ -452,6 +462,7 @@ export const Dashboard12 = () => {
                             Add fund
                         </Button>
                     </div>
+{mounted && (
                     <Carousel.Root className="flex flex-col gap-5">
                         <Carousel.Content overflowHidden={false} className="gap-5">
                             <Carousel.Item className="basis-auto">
@@ -461,7 +472,7 @@ export const Dashboard12 = () => {
                                         
                                         <div className="relative flex items-center justify-between px-1 pt-1">
                                             <div className="text-md leading-[normal] font-semibold text-white">New to R&D</div>
-                                            <ButtonUtility size="xs" color="tertiary" tooltip="Delete" icon={Trash01} className="text-white hover:text-gray-200 !bg-transparent !border-0" />
+                                            {mounted && <ButtonUtility size="xs" color="tertiary" tooltip="Delete" icon={Trash01} className="text-white hover:text-gray-200 !bg-transparent !border-0" />}
                                         </div>
 
                                         <div className="relative flex items-end justify-between gap-3">
@@ -481,7 +492,7 @@ export const Dashboard12 = () => {
                                         
                                         <div className="relative flex items-center justify-between px-1 pt-1">
                                             <div className="text-md leading-[normal] font-semibold text-white">Student Experience</div>
-                                            <ButtonUtility size="xs" color="tertiary" tooltip="Delete" icon={Trash01} className="text-white hover:text-gray-200 !bg-transparent !border-0" />
+                                            {mounted && <ButtonUtility size="xs" color="tertiary" tooltip="Delete" icon={Trash01} className="text-white hover:text-gray-200 !bg-transparent !border-0" />}
                                         </div>
 
                                         <div className="relative flex items-end justify-between gap-3">
@@ -507,6 +518,7 @@ export const Dashboard12 = () => {
                             <CarouselIndicator size="lg" framed={false} />
                         </div>
                     </Carousel.Root>
+                    )}
                 </div>
 
                 <div className="flex flex-col gap-5 border-t border-secondary px-6 pt-6">

@@ -16,9 +16,11 @@ import {
     FileCheck02,
     Target01,
     Stars01,
-    Settings01,
+    Settings04,
+    Bell01,
     Eye,
-    Code01
+    Code01,
+    TrendUp02
 } from "@untitledui/icons";
 
 import { Carousel } from "@/components/application/carousel/carousel-base";
@@ -28,26 +30,39 @@ import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { ProgressBar } from "@/components/base/progress-indicators/progress-indicators";
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
 
-import { Step1UploadForm } from "./components/step-1-upload-form";
-import { Step2SelectionCriteria } from "./components/step-2-selection-criteria";
-import { Step3GoodExamples } from "./components/step-3-good-examples";
-import { Step4AISuggestions } from "./components/step-4-ai-suggestions";
 import { Step5Parameters } from "./components/step-5-parameters";
 import { PreviewAndLaunch } from "./components/preview-and-launch";
 
-type FormBuilderStep = 'step1' | 'step2' | 'step3' | 'step4' | 'step5' | 'preview';
+type FormBuilderStep = 'step1' | 'step2' | 'step3';
 
 interface FormBuilderState {
-    applicationForm?: File;
-    selectionCriteria: File[];
-    goodExamples: File[];
-    aiSuggestions?: any;
     parameters: {
         startDate?: string;
         endDate?: string;
+        isAlwaysOpen?: boolean;
         notificationSettings: {
             applicationCount?: number;
             fundingPercentage?: number;
+            emailNotifications?: boolean;
+            slackNotifications?: boolean;
+            weeklyReports?: boolean;
+        };
+        applicationLimits?: {
+            maxApplications?: number;
+            maxPerOrganization?: number;
+            requireUniqueEmails?: boolean;
+        };
+        accessibility?: {
+            enableMultiLanguage?: boolean;
+            supportedLanguages?: string[];
+            enableScreenReader?: boolean;
+            enableKeyboardNav?: boolean;
+        };
+        customization?: {
+            brandColor?: string;
+            logoUrl?: string;
+            customDomain?: string;
+            thankYouMessage?: string;
         };
     };
 }
@@ -55,8 +70,6 @@ interface FormBuilderState {
 const CreateFormPage = () => {
     const [currentStep, setCurrentStep] = useState<FormBuilderStep>('step1');
     const [formData, setFormData] = useState<FormBuilderState>({
-        selectionCriteria: [],
-        goodExamples: [],
         parameters: {
             notificationSettings: {}
         }
@@ -65,39 +78,27 @@ const CreateFormPage = () => {
     // Progress steps data for Untitled UI Progress component
     const progressSteps = [
         {
-            title: 'Upload Form',
-            description: 'Upload current application form',
+            title: 'Basic Setup',
+            description: 'Fund selection and application period',
             status: getCurrentStepStatus('step1'),
-            icon: UploadCloud01
+            icon: Settings04
         },
         {
-            title: 'Selection Criteria',
-            description: 'Upload assessment criteria',
+            title: 'Configuration',
+            description: 'Notifications and branding',
             status: getCurrentStepStatus('step2'),
-            icon: FileCheck02
+            icon: Bell01
         },
         {
-            title: 'Good Examples',
-            description: 'Upload example applications',
+            title: 'Preview & Launch',
+            description: 'Review and publish form',
             status: getCurrentStepStatus('step3'),
-            icon: Target01
-        },
-        {
-            title: 'AI Suggestions',
-            description: 'Review AI recommendations',
-            status: getCurrentStepStatus('step4'),
-            icon: Stars01
-        },
-        {
-            title: 'Parameters',
-            description: 'Configure settings',
-            status: getCurrentStepStatus('step5'),
-            icon: Settings01
+            icon: Eye
         }
     ] as const;
 
     function getCurrentStepStatus(step: string) {
-        const stepOrder = ['step1', 'step2', 'step3', 'step4', 'step5'];
+        const stepOrder = ['step1', 'step2', 'step3'];
         const currentIndex = stepOrder.indexOf(currentStep);
         const stepIndex = stepOrder.indexOf(step);
         
@@ -106,12 +107,13 @@ const CreateFormPage = () => {
         return 'incomplete';
     }
 
+
     const updateFormData = (updates: Partial<FormBuilderState>) => {
         setFormData(prev => ({ ...prev, ...updates }));
     };
 
     const handleNextStep = () => {
-        const stepOrder: FormBuilderStep[] = ['step1', 'step2', 'step3', 'step4', 'step5', 'preview'];
+        const stepOrder: FormBuilderStep[] = ['step1', 'step2', 'step3'];
         const currentIndex = stepOrder.indexOf(currentStep);
         if (currentIndex < stepOrder.length - 1) {
             setCurrentStep(stepOrder[currentIndex + 1]);
@@ -119,7 +121,7 @@ const CreateFormPage = () => {
     };
 
     const handlePreviousStep = () => {
-        const stepOrder: FormBuilderStep[] = ['step1', 'step2', 'step3', 'step4', 'step5', 'preview'];
+        const stepOrder: FormBuilderStep[] = ['step1', 'step2', 'step3'];
         const currentIndex = stepOrder.indexOf(currentStep);
         if (currentIndex > 0) {
             setCurrentStep(stepOrder[currentIndex - 1]);
@@ -130,54 +132,27 @@ const CreateFormPage = () => {
         switch (currentStep) {
             case 'step1':
                 return (
-                    <Step1UploadForm 
+                    <Step5Parameters
                         formData={formData}
                         updateFormData={updateFormData}
                         onNext={handleNextStep}
+                        onPrevious={() => {}} // No previous step
+                        stepType="basic" // Only show fund selection, dates, and limits
                     />
                 );
             
             case 'step2':
-                return (
-                    <Step2SelectionCriteria
-                        formData={formData}
-                        updateFormData={updateFormData}
-                        onNext={handleNextStep}
-                        onPrevious={handlePreviousStep}
-                    />
-                );
-            
-            case 'step3':
-                return (
-                    <Step3GoodExamples
-                        formData={formData}
-                        updateFormData={updateFormData}
-                        onNext={handleNextStep}
-                        onPrevious={handlePreviousStep}
-                    />
-                );
-            
-            case 'step4':
-                return (
-                    <Step4AISuggestions
-                        formData={formData}
-                        updateFormData={updateFormData}
-                        onNext={handleNextStep}
-                        onPrevious={handlePreviousStep}
-                    />
-                );
-            
-            case 'step5':
                 return (
                     <Step5Parameters
                         formData={formData}
                         updateFormData={updateFormData}
                         onNext={handleNextStep}
                         onPrevious={handlePreviousStep}
+                        stepType="configuration" // Only show notifications and branding
                     />
                 );
             
-            case 'preview':
+            case 'step3':
                 return (
                     <PreviewAndLaunch
                         formData={formData}
@@ -215,6 +190,11 @@ const CreateFormPage = () => {
                         href: "/funding/assess",
                         icon: CheckDone01,
                     },
+                    {
+                        label: "Analytics",
+                        href: "/funding/analytics",
+                        icon: TrendUp02,
+                    },
                 ]}
             />
             <main className="flex min-w-0 flex-1 flex-col gap-8 pt-8 pb-12">
@@ -226,29 +206,28 @@ const CreateFormPage = () => {
                             color="tertiary"
                             iconLeading={ArrowLeft}
                             href="/funding/apply"
-                            className="self-start"
+                            className="self-start [&_svg]:!text-brand-600"
                         >
                             Back
                         </Button>
-                        <div className="flex flex-col gap-1">
-                            <p className="text-md font-semibold text-tertiary">AI Form Builder</p>
+                        <div className="flex flex-col gap-1 text-center">
+                            <p className="text-md font-semibold text-tertiary">Application Form Builder</p>
                             <p className="text-display-md font-semibold text-primary">Create Application Bot</p>
                         </div>
                     </div>
                 </div>
 
+
                 {/* Progress Steps - Centered */}
-                {currentStep !== 'preview' && (
-                    <div className="flex justify-center px-4 lg:px-8">
-                        <Progress.IconsWithText
-                            type="featured-icon"
-                            orientation="horizontal"
-                            size="md"
-                            items={progressSteps}
-                            className="max-w-4xl"
-                        />
-                    </div>
-                )}
+                <div className="flex justify-center px-4 lg:px-8">
+                    <Progress.IconsWithText
+                        type="featured-icon"
+                        orientation="horizontal"
+                        size="md"
+                        items={progressSteps}
+                        className="max-w-4xl"
+                    />
+                </div>
 
                 {/* Main Content */}
                 <div className="px-4 lg:px-8">

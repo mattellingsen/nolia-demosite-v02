@@ -5,8 +5,9 @@ import { UploadCloud01, Target01, ArrowRight, ArrowLeft, CheckCircle, AlertCircl
 import { Button } from "@/components/base/buttons/button";
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
 import { FileUpload } from "@/components/application/file-upload/file-upload-base";
+import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
 
-interface Step3Props {
+interface Step4Props {
     formData: any;
     updateFormData: (updates: any) => void;
     onNext: () => void;
@@ -25,7 +26,7 @@ interface ExampleAnalysis {
     commonStrengths: string[];
 }
 
-export const Step3GoodExamples: React.FC<Step3Props> = ({ 
+export const Step4GoodExamples: React.FC<Step4Props> = ({ 
     formData, 
     updateFormData, 
     onNext,
@@ -197,45 +198,6 @@ export const Step3GoodExamples: React.FC<Step3Props> = ({
                 </div>
             )}
 
-            {/* Upload Area */}
-            <div className="flex justify-center">
-                <div className="w-full max-w-2xl">
-                    <FileUpload.Root>
-                        <FileUpload.DropZone
-                            hint="PDF, Word documents, or Text files (max. 15MB each)"
-                            accept=".pdf,.doc,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,text/plain"
-                            allowsMultiple={true}
-                            maxSize={15 * 1024 * 1024} // 15MB
-                            onDropFiles={handleFileUpload}
-                            onDropUnacceptedFiles={(files) => {
-                                setUploadError('Please upload PDF, Word, or text files only.');
-                            }}
-                            onSizeLimitExceed={(files) => {
-                                setUploadError('File size must be less than 15MB.');
-                            }}
-                            className="!bg-brand-secondary-25 !ring-1 !ring-brand-secondary-600 min-h-64 py-12 !flex !items-center !justify-center"
-                        />
-                        
-                        {isAnalyzing && (
-                            <div className="flex justify-center py-6">
-                                <div className="flex items-center gap-3">
-                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-brand-600"></div>
-                                    <p className="text-sm text-secondary">Analyzing example applications...</p>
-                                </div>
-                            </div>
-                        )}
-                    </FileUpload.Root>
-                </div>
-            </div>
-
-            {/* Error Display */}
-            {uploadError && (
-                <div className="flex items-center gap-2 p-4 bg-error-50 border border-error-200 rounded-lg">
-                    <AlertCircle className="w-5 h-5 text-error-600" />
-                    <p className="text-sm text-error-700">{uploadError}</p>
-                </div>
-            )}
-
             {/* Analysis Results */}
             {analysis && hasFiles && (
                 <div className="bg-gray-50 rounded-lg p-6 space-y-6">
@@ -318,6 +280,59 @@ export const Step3GoodExamples: React.FC<Step3Props> = ({
                 </div>
             )}
 
+            {/* Upload Area */}
+            <div className="flex justify-center">
+                <div className="w-full max-w-2xl">
+                    {/* Quality Tip */}
+                    <div className="bg-warning-50 rounded-lg p-4 border border-warning-200 mb-5">
+                        <p className="text-sm text-warning-800">
+                            <strong>Quality matters:</strong> Upload your best applications - those that scored highly 
+                            and met all criteria. Nolia will learn from these to help future applicants create 
+                            better submissions and reduce your assessment workload.
+                        </p>
+                    </div>
+                    <FileUpload.Root>
+                        <FileUpload.DropZone
+                            hint="PDF, Word documents, or Text files (max. 15MB each)"
+                            accept=".pdf,.doc,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,text/plain"
+                            allowsMultiple={true}
+                            maxSize={15 * 1024 * 1024} // 15MB
+                            onDropFiles={handleFileUpload}
+                            onDropUnacceptedFiles={(files) => {
+                                setUploadError('Please upload PDF, Word, or text files only.');
+                            }}
+                            onSizeLimitExceed={(files) => {
+                                setUploadError('File size must be less than 15MB.');
+                            }}
+                            className="!bg-white !border !border-brand-secondary-600 min-h-64 py-12 !flex !items-center !justify-center !rounded-lg upload-dropzone-custom"
+                        />
+                        
+                        {isAnalyzing && (
+                            <div className="flex justify-center py-6">
+                                <LoadingIndicator 
+                                    type="dot-circle" 
+                                    size="md" 
+                                    label="Analyzing example applications..." 
+                                />
+                            </div>
+                        )}
+                    </FileUpload.Root>
+                    <style jsx global>{`
+                        .upload-dropzone-custom {
+                            box-shadow: 0 0 0 8px #F2FAFC !important;
+                        }
+                    `}</style>
+                </div>
+            </div>
+
+            {/* Error Display */}
+            {uploadError && (
+                <div className="flex items-center gap-2 p-4 bg-error-50 border border-error-200 rounded-lg">
+                    <AlertCircle className="w-5 h-5 text-error-600" />
+                    <p className="text-sm text-error-700">{uploadError}</p>
+                </div>
+            )}
+
             {/* Action Buttons */}
             <div className="flex justify-between items-center pt-6 border-t border-gray-200">
                 <div className="flex items-center gap-4">
@@ -327,10 +342,10 @@ export const Step3GoodExamples: React.FC<Step3Props> = ({
                         iconLeading={ArrowLeft}
                         onClick={onPrevious}
                     >
-                        Previous
+                        Back to Output Templates
                     </Button>
                     <div className="text-sm text-secondary">
-                        Step 3 of 5
+                        Step 4 of 5
                     </div>
                 </div>
                 
@@ -341,18 +356,10 @@ export const Step3GoodExamples: React.FC<Step3Props> = ({
                     onClick={onNext}
                     isDisabled={!hasFiles || isAnalyzing || !analysis}
                 >
-                    Continue to AI Suggestions
+                    Continue to Test Assessment
                 </Button>
             </div>
 
-            {/* Help Text */}
-            <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
-                <p className="text-sm text-amber-800">
-                    <strong>Quality matters:</strong> Upload your best applications - those that scored highly 
-                    and met all criteria. The AI will learn from these to help future applicants create 
-                    better submissions and reduce your assessment workload.
-                </p>
-            </div>
         </div>
     );
 };

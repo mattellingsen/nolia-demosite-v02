@@ -4,12 +4,12 @@ import { useState, useEffect } from "react";
 import { Stars01, ArrowRight, ArrowLeft, CheckCircle, AlertTriangle, Lightbulb01, TrendUp02, Settings01, RefreshCw01 } from "@untitledui/icons";
 import { Button } from "@/components/base/buttons/button";
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
+import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
 
-interface Step4Props {
+interface AIRecommendationsProps {
     formData: any;
-    updateFormData: (updates: any) => void;
-    onNext: () => void;
-    onPrevious: () => void;
+    updateFormData?: (updates: any) => void;
+    onClose?: () => void;
 }
 
 interface AISuggestion {
@@ -32,11 +32,10 @@ interface AnalysisData {
     processingTime?: number;
 }
 
-export const Step4AISuggestions: React.FC<Step4Props> = ({ 
+export const AIRecommendations: React.FC<AIRecommendationsProps> = ({ 
     formData, 
     updateFormData, 
-    onNext,
-    onPrevious
+    onClose
 }) => {
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [analysis, setAnalysis] = useState<AnalysisData | null>(null);
@@ -152,7 +151,7 @@ export const Step4AISuggestions: React.FC<Step4Props> = ({
 
     // Auto-generate suggestions when component mounts if we have the required data
     useEffect(() => {
-        if (!analysis && !isAnalyzing && formData.applicationForm && 
+        if (!analysis && !isAnalyzing && formData && formData.applicationForm && 
             formData.selectionCriteria?.length > 0 && formData.goodExamples?.length > 0) {
             generateSuggestions();
         }
@@ -205,26 +204,44 @@ export const Step4AISuggestions: React.FC<Step4Props> = ({
                 </div>
             </div>
 
-            {/* Analysis in Progress */}
-            {isAnalyzing && (
+            {/* No Data Available */}
+            {(!formData || !formData.applicationForm) && (
                 <div className="text-center py-12 space-y-6">
-                    <div className="relative">
-                        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-brand-600 mx-auto"></div>
-                        <FeaturedIcon size="sm" color="brand" theme="light" icon={Stars01} className="absolute inset-0 m-auto" />
-                    </div>
-                    <div>
-                        <p className="text-md font-semibold text-primary mb-2">
-                            Analyzing your application setup...
+                    <div className="bg-blue-50 rounded-lg p-8 border border-blue-200">
+                        <h3 className="text-lg font-semibold text-blue-900 mb-4">No Fund Data Available</h3>
+                        <p className="text-sm text-blue-800 mb-6">
+                            To generate AI recommendations, you need to complete the fund setup process first. 
+                            This includes uploading your application form, selection criteria, output templates, and good examples.
                         </p>
+                        <Button 
+                            size="lg" 
+                            color="primary" 
+                            href="/funding/setup/setup-new-fund"
+                        >
+                            Set up a New Fund
+                        </Button>
+                    </div>
+                </div>
+            )}
+
+            {/* Analysis in Progress */}
+            {formData && formData.applicationForm && isAnalyzing && (
+                <div className="text-center py-12 space-y-6">
+                    <LoadingIndicator 
+                        type="dot-circle" 
+                        size="lg" 
+                        label="Analyzing your application setup..." 
+                    />
+                    <div>
                         <p className="text-sm text-secondary">
-                            This may take a few minutes as our AI processes your forms, criteria, and examples
+                            This may take a few minutes as Nolia processes your forms, criteria, and examples
                         </p>
                     </div>
                 </div>
             )}
 
             {/* Error Display */}
-            {error && (
+            {formData && formData.applicationForm && error && (
                 <div className="flex items-center gap-2 p-4 bg-error-50 border border-error-200 rounded-lg">
                     <AlertTriangle className="w-5 h-5 text-error-600" />
                     <p className="text-sm text-error-700">{error}</p>
@@ -235,7 +252,7 @@ export const Step4AISuggestions: React.FC<Step4Props> = ({
             )}
 
             {/* Analysis Results */}
-            {analysis && !isAnalyzing && (
+            {formData && formData.applicationForm && analysis && !isAnalyzing && (
                 <div className="space-y-8">
                     {/* Overall Score & Summary */}
                     <div className="bg-gray-50 rounded-lg p-6 space-y-6">
@@ -380,30 +397,16 @@ export const Step4AISuggestions: React.FC<Step4Props> = ({
             )}
 
             {/* Action Buttons */}
-            <div className="flex justify-between items-center pt-6 border-t border-gray-200">
-                <div className="flex items-center gap-4">
+            <div className="flex justify-center items-center pt-6 border-t border-gray-200">
+                {onClose && (
                     <Button
                         size="lg"
-                        color="tertiary"
-                        iconLeading={ArrowLeft}
-                        onClick={onPrevious}
+                        color="secondary"
+                        onClick={onClose}
                     >
-                        Previous
+                        Close
                     </Button>
-                    <div className="text-sm text-secondary">
-                        Step 4 of 5
-                    </div>
-                </div>
-                
-                <Button
-                    size="lg"
-                    color="primary"
-                    iconTrailing={ArrowRight}
-                    onClick={onNext}
-                    isDisabled={!analysis || isAnalyzing}
-                >
-                    Continue to Parameters
-                </Button>
+                )}
             </div>
 
             {/* Progress Summary */}

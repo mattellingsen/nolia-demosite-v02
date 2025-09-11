@@ -147,7 +147,7 @@ export const Step2SelectionCriteria: React.FC<Step2Props> = ({
                         Upload Selection Criteria
                     </h2>
                     <p className="text-lg text-secondary max-w-2xl mx-auto">
-                        Upload your assessment criteria documents. These will help the AI validate applications 
+                        Upload your assessment criteria documents. These will help Nolia validate applications 
                         and ensure only qualified submissions are processed.
                     </p>
                 </div>
@@ -178,74 +178,6 @@ export const Step2SelectionCriteria: React.FC<Step2Props> = ({
                             </div>
                         ))}
                     </div>
-                </div>
-            )}
-
-            {/* Upload Area */}
-            <div className="flex justify-center">
-                <div className="w-full max-w-2xl">
-                    <FileUpload.Root>
-                        <FileUpload.DropZone
-                            hint="PDF, Word, Excel documents, or Text files (max. 10MB each)"
-                            accept=".pdf,.doc,.docx,.txt,.xlsx,.xls,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-                            allowsMultiple={true}
-                            maxSize={10 * 1024 * 1024} // 10MB
-                            onDropFiles={handleFileUpload}
-                            onDropUnacceptedFiles={(files) => {
-                                setUploadError('Please upload PDF, Word, Excel, or text files only.');
-                            }}
-                            onSizeLimitExceed={(files) => {
-                                setUploadError('File size must be less than 10MB.');
-                            }}
-                            className="!bg-brand-secondary-25 !ring-1 !ring-brand-secondary-600 min-h-64 py-12 !flex !items-center !justify-center"
-                        />
-                        
-                        {isAnalyzing && (
-                            <div className="flex justify-center py-6">
-                                <LoadingIndicator 
-                                    type="dot-circle" 
-                                    size="md" 
-                                    label="Analyzing criteria documents..." 
-                                />
-                            </div>
-                        )}
-                    </FileUpload.Root>
-                </div>
-            </div>
-
-            {/* Example Document Types */}
-            <div className="bg-gray-50 rounded-lg p-6">
-                <h3 className="text-md font-semibold text-primary mb-4">Example Document Types</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200">
-                        <FeaturedIcon size="sm" color="gray" theme="light" icon={File02} />
-                        <div>
-                            <p className="text-sm font-medium text-primary">Ministerial Direction</p>
-                            <p className="text-xs text-secondary">Government directives</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200">
-                        <FeaturedIcon size="sm" color="gray" theme="light" icon={File02} />
-                        <div>
-                            <p className="text-sm font-medium text-primary">Funding Agreements</p>
-                            <p className="text-xs text-secondary">Terms and conditions</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200">
-                        <FeaturedIcon size="sm" color="gray" theme="light" icon={File02} />
-                        <div>
-                            <p className="text-sm font-medium text-primary">Eligibility Requirements</p>
-                            <p className="text-xs text-secondary">Qualification criteria</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Error Display */}
-            {uploadError && (
-                <div className="flex items-center gap-2 p-4 bg-error-50 border border-error-200 rounded-lg">
-                    <AlertCircle className="w-5 h-5 text-error-600" />
-                    <p className="text-sm text-error-700">{uploadError}</p>
                 </div>
             )}
 
@@ -303,6 +235,104 @@ export const Step2SelectionCriteria: React.FC<Step2Props> = ({
                             </div>
                         </div>
                     </div>
+                    
+                    {/* Specific Assessment Criteria */}
+                    {analysis.detectedCriteria && analysis.detectedCriteria.length > 0 && (
+                        <div>
+                            <p className="text-sm font-medium text-primary mb-3">Specific Assessment Criteria:</p>
+                            <div className="space-y-2">
+                                {analysis.detectedCriteria.map((criterion, index) => (
+                                    <div key={index} className="flex items-start gap-2 p-3 bg-white rounded border border-gray-200">
+                                        <span className="px-2 py-1 bg-warning-50 text-warning-700 text-xs font-medium rounded shrink-0">
+                                            {index + 1}
+                                        </span>
+                                        <p className="text-sm text-primary">{criterion}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Upload Area */}
+            <div className="flex justify-center">
+                <div className="w-full max-w-2xl">
+                    {/* Pro Tip */}
+                    <div className="bg-warning-50 rounded-lg p-4 border border-warning-200 mb-5">
+                        <p className="text-sm text-warning-800">
+                            <strong>Pro tip:</strong> Upload multiple documents like scoring rubrics, evaluation criteria, 
+                            and assessment guidelines. The more context you provide, the better the AI will understand 
+                            your requirements.
+                        </p>
+                    </div>
+                    <FileUpload.Root>
+                        <FileUpload.DropZone
+                            hint="PDF, Word, Excel documents, or Text files (max. 10MB each)"
+                            accept=".pdf,.doc,.docx,.txt,.xlsx,.xls,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                            allowsMultiple={true}
+                            maxSize={10 * 1024 * 1024} // 10MB
+                            onDropFiles={handleFileUpload}
+                            onDropUnacceptedFiles={(files) => {
+                                setUploadError('Please upload PDF, Word, Excel, or text files only.');
+                            }}
+                            onSizeLimitExceed={(files) => {
+                                setUploadError('File size must be less than 10MB.');
+                            }}
+                            className="!bg-white !border !border-brand-secondary-600 min-h-64 py-12 !flex !items-center !justify-center !rounded-lg upload-dropzone-custom"
+                        />
+                        
+                        {isAnalyzing && (
+                            <div className="flex justify-center py-6">
+                                <LoadingIndicator 
+                                    type="dot-circle" 
+                                    size="md" 
+                                    label="Analyzing criteria documents..." 
+                                />
+                            </div>
+                        )}
+                    </FileUpload.Root>
+                    <style jsx global>{`
+                        .upload-dropzone-custom {
+                            box-shadow: 0 0 0 8px #F2FAFC !important;
+                        }
+                    `}</style>
+                </div>
+            </div>
+
+            {/* Example Document Types */}
+            <div className="bg-gray-50 rounded-lg p-6">
+                <h3 className="text-md font-semibold text-primary mb-4">Example Document Types</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200">
+                        <FeaturedIcon size="sm" color="gray" theme="light" icon={File02} />
+                        <div>
+                            <p className="text-sm font-medium text-primary">Ministerial Direction</p>
+                            <p className="text-xs text-secondary">Government directives</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200">
+                        <FeaturedIcon size="sm" color="gray" theme="light" icon={File02} />
+                        <div>
+                            <p className="text-sm font-medium text-primary">Funding Agreements</p>
+                            <p className="text-xs text-secondary">Terms and conditions</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200">
+                        <FeaturedIcon size="sm" color="gray" theme="light" icon={File02} />
+                        <div>
+                            <p className="text-sm font-medium text-primary">Eligibility Requirements</p>
+                            <p className="text-xs text-secondary">Qualification criteria</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Error Display */}
+            {uploadError && (
+                <div className="flex items-center gap-2 p-4 bg-error-50 border border-error-200 rounded-lg">
+                    <AlertCircle className="w-5 h-5 text-error-600" />
+                    <p className="text-sm text-error-700">{uploadError}</p>
                 </div>
             )}
 
@@ -329,18 +359,10 @@ export const Step2SelectionCriteria: React.FC<Step2Props> = ({
                     onClick={onNext}
                     isDisabled={!hasFiles || isAnalyzing || !analysis}
                 >
-                    Continue to Good Examples
+                    Continue to Output Templates
                 </Button>
             </div>
 
-            {/* Help Text */}
-            <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                <p className="text-sm text-blue-800">
-                    <strong>Pro tip:</strong> Upload multiple documents like scoring rubrics, evaluation criteria, 
-                    and assessment guidelines. The more context you provide, the better the AI will understand 
-                    your requirements.
-                </p>
-            </div>
         </div>
     );
 };
