@@ -34,8 +34,12 @@ export async function saveFundWithRAG(fundData: {
   const { saveFundWithDocuments } = await import('./database-s3');
   const fund = await saveFundWithDocuments(fundData);
   
-  // Then, process documents for RAG storage
-  await processDocumentsForRAG(fund);
+  // Process documents for RAG storage in background (non-blocking)
+  // This prevents timeout issues during fund creation
+  processDocumentsForRAG(fund).catch(error => {
+    console.error('Background RAG processing failed:', error);
+    // RAG processing failure doesn't affect fund creation
+  });
   
   return fund;
 }
@@ -47,10 +51,41 @@ async function processDocumentsForRAG(fund: any): Promise<void> {
   try {
     console.log(`Processing documents for RAG storage - Fund: ${fund.id}`);
     
-    // Process each document type for vector storage
+    // Skip RAG processing if OpenAI key is missing (prevents errors)
+    if (!process.env.OPENAI_API_KEY) {
+      console.log('OpenAI API key not found, skipping RAG processing');
+      return;
+    }
+    
+    // Process each document type for vector storage with timeout protection
+    const timeout = 25000; // 25 seconds max for background processing
+    const processingPromise = processDocumentsWithTimeout(fund, timeout);
+    
+    await processingPromise;
+    
+  } catch (error) {
+    console.error('Error processing documents for RAG:', error);
+    // Don't fail the entire fund creation if RAG processing fails
+  }
+}
+
+async function processDocumentsWithTimeout(fund: any, timeoutMs: number): Promise<void> {
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => reject(new Error('RAG processing timeout')), timeoutMs);
+  });
+  
+  const processingPromise = async () => {
     for (const document of fund.documents) {
+      console.log(`Processing document: ${document.filename}`);
+      
       // Extract text from S3 document
       const documentText = await extractTextFromS3Document(document.s3Key);
+      
+      // Skip if text is too short
+      if (documentText.length < 100) {
+        console.log(`Skipping short document: ${document.filename}`);
+        continue;
+      }
       
       // Generate embedding
       const embedding = await generateEmbedding(documentText);
@@ -70,13 +105,10 @@ async function processDocumentsForRAG(fund: any): Promise<void> {
         },
       });
     }
-    
     console.log(`Successfully processed ${fund.documents.length} documents for RAG`);
-    
-  } catch (error) {
-    console.error('Error processing documents for RAG:', error);
-    // Don't fail the entire fund creation if RAG processing fails
-  }
+  };
+  
+  await Promise.race([processingPromise(), timeoutPromise]);
 }
 
 /**
