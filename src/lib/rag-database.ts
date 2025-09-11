@@ -3,10 +3,12 @@ import { prisma } from './database-s3';
 import { extractTextFromFile } from '../utils/server-document-analyzer';
 import { storeDocumentVector, generateEmbedding, searchRelevantDocuments, getFundCriteria, getFundGoodExamples } from './aws-opensearch';
 import { assessApplicationWithBedrock, type RAGContext, type AssessmentRequest } from './aws-bedrock';
+import { BackgroundJobService } from './background-job-service';
 // import { uploadFileToS3 } from './database-s3'; // Not needed for current implementation
 
 /**
  * Enhanced fund creation with RAG vector storage
+ * Uses background job system for reliable processing
  */
 export async function saveFundWithRAG(fundData: {
   name: string;
@@ -34,14 +36,30 @@ export async function saveFundWithRAG(fundData: {
   const { saveFundWithDocuments } = await import('./database-s3');
   const fund = await saveFundWithDocuments(fundData);
   
-  // Process documents for RAG storage in background (non-blocking)
-  // This prevents timeout issues during fund creation
-  processDocumentsForRAG(fund).catch(error => {
-    console.error('Background RAG processing failed:', error);
-    // RAG processing failure doesn't affect fund creation
+  // Create background job for RAG processing
+  const job = await BackgroundJobService.createJob(
+    fund.id, 
+    'RAG_PROCESSING',
+    {
+      totalDocuments: fund.documents?.length || 0,
+      createdAt: new Date().toISOString()
+    }
+  );
+  
+  console.log(`Created RAG processing job ${job.id} for fund ${fund.id}`);
+  
+  // Start processing the job immediately (non-blocking)
+  BackgroundJobService.processRAGJob(job.id).catch(error => {
+    console.error(`Background RAG processing failed for job ${job.id}:`, error);
+    // Job failure is tracked in the database, doesn't affect fund creation
   });
   
-  return fund;
+  // Return fund with job info
+  return {
+    ...fund,
+    ragJobId: job.id,
+    ragJobStatus: job.status
+  };
 }
 
 /**

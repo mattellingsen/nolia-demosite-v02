@@ -27,6 +27,18 @@ enum FundStatus {
   CLOSED
 }
 
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum JobType {
+  RAG_PROCESSING
+  DOCUMENT_ANALYSIS
+}
+
 // Fund model - represents a funding program/scheme
 model Fund {
   id          String     @id @default(uuid())
@@ -43,6 +55,7 @@ model Fund {
   
   // Relationships
   documents   FundDocument[]
+  backgroundJobs BackgroundJob[]
   
   @@map("funds")
 }
@@ -62,4 +75,29 @@ model FundDocument {
   fund         Fund        @relation(fields: [fundId], references: [id], onDelete: Cascade)
   
   @@map("fund_documents")
+}
+
+// BackgroundJob model - tracks long-running background tasks
+model BackgroundJob {
+  id                  String    @id @default(uuid())
+  fundId              String
+  type                JobType
+  status              JobStatus @default(PENDING)
+  progress            Int       @default(0) // 0-100 percentage
+  totalDocuments      Int       @default(0)
+  processedDocuments  Int       @default(0)
+  metadata            Json      @default("{}")
+  errorMessage        String?
+  startedAt           DateTime?
+  completedAt         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  
+  // Relationships
+  fund                Fund      @relation(fields: [fundId], references: [id], onDelete: Cascade)
+  
+  @@map("background_jobs")
+  @@index([fundId])
+  @@index([status])
+  @@index([type])
 }
