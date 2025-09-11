@@ -165,7 +165,13 @@ export async function POST(request: NextRequest) {
       environment: {
         nodeEnv: process.env.NODE_ENV,
         region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION,
-        hasAwsCredentials: !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY)
+        noliaRegion: process.env.NOLIA_AWS_REGION || 'not-set',
+        standardRegion: process.env.AWS_REGION || 'not-set',
+        hasAwsCredentials: !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY),
+        accessKeyExists: !!process.env.AWS_ACCESS_KEY_ID,
+        secretKeyExists: !!process.env.AWS_SECRET_ACCESS_KEY,
+        accessKeyPreview: process.env.AWS_ACCESS_KEY_ID ? process.env.AWS_ACCESS_KEY_ID.substring(0, 10) + '...' : 'not-set',
+        bucketName: process.env.S3_BUCKET_DOCUMENTS || 'not-set'
       }
     });
 
