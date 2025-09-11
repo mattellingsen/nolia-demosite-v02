@@ -200,7 +200,7 @@ export class BackgroundJobService {
    */
   private static async extractTextFromS3Document(s3Key: string): Promise<string> {
     const s3Client = new S3Client({
-      region: process.env.AWS_REGION || 'us-east-1',
+      region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'us-east-1',
       // Use explicit credentials if available (local dev), otherwise use IAM Role (production)
       ...(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY ? {
         credentials: {

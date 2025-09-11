@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     const step3Start = Date.now();
     try {
       const s3Client = new S3Client({
-        region: process.env.AWS_REGION || 'us-east-1',
+        region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'us-east-1',
         ...(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY ? {
           credentials: {
             accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -164,7 +164,7 @@ export async function POST(request: NextRequest) {
       ),
       environment: {
         nodeEnv: process.env.NODE_ENV,
-        region: process.env.AWS_REGION,
+        region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION,
         hasAwsCredentials: !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY)
       }
     });
