@@ -3,11 +3,14 @@ import { OpenSearchClient } from '@aws-sdk/client-opensearch';
 
 // Initialize OpenSearch client
 const openSearchClient = new OpenSearchClient({
-  region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',
-  credentials: {
-    accessKeyId: process.env.NOLIA_AWS_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.NOLIA_AWS_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY!,
-  },
+  region: 'ap-southeast-2', // OpenSearch is specifically in ap-southeast-2
+  // Use explicit credentials if available (local dev), otherwise use IAM Role (production)
+  ...(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY ? {
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    },
+  } : {}),
 });
 
 // OpenSearch configuration
