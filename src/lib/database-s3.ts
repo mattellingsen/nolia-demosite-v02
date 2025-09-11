@@ -17,13 +17,16 @@ export const prisma =
 // Prevent multiple instances in development
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
-// S3 client configuration
+// S3 client configuration - supports both IAM Role and explicit credentials
 const s3Client = new S3Client({
-  region: process.env.AWS_REGION || 'us-east-1',
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-  },
+  region: process.env.AWS_REGION || 'ap-southeast-2',
+  // Use explicit credentials if available (local dev), otherwise use IAM Role (production)
+  ...(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY ? {
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    },
+  } : {}),
 });
 
 const S3_BUCKET = process.env.S3_BUCKET_DOCUMENTS || 'nolia-funding-documents-599065966827';
