@@ -17,16 +17,21 @@ export const prisma =
 // Prevent multiple instances in development
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
-// S3 client configuration - supports both IAM Role and explicit credentials
+// S3 client configuration - force IAM Role in production, explicit credentials in development
 const s3Client = new S3Client({
   region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'us-east-1',
-  // Use explicit credentials if available (local dev), otherwise use IAM Role (production)
-  ...(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY ? {
+  // Only use explicit credentials in development when they are intentionally set
+  ...(process.env.NODE_ENV === 'development' && 
+      process.env.AWS_ACCESS_KEY_ID && 
+      process.env.AWS_SECRET_ACCESS_KEY && 
+      !process.env.AWS_ACCESS_KEY_ID.startsWith('ASIA') ? {
     credentials: {
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
     },
-  } : {}),
+  } : {
+    // In production or when ASIA credentials are detected, force IAM Role by not providing credentials
+  }),
 });
 
 const S3_BUCKET = process.env.S3_BUCKET_DOCUMENTS || 'nolia-funding-documents-599065966827';
