@@ -4,8 +4,11 @@ import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedroc
 // Initialize Bedrock client
 const bedrockClient = new BedrockRuntimeClient({
   region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'us-east-1',
-  // Use explicit credentials if available (local dev), otherwise use IAM Role (production)
-  ...(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY ? {
+  // Force IAM Role in production by not providing credentials if they start with ASIA
+  ...(process.env.NODE_ENV === 'development' && 
+      process.env.AWS_ACCESS_KEY_ID && 
+      process.env.AWS_SECRET_ACCESS_KEY && 
+      !process.env.AWS_ACCESS_KEY_ID.startsWith('ASIA') ? {
     credentials: {
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
