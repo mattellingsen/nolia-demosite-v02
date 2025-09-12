@@ -57,14 +57,14 @@ export const Step3OutputTemplates: React.FC<Step3Props> = ({
                     let textContent = '';
                     let documentAnalysis: any = null;
                     
-                    // For text files, read directly
+                    // TEMPORARILY DISABLED: Analysis moved to backend
                     if (file.type === 'text/plain') {
                         textContent = await file.text();
                     } else {
-                        // For PDF/Word documents, use API analysis to get real content
-                        documentAnalysis = await analyzeDocumentViaAPI(file);
-                        textContent = documentAnalysis.textContent || '';
-                        console.log(`📄 Extracted ${textContent.length} characters from ${file.name}`);
+                        // DISABLED: Document analysis moved to backend after upload
+                        // documentAnalysis = await analyzeDocumentViaAPI(file);
+                        textContent = 'Analysis will be performed after upload';
+                        console.log(`📄 Skipping frontend analysis for ${file.name} - will be done on backend`);
                     }
                     
                     if (!textContent.trim()) {

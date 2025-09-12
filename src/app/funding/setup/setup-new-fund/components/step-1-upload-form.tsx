@@ -35,16 +35,26 @@ export const Step1UploadForm: React.FC<Step1Props> = ({
         setUploadError('');
         
         try {
-            // Use real document analysis via API (server-side PDF/Word processing)
-            const documentAnalysis = await analyzeDocumentViaAPI(file);
+            // TEMPORARILY DISABLED: Document analysis moved to backend after upload
+            // const documentAnalysis = await analyzeDocumentViaAPI(file);
             
-            // Store both the analysis and the original file data for later use
-            setAnalysis(documentAnalysis);
+            // Create placeholder analysis - real analysis happens on backend after upload
+            const placeholderAnalysis: FormAnalysis = {
+                sections: [],
+                wordCount: 0,
+                complexity: 'Analysis will be performed after upload',
+                fieldTypes: [],
+                textContent: '',
+                questionsFound: 0,
+                extractedSections: []
+            };
             
-            // Update form data with the analysis results for persistence
+            setAnalysis(placeholderAnalysis);
+            
+            // Update form data with file only - analysis happens on backend
             updateFormData({ 
                 applicationForm: file,
-                applicationFormAnalysis: documentAnalysis
+                applicationFormAnalysis: placeholderAnalysis
             });
             
         } catch (error) {
