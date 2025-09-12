@@ -44,9 +44,12 @@ export const Step2SelectionCriteria: React.FC<Step2Props> = ({
             
             // Create placeholder analysis - real analysis happens on backend
             const placeholderAnalysis: CriteriaAnalysis = {
-                criteria: [],
-                totalCriteria: 0,
-                complexity: 'Analysis will be performed after upload'
+                criteriaFound: 0,
+                weightings: [],
+                categories: [],
+                scoringMethod: 'Points' as const,
+                textContent: 'Analysis will be performed after upload',
+                detectedCriteria: []
             };
             
             setAnalysis(placeholderAnalysis);
