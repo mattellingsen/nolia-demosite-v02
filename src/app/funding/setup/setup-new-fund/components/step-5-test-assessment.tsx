@@ -20,6 +20,9 @@ import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-ic
 import { FileUpload } from "@/components/application/file-upload/file-upload-base";
 import { Badge } from "@/components/base/badges/badges";
 import { Toggle } from "@/components/base/toggle/toggle";
+import { ModalOverlay, Modal, Dialog } from "@/components/application/modals/modal";
+import { ProgressBar } from "@/components/base/progress-indicators/progress-indicators";
+import { runTestAssessmentViaAPI } from "@/lib/api-client";
 
 interface Step5Props {
     formData: any;
@@ -59,6 +62,8 @@ export const Step5TestAssessment: React.FC<Step5Props> = ({
     const [uploadError, setUploadError] = useState<string>('');
     const [testResults, setTestResults] = useState<{passes: number; fails: number; total: number} | null>(null);
     const [isCreatingFund, setIsCreatingFund] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
+    const [showUploadModal, setShowUploadModal] = useState(false);
 
     const handleFileUpload = useCallback(async (files: FileList) => {
         const fileArray = Array.from(files);
@@ -109,52 +114,64 @@ export const Step5TestAssessment: React.FC<Step5Props> = ({
         
         setIsRunningTest(true);
         
-        // Simulate AI assessment for each application
+        // Get the selection criteria from form data for assessment context
+        const criteria = formData.selectionCriteriaAnalysis;
+        
+        // Run real AI assessment for each application
         for (const app of testApplications) {
             // Update status to testing
             setTestApplications(prev => prev.map(a => 
                 a.id === app.id ? { ...a, status: 'testing' } : a
             ));
             
-            // Simulate processing time
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            
-            // Mock assessment results - make scores consistent with pass/fail
-            const shouldPass = Math.random() > 0.3; // 70% chance to pass
-            
-            const mockAssessment = shouldPass ? {
-                score: Math.floor(Math.random() * 25) + 75, // 75-100 for pass
-                criteriaScore: Math.floor(Math.random() * 25) + 75,
-                innovation: Math.floor(Math.random() * 25) + 75,
-                financial: Math.floor(Math.random() * 25) + 75,
-                team: Math.floor(Math.random() * 25) + 75,
-                market: Math.floor(Math.random() * 25) + 75,
-                risk: Math.floor(Math.random() * 25) + 75
-            } : {
-                score: Math.floor(Math.random() * 25) + 40, // 40-74 for fail
-                criteriaScore: Math.floor(Math.random() * 25) + 40,
-                innovation: Math.floor(Math.random() * 35) + 40,
-                financial: Math.floor(Math.random() * 35) + 40,
-                team: Math.floor(Math.random() * 35) + 40,
-                market: Math.floor(Math.random() * 35) + 40,
-                risk: Math.floor(Math.random() * 35) + 40
-            };
-            
-            const passed = mockAssessment.score >= 75;
-            const feedback = passed 
-                ? "Strong application meeting all key criteria. Innovation and team scores particularly impressive."
-                : "Application falls short in several key areas. Consider strengthening financial projections and market analysis.";
-            
-            // Update with final results
-            setTestApplications(prev => prev.map(a => 
-                a.id === app.id ? { 
-                    ...a, 
-                    status: passed ? 'pass' : 'fail',
-                    score: mockAssessment.score,
-                    feedback,
-                    assessmentDetails: mockAssessment
-                } : a
-            ));
+            try {
+                // Call real assessment API
+                const assessmentResult = await runTestAssessmentViaAPI(app.file, criteria);
+                
+                // Map API response to our component's expected format
+                const passed = assessmentResult.score >= 70; // Use 70 as pass threshold
+                
+                const assessmentDetails = {
+                    criteriaScore: assessmentResult.score,
+                    innovation: assessmentResult.innovation || assessmentResult.score,
+                    financial: assessmentResult.financial || assessmentResult.score,
+                    team: assessmentResult.team || assessmentResult.score,
+                    market: assessmentResult.market || assessmentResult.score,
+                    risk: assessmentResult.score // Use overall score for risk
+                };
+                
+                // Update with real results
+                setTestApplications(prev => prev.map(a => 
+                    a.id === app.id ? { 
+                        ...a, 
+                        status: passed ? 'pass' : 'fail',
+                        score: assessmentResult.score,
+                        feedback: assessmentResult.feedback || 'Assessment completed',
+                        assessmentDetails
+                    } : a
+                ));
+                
+            } catch (error) {
+                console.error('Assessment error for', app.name, error);
+                
+                // Fallback to failed status if API call fails
+                setTestApplications(prev => prev.map(a => 
+                    a.id === app.id ? { 
+                        ...a, 
+                        status: 'fail',
+                        score: 0,
+                        feedback: 'Assessment failed - please try again',
+                        assessmentDetails: {
+                            criteriaScore: 0,
+                            innovation: 0,
+                            financial: 0,
+                            team: 0,
+                            market: 0,
+                            risk: 0
+                        }
+                    } : a
+                ));
+            }
         }
         
         setIsRunningTest(false);
@@ -188,8 +205,26 @@ export const Step5TestAssessment: React.FC<Step5Props> = ({
         }
 
         setIsCreatingFund(true);
+        setShowUploadModal(true);
+        setUploadProgress(0);
         
         try {
+            // Calculate total number of files
+            const totalFiles = 1 + // application form
+                (formData.selectionCriteria?.length || 0) + 
+                (formData.goodExamples?.length || 0);
+            
+            // Simulate progress for better UX
+            const progressInterval = setInterval(() => {
+                setUploadProgress(prev => {
+                    if (prev >= 90) {
+                        clearInterval(progressInterval);
+                        return 90; // Hold at 90% until actual completion
+                    }
+                    return prev + Math.random() * 15; // Random increments for realistic feel
+                });
+            }, 500);
+            
             const fundData = {
                 fundName: formData.fundName,
                 description: `AI-powered fund created through setup wizard`,
@@ -203,11 +238,19 @@ export const Step5TestAssessment: React.FC<Step5Props> = ({
 
             await createFund.mutateAsync(fundData);
             
-            // Redirect to setup dashboard
-            router.push('/funding/setup');
+            // Complete the progress
+            clearInterval(progressInterval);
+            setUploadProgress(100);
+            
+            // Brief delay to show completion
+            setTimeout(() => {
+                setShowUploadModal(false);
+                router.push('/funding/setup');
+            }, 500);
             
         } catch (error) {
             console.error('Error creating fund:', error);
+            setShowUploadModal(false);
             alert('Failed to create fund. Please try again.');
         } finally {
             setIsCreatingFund(false);
@@ -230,6 +273,7 @@ export const Step5TestAssessment: React.FC<Step5Props> = ({
     };
 
     return (
+        <>
         <div className="max-w-4xl mx-auto space-y-8">
             {/* Header */}
             <div className="text-center space-y-4">
@@ -448,5 +492,55 @@ export const Step5TestAssessment: React.FC<Step5Props> = ({
             </div>
 
         </div>
+
+        {/* Upload Progress Modal */}
+        {showUploadModal && (
+            <ModalOverlay isOpen isDismissable={false}>
+                <Modal className="max-w-md">
+                    <Dialog>
+                        {/* Modal Card Container */}
+                        <div className="relative overflow-hidden rounded-xl bg-primary shadow-xl ring-1 ring-gray-950/5">
+                            {/* Modal Content */}
+                            <div className="flex flex-col items-center justify-center space-y-6 p-8">
+                                {/* Optional Icon/Header Area */}
+                                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-50">
+                                    <UploadCloud01 className="h-6 w-6 text-brand-600" />
+                                </div>
+                                
+                                {/* Title */}
+                                <div className="text-center">
+                                    <h3 className="text-lg font-semibold text-primary">
+                                        Uploading Documents
+                                    </h3>
+                                    <p className="mt-1 text-sm text-secondary">
+                                        Please wait while we upload your files to the server
+                                    </p>
+                                </div>
+                                
+                                {/* Progress Bar */}
+                                <div className="w-full">
+                                    <ProgressBar 
+                                        value={uploadProgress} 
+                                        min={0} 
+                                        max={100}
+                                        labelPosition="right"
+                                        className="w-full"
+                                    />
+                                </div>
+                                
+                                {/* File count indicator */}
+                                <p className="text-center text-sm text-tertiary">
+                                    {uploadProgress < 100 
+                                        ? `Processing ${1 + (formData.selectionCriteria?.length || 0) + (formData.goodExamples?.length || 0)} files...`
+                                        : '✓ Upload complete!'
+                                    }
+                                </p>
+                            </div>
+                        </div>
+                    </Dialog>
+                </Modal>
+            </ModalOverlay>
+        )}
+        </>
     );
 };

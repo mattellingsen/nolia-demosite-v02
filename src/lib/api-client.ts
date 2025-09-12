@@ -172,3 +172,52 @@ export async function downloadDocument(documentId: string): Promise<Blob> {
 export function getDocumentDownloadUrl(documentId: string): string {
   return `/api/documents/${documentId}/download`;
 }
+
+/**
+ * Analyze multiple good example documents via API
+ */
+export async function analyzeGoodExamplesViaAPI(files: File[]): Promise<any> {
+  const formData = new FormData();
+  
+  files.forEach((file, index) => {
+    formData.append(`file${index}`, file);
+  });
+  
+  const response = await fetch('/api/analyze/good-examples', {
+    method: 'POST',
+    body: formData,
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Good examples analysis failed' }));
+    throw new Error(errorData.error || 'Failed to analyze good examples');
+  }
+  
+  const result = await response.json();
+  return result;
+}
+
+/**
+ * Run test assessment on application document via API
+ */
+export async function runTestAssessmentViaAPI(applicationFile: File, criteria: any): Promise<any> {
+  const formData = new FormData();
+  formData.append('application', applicationFile);
+  
+  if (criteria) {
+    formData.append('criteria', JSON.stringify(criteria));
+  }
+  
+  const response = await fetch('/api/analyze/test-assessment', {
+    method: 'POST',
+    body: formData,
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Test assessment failed' }));
+    throw new Error(errorData.error || 'Failed to run test assessment');
+  }
+  
+  const result = await response.json();
+  return result;
+}

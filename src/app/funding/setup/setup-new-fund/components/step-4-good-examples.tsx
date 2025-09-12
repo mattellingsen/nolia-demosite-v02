@@ -6,6 +6,7 @@ import { Button } from "@/components/base/buttons/button";
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
 import { FileUpload } from "@/components/application/file-upload/file-upload-base";
 import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
+import { analyzeGoodExamplesViaAPI } from "@/lib/api-client";
 
 interface Step4Props {
     formData: any;
@@ -42,36 +43,22 @@ export const Step4GoodExamples: React.FC<Step4Props> = ({
         setUploadError('');
         
         try {
-            // REMOVED: Artificial delay to speed up form submission
-            // await new Promise(resolve => setTimeout(resolve, 2000));
+            // Use real API to analyze good examples
+            const analysisResult = await analyzeGoodExamplesViaAPI(files);
             
-            // Mock analysis results
-            const mockAnalysis: ExampleAnalysis = {
-                examplesAnalyzed: files.length,
-                averageScore: Math.floor(Math.random() * 20) + 80, // 80-100
-                qualityIndicators: [
-                    { name: 'Answer Relevance', score: 92, description: 'Responses directly address questions asked' },
-                    { name: 'Detail Level', score: 88, description: 'Appropriate amount of detail provided' },
-                    { name: 'Evidence Quality', score: 85, description: 'Strong supporting evidence and examples' },
-                    { name: 'Writing Clarity', score: 90, description: 'Clear, professional communication style' }
-                ],
-                writingPatterns: [
-                    'Average response length: 150-200 words per question',
-                    'Uses specific examples and metrics',
-                    'Follows structured format with clear headings',
-                    'Professional but engaging tone'
-                ],
-                commonStrengths: [
-                    'Clear problem identification',
-                    'Detailed implementation plans',
-                    'Realistic budget breakdowns',
-                    'Strong team credentials',
-                    'Measurable outcomes defined'
-                ]
+            // Map the API response to our component's expected format
+            const mappedAnalysis: ExampleAnalysis = {
+                examplesAnalyzed: analysisResult.examplesAnalyzed || files.length,
+                averageScore: analysisResult.averageScore || 75,
+                qualityIndicators: analysisResult.qualityIndicators || [],
+                writingPatterns: analysisResult.writingPatterns || [],
+                commonStrengths: analysisResult.commonStrengths || []
             };
             
-            setAnalysis(mockAnalysis);
+            setAnalysis(mappedAnalysis);
+            updateFormData({ goodExamplesAnalysis: mappedAnalysis });
         } catch (error) {
+            console.error('Good examples analysis error:', error);
             setUploadError('Failed to analyze good examples. Please try again.');
         } finally {
             setIsAnalyzing(false);

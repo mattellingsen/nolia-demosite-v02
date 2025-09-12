@@ -1,0 +1,185 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { analyzeApplicationForm } from '@/utils/server-document-analyzer';
+
+interface QualityIndicator {
+    name: string;
+    score: number;
+    description: string;
+}
+
+export async function POST(request: NextRequest) {
+    try {
+        const formData = await request.formData();
+        const files: File[] = [];
+        
+        // Collect all files from FormData
+        for (const [key, value] of formData.entries()) {
+            if (value instanceof File) {
+                files.push(value);
+            }
+        }
+        
+        if (files.length === 0) {
+            return NextResponse.json(
+                { error: 'No files provided' },
+                { status: 400 }
+            );
+        }
+        
+        console.log(`📊 Analyzing ${files.length} good example files`);
+        
+        // Analyze each file to extract quality patterns
+        const analyses = [];
+        const allScores: number[] = [];
+        const allPatterns: Set<string> = new Set();
+        const allStrengths: Set<string> = new Set();
+        
+        for (const file of files) {
+            try {
+                const analysis = await analyzeApplicationForm(file);
+                
+                if (analysis) {
+                    analyses.push(analysis);
+                    
+                    // Extract quality metrics from the analysis
+                    // Base score on document completeness and structure
+                    const score = calculateQualityScore(analysis);
+                    allScores.push(score);
+                    
+                    // Extract writing patterns
+                    if (analysis.wordCount > 0) {
+                        const avgWordsPerSection = Math.round(analysis.wordCount / (analysis.sections.length || 1));
+                        allPatterns.add(`Average section length: ${avgWordsPerSection} words`);
+                    }
+                    
+                    if (analysis.extractedSections?.length > 0) {
+                        allPatterns.add(`Structured with ${analysis.extractedSections.length} clear sections`);
+                    }
+                    
+                    // Extract common strengths based on content
+                    if (analysis.questionsFound > 10) {
+                        allStrengths.add('Comprehensive coverage of all required questions');
+                    }
+                    if (analysis.complexity === 'Complex') {
+                        allStrengths.add('Detailed and thorough responses');
+                    }
+                    if (analysis.fieldTypes.length > 5) {
+                        allStrengths.add('Rich variety of information types');
+                    }
+                    if (analysis.sections.some(s => s.toLowerCase().includes('budget'))) {
+                        allStrengths.add('Detailed budget breakdowns');
+                    }
+                    if (analysis.sections.some(s => s.toLowerCase().includes('timeline') || s.toLowerCase().includes('milestone'))) {
+                        allStrengths.add('Clear timelines and milestones');
+                    }
+                    if (analysis.sections.some(s => s.toLowerCase().includes('team') || s.toLowerCase().includes('experience'))) {
+                        allStrengths.add('Strong team credentials');
+                    }
+                    if (analysis.sections.some(s => s.toLowerCase().includes('outcome') || s.toLowerCase().includes('impact'))) {
+                        allStrengths.add('Measurable outcomes defined');
+                    }
+                }
+            } catch (error) {
+                console.error(`Error analyzing file ${file.name}:`, error);
+            }
+        }
+        
+        // Calculate average score
+        const averageScore = allScores.length > 0 
+            ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length)
+            : 75;
+        
+        // Generate quality indicators based on analysis
+        const qualityIndicators: QualityIndicator[] = [
+            {
+                name: 'Document Completeness',
+                score: Math.min(95, averageScore + 10),
+                description: 'All required sections are thoroughly addressed'
+            },
+            {
+                name: 'Answer Relevance',
+                score: Math.min(92, averageScore + 5),
+                description: 'Responses directly address the questions asked'
+            },
+            {
+                name: 'Detail Level',
+                score: averageScore,
+                description: 'Appropriate amount of detail and evidence provided'
+            },
+            {
+                name: 'Structure & Clarity',
+                score: Math.min(90, averageScore + 3),
+                description: 'Well-organized with clear sections and flow'
+            }
+        ];
+        
+        // Convert sets to arrays and add default patterns if needed
+        let writingPatterns = Array.from(allPatterns);
+        if (writingPatterns.length === 0) {
+            writingPatterns = [
+                'Clear and professional writing style',
+                'Consistent formatting throughout',
+                'Logical flow between sections'
+            ];
+        }
+        
+        let commonStrengths = Array.from(allStrengths);
+        if (commonStrengths.length === 0) {
+            commonStrengths = [
+                'Clear problem identification',
+                'Well-defined objectives',
+                'Professional presentation'
+            ];
+        }
+        
+        const result = {
+            examplesAnalyzed: files.length,
+            averageScore,
+            qualityIndicators,
+            writingPatterns: writingPatterns.slice(0, 5), // Limit to top 5
+            commonStrengths: commonStrengths.slice(0, 6), // Limit to top 6
+            analyses: analyses.map(a => ({
+                sections: a.sections.length,
+                wordCount: a.wordCount,
+                complexity: a.complexity
+            }))
+        };
+        
+        console.log(`✅ Good examples analysis complete:`, {
+            files: files.length,
+            averageScore,
+            patterns: writingPatterns.length,
+            strengths: commonStrengths.length
+        });
+        
+        return NextResponse.json(result);
+        
+    } catch (error) {
+        console.error('Error analyzing good examples:', error);
+        return NextResponse.json(
+            { error: 'Failed to analyze good examples' },
+            { status: 500 }
+        );
+    }
+}
+
+function calculateQualityScore(analysis: any): number {
+    let score = 70; // Base score
+    
+    // Add points for completeness
+    if (analysis.sections.length > 5) score += 5;
+    if (analysis.sections.length > 10) score += 5;
+    
+    // Add points for detail
+    if (analysis.wordCount > 1000) score += 5;
+    if (analysis.wordCount > 2000) score += 5;
+    
+    // Add points for complexity
+    if (analysis.complexity === 'Medium') score += 3;
+    if (analysis.complexity === 'Complex') score += 7;
+    
+    // Add points for structure
+    if (analysis.extractedSections?.length > 0) score += 5;
+    
+    return Math.min(95, score); // Cap at 95
+}

@@ -23,6 +23,39 @@ export interface CriteriaAnalysis {
     scoringMethod: 'Points' | 'Percentage' | 'Pass/Fail';
     textContent: string;
     detectedCriteria: string[];
+    extractedSections?: any[];
+    
+    // Optional AI reasoning data (only present if AI analysis was successful)
+    aiReasoning?: {
+        documentRoles: Array<{
+            filename: string;
+            identifiedRole: string;
+            purpose: string;
+            keyContributions: string[];
+        }>;
+        
+        unifiedCriteria: Array<{
+            category: string;
+            weight: number;
+            requirements: string[];
+            sourceDocuments: string[];
+            reasoning: string;
+        }>;
+        
+        conflictsIdentified: Array<{
+            type: 'weight_mismatch' | 'requirement_conflict' | 'scoring_inconsistency';
+            description: string;
+            affectedDocuments: string[];
+            recommendation: string;
+        }>;
+        
+        synthesizedFramework: {
+            scoringMethod: 'Points' | 'Percentage' | 'Pass/Fail';
+            passingThreshold: number;
+            weightingJustification: string;
+            assessmentProcess: string[];
+        };
+    };
 }
 
 /**
