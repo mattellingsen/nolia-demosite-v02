@@ -39,7 +39,7 @@ const S3_BUCKET = process.env.S3_BUCKET_DOCUMENTS || 'nolia-funding-documents-59
 /**
  * Upload file to S3 and return the key
  */
-async function uploadFileToS3(buffer: Buffer, filename: string, mimeType: string, folder: string): Promise<string> {
+export async function uploadFileToS3(buffer: Buffer, filename: string, mimeType: string, folder: string): Promise<string> {
   const key = `${folder}/${crypto.randomUUID()}-${filename}`;
   
   await s3Client.send(new PutObjectCommand({

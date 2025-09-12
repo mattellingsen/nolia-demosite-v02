@@ -102,7 +102,14 @@ export class BackgroundJobService {
         progress: 0
       });
       
-      // Get fund and documents
+      // Check if job has file data (new async approach)
+      if (job.metadata?.files) {
+        console.log(`Processing job with embedded files: ${job.metadata.files.length} files`);
+        await this.processJobWithFiles(jobId, job.metadata.files);
+        return;
+      }
+      
+      // Legacy approach: Get fund and documents from database
       const fund = await prisma.fund.findUnique({
         where: { id: job.fundId },
         include: { documents: true }
@@ -198,6 +205,130 @@ export class BackgroundJobService {
     }
   }
   
+  /**
+   * Process a job with embedded file data (async approach)
+   */
+  private static async processJobWithFiles(jobId: string, filesData: any[]): Promise<void> {
+    const job = await this.getJob(jobId);
+    if (!job) throw new Error(`Job ${jobId} not found`);
+
+    try {
+      console.log(`Processing ${filesData.length} files for fund ${job.fundId}`);
+      
+      // Process each file: upload to S3, create document record, analyze
+      for (let i = 0; i < filesData.length; i++) {
+        const fileData = filesData[i];
+        const progress = Math.round((i / filesData.length) * 90); // Leave 10% for final processing
+        
+        await this.updateJob(jobId, { progress });
+        
+        try {
+          console.log(`Processing file ${i + 1}/${filesData.length}: ${fileData.filename}`);
+          
+          // Convert base64 back to buffer
+          const buffer = Buffer.from(fileData.data, 'base64');
+          
+          // Upload to S3
+          const s3Key = await this.uploadBufferToS3(buffer, fileData.filename, fileData.mimeType, fileData.type.toLowerCase());
+          
+          // Create document record
+          const document = await prisma.fundDocument.create({
+            data: {
+              fundId: job.fundId,
+              documentType: fileData.type,
+              filename: fileData.filename,
+              mimeType: fileData.mimeType,
+              fileSize: fileData.size,
+              s3Key
+            }
+          });
+          
+          // Analyze document
+          const fileBlob = new Blob([buffer], { type: fileData.mimeType });
+          const file = new File([fileBlob], fileData.filename, { type: fileData.mimeType });
+          
+          let analysis;
+          if (fileData.type === 'APPLICATION_FORM') {
+            analysis = await analyzeApplicationForm(file);
+          } else {
+            analysis = await analyzeSelectionCriteria([file]);
+          }
+          
+          console.log(`Successfully processed ${fileData.filename}`);
+          
+        } catch (fileError) {
+          console.error(`Error processing file ${fileData.filename}:`, fileError);
+          // Continue with other files
+        }
+      }
+      
+      // Update fund with analysis results (fetch from database records)
+      await this.updateFundAnalysisFromDocuments(job.fundId);
+      
+      // Mark job as completed
+      await this.updateJob(jobId, {
+        status: 'COMPLETED',
+        progress: 100,
+        completedAt: new Date()
+      });
+      
+      console.log(`Async job ${jobId} completed successfully`);
+      
+    } catch (error) {
+      console.error(`Async job ${jobId} failed:`, error);
+      
+      await this.updateJob(jobId, {
+        status: 'FAILED',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        completedAt: new Date()
+      });
+      
+      throw error;
+    }
+  }
+
+  /**
+   * Upload buffer to S3 and return key
+   */
+  private static async uploadBufferToS3(buffer: Buffer, filename: string, mimeType: string, folder: string): Promise<string> {
+    const { uploadFileToS3 } = await import('./database-s3');
+    return await uploadFileToS3(buffer, filename, mimeType, folder);
+  }
+
+  /**
+   * Update fund analysis from processed documents
+   */
+  private static async updateFundAnalysisFromDocuments(fundId: string): Promise<void> {
+    const fund = await prisma.fund.findUnique({
+      where: { id: fundId },
+      include: { documents: true }
+    });
+    
+    if (!fund) return;
+    
+    // Group documents by type and update analysis accordingly
+    const updates: any = {};
+    
+    if (fund.documents.some(d => d.documentType === 'APPLICATION_FORM')) {
+      updates.applicationFormAnalysis = { status: 'completed' };
+    }
+    
+    if (fund.documents.some(d => d.documentType === 'SELECTION_CRITERIA')) {
+      updates.selectionCriteriaAnalysis = { status: 'completed' };
+    }
+    
+    if (fund.documents.some(d => d.documentType === 'GOOD_EXAMPLES')) {
+      updates.goodExamplesAnalysis = { status: 'completed' };
+    }
+    
+    if (Object.keys(updates).length > 0) {
+      await prisma.fund.update({
+        where: { id: fundId },
+        data: updates
+      });
+    }
+  }
+
   /**
    * Perform document analysis for a fund
    */
