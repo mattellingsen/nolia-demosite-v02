@@ -23,7 +23,17 @@ export async function POST(request: NextRequest) {
     
     if (applicationFormFile) {
       const buffer = await fileToBuffer(applicationFormFile);
-      const analysis = await analyzeApplicationForm(applicationFormFile);
+      // Skip heavy analysis during initial request - let background job handle it
+      const analysis = {
+        sections: [],
+        wordCount: 0,
+        complexity: 'Processing...',
+        fieldTypes: [],
+        textContent: '',
+        questionsFound: 0,
+        extractedSections: [],
+        status: 'pending_analysis'
+      };
       
       applicationFormData = {
         file: buffer,
@@ -54,7 +64,13 @@ export async function POST(request: NextRequest) {
         }))
       );
       
-      selectionCriteriaAnalysis = await analyzeSelectionCriteria(selectionCriteriaFiles);
+      // Skip heavy analysis during initial request - let background job handle it
+      selectionCriteriaAnalysis = {
+        criteria: [],
+        totalCriteria: 0,
+        complexity: 'Processing...',
+        status: 'pending_analysis'
+      };
     }
 
     // Process good examples (multiple files)
@@ -78,9 +94,13 @@ export async function POST(request: NextRequest) {
         }))
       );
       
-      // For now, use the same analysis structure as selection criteria
-      // This can be enhanced later for specific good examples analysis
-      goodExamplesAnalysis = await analyzeSelectionCriteria(goodExamplesFiles);
+      // Skip heavy analysis during initial request - let background job handle it
+      goodExamplesAnalysis = {
+        criteria: [],
+        totalCriteria: 0,
+        complexity: 'Processing...',
+        status: 'pending_analysis'
+      };
     }
 
     // Save fund with all documents and RAG integration

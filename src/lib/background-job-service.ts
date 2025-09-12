@@ -112,6 +112,9 @@ export class BackgroundJobService {
         throw new Error(`Fund ${job.fundId} not found`);
       }
       
+      // First, perform document analysis if not already done
+      await this.performDocumentAnalysis(fund.id);
+      
       const documents = fund.documents;
       const totalDocuments = documents.length;
       
@@ -193,6 +196,94 @@ export class BackgroundJobService {
       
       throw error;
     }
+  }
+  
+  /**
+   * Perform document analysis for a fund
+   */
+  private static async performDocumentAnalysis(fundId: string): Promise<void> {
+    const fund = await prisma.fund.findUnique({
+      where: { id: fundId },
+      include: { documents: true }
+    });
+    
+    if (!fund) return;
+    
+    // Check if analysis already exists
+    if (fund.applicationFormAnalysis?.status !== 'pending_analysis' && 
+        fund.selectionCriteriaAnalysis?.status !== 'pending_analysis' &&
+        fund.goodExamplesAnalysis?.status !== 'pending_analysis') {
+      console.log('Document analysis already complete for fund', fundId);
+      return;
+    }
+    
+    console.log('Performing document analysis for fund', fundId);
+    
+    // Get documents grouped by type
+    const applicationFormDocs = fund.documents.filter(d => d.documentType === 'APPLICATION_FORM');
+    const selectionCriteriaDocs = fund.documents.filter(d => d.documentType === 'SELECTION_CRITERIA');
+    const goodExamplesDocs = fund.documents.filter(d => d.documentType === 'GOOD_EXAMPLES');
+    
+    let applicationFormAnalysis = fund.applicationFormAnalysis;
+    let selectionCriteriaAnalysis = fund.selectionCriteriaAnalysis;
+    let goodExamplesAnalysis = fund.goodExamplesAnalysis;
+    
+    // Analyze application form
+    if (applicationFormDocs.length > 0 && fund.applicationFormAnalysis?.status === 'pending_analysis') {
+      try {
+        const doc = applicationFormDocs[0];
+        const text = await this.extractTextFromS3Document(doc.s3Key);
+        const fileBlob = new Blob([text], { type: 'text/plain' });
+        const file = new File([fileBlob], doc.filename, { type: doc.mimeType });
+        applicationFormAnalysis = await analyzeApplicationForm(file);
+      } catch (error) {
+        console.error('Error analyzing application form:', error);
+      }
+    }
+    
+    // Analyze selection criteria
+    if (selectionCriteriaDocs.length > 0 && fund.selectionCriteriaAnalysis?.status === 'pending_analysis') {
+      try {
+        const files = await Promise.all(
+          selectionCriteriaDocs.map(async (doc) => {
+            const text = await this.extractTextFromS3Document(doc.s3Key);
+            const fileBlob = new Blob([text], { type: 'text/plain' });
+            return new File([fileBlob], doc.filename, { type: doc.mimeType });
+          })
+        );
+        selectionCriteriaAnalysis = await analyzeSelectionCriteria(files);
+      } catch (error) {
+        console.error('Error analyzing selection criteria:', error);
+      }
+    }
+    
+    // Analyze good examples
+    if (goodExamplesDocs.length > 0 && fund.goodExamplesAnalysis?.status === 'pending_analysis') {
+      try {
+        const files = await Promise.all(
+          goodExamplesDocs.map(async (doc) => {
+            const text = await this.extractTextFromS3Document(doc.s3Key);
+            const fileBlob = new Blob([text], { type: 'text/plain' });
+            return new File([fileBlob], doc.filename, { type: doc.mimeType });
+          })
+        );
+        goodExamplesAnalysis = await analyzeSelectionCriteria(files);
+      } catch (error) {
+        console.error('Error analyzing good examples:', error);
+      }
+    }
+    
+    // Update fund with analysis results
+    await prisma.fund.update({
+      where: { id: fundId },
+      data: {
+        applicationFormAnalysis,
+        selectionCriteriaAnalysis,
+        goodExamplesAnalysis
+      }
+    });
+    
+    console.log('Document analysis complete for fund', fundId);
   }
   
   /**
