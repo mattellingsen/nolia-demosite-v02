@@ -42,7 +42,8 @@ export const Step4GoodExamples: React.FC<Step4Props> = ({
         setUploadError('');
         
         try {
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            // REMOVED: Artificial delay to speed up form submission
+            // await new Promise(resolve => setTimeout(resolve, 2000));
             
             // Mock analysis results
             const mockAnalysis: ExampleAnalysis = {
