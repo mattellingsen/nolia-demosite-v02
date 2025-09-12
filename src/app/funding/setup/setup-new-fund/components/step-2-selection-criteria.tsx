@@ -39,25 +39,15 @@ export const Step2SelectionCriteria: React.FC<Step2Props> = ({
         setUploadError('');
         
         try {
-            // TEMPORARILY DISABLED: Analysis moved to backend after upload
-            // const realAnalysis = await analyzeCriteriaViaAPI(files);
+            // Re-enabled: Criteria analysis for user feedback (analysis data won't be uploaded)
+            const realAnalysis = await analyzeCriteriaViaAPI(files);
             
-            // Create placeholder analysis - real analysis happens on backend
-            const placeholderAnalysis: CriteriaAnalysis = {
-                criteriaFound: 0,
-                weightings: [],
-                categories: [],
-                scoringMethod: 'Points' as const,
-                textContent: 'Analysis will be performed after upload',
-                detectedCriteria: []
-            };
+            setAnalysis(realAnalysis);
             
-            setAnalysis(placeholderAnalysis);
-            
-            // Update form data with files only - analysis happens on backend
+            // Update form data with analysis (will be stripped before upload)
             updateFormData({ 
                 selectionCriteria: files,
-                selectionCriteriaAnalysis: placeholderAnalysis
+                selectionCriteriaAnalysis: realAnalysis
             });
             
         } catch (error) {

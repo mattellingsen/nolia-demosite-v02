@@ -72,16 +72,9 @@ export const useCreateFund = () => {
         formData.append(`goodExamples[${index}]`, file);
       });
       
-      // Add analysis data as JSON strings if available
-      if (fundData.applicationFormAnalysis) {
-        formData.append('applicationFormAnalysis', JSON.stringify(fundData.applicationFormAnalysis));
-      }
-      if (fundData.selectionCriteriaAnalysis) {
-        formData.append('selectionCriteriaAnalysis', JSON.stringify(fundData.selectionCriteriaAnalysis));
-      }
-      if (fundData.goodExamplesAnalysis) {
-        formData.append('goodExamplesAnalysis', JSON.stringify(fundData.goodExamplesAnalysis));
-      }
+      // STRIPPED: Analysis data not sent to backend - backend will re-analyze uploaded files
+      // This eliminates payload size issues while preserving user feedback experience
+      // Backend analysis will be authoritative for the RAG system
 
       const response = await fetch('/api/funds-direct-sequential', {
         method: 'POST',

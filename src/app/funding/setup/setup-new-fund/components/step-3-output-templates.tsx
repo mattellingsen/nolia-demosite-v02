@@ -42,21 +42,45 @@ export const Step3OutputTemplates: React.FC<Step3Props> = ({
         setUploadError('');
         
         try {
-            // TEMPORARILY DISABLED: All template analysis moved to backend
-            console.log(`📄 Skipping frontend template analysis for ${files.length} files - will be done on backend`);
+            // Re-enabled: Simple template analysis for user feedback (no processing loops)
+            console.log(`📄 Analyzing ${files.length} template files for user feedback`);
             
-            const placeholderAnalysis: TemplateAnalysis = {
+            // Build analysis by making simple API calls (no complex loops)
+            const analysis: TemplateAnalysis = {
                 templatesAnalyzed: files.length,
-                templateTypes: files.map(() => 'Template (analysis pending)'),
+                templateTypes: [],
                 outputSections: []
             };
             
-            setAnalysis(placeholderAnalysis);
+            // Simple API calls for each file - no processing loops
+            for (const file of files) {
+                try {
+                    // Only API call - no text extraction or processing
+                    const documentAnalysis = await analyzeDocumentViaAPI(file);
+                    
+                    // Simple mapping from API response - no complex processing
+                    analysis.templateTypes.push(documentAnalysis ? 'Template (analyzed)' : 'Template');
+                    
+                    if (documentAnalysis?.extractedSections) {
+                        const sections = documentAnalysis.extractedSections.map((section: any) => ({
+                            name: section.title || 'Section',
+                            description: 'Template section',
+                            required: false
+                        }));
+                        analysis.outputSections.push(...sections);
+                    }
+                } catch (fileError) {
+                    console.error(`Error analyzing ${file.name}:`, fileError);
+                    analysis.templateTypes.push('Template (error)');
+                }
+            }
             
-            // Update form data with files only - analysis happens on backend
+            setAnalysis(analysis);
+            
+            // Update form data with analysis (will be stripped before upload)
             updateFormData({ 
                 outputTemplates: files,
-                outputTemplatesAnalysis: placeholderAnalysis
+                outputTemplatesAnalysis: analysis
             });
             
         } catch (error) {
