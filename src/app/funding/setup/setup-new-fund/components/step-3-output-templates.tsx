@@ -42,73 +42,21 @@ export const Step3OutputTemplates: React.FC<Step3Props> = ({
         setUploadError('');
         
         try {
-            const analysis: TemplateAnalysis = {
+            // TEMPORARILY DISABLED: All template analysis moved to backend
+            console.log(`📄 Skipping frontend template analysis for ${files.length} files - will be done on backend`);
+            
+            const placeholderAnalysis: TemplateAnalysis = {
                 templatesAnalyzed: files.length,
-                templateTypes: [],
+                templateTypes: files.map(() => 'Template (analysis pending)'),
                 outputSections: []
             };
             
-            // Analyze each template file
-            for (const file of files) {
-                try {
-                    // Use the same API-based analysis as Step 1 for real document parsing
-                    console.log(`🔍 Analyzing template file: ${file.name} (${file.type})`);
-                    
-                    let textContent = '';
-                    let documentAnalysis: any = null;
-                    
-                    // TEMPORARILY DISABLED: Analysis moved to backend
-                    if (file.type === 'text/plain') {
-                        textContent = await file.text();
-                    } else {
-                        // DISABLED: Document analysis moved to backend after upload
-                        // documentAnalysis = await analyzeDocumentViaAPI(file);
-                        textContent = 'Analysis will be performed after upload';
-                        console.log(`📄 Skipping frontend analysis for ${file.name} - will be done on backend`);
-                    }
-                    
-                    if (!textContent.trim()) {
-                        console.warn(`⚠️ No text content extracted from ${file.name}`);
-                        analysis.templateTypes.push('Output Template');
-                        continue;
-                    }
-                    
-                    // Determine template type based on filename and content
-                    const templateType = determineTemplateType(file.name, textContent);
-                    analysis.templateTypes.push(templateType);
-                    
-                    // Extract sections using the same server-side 3-rule approach as other steps
-                    if (documentAnalysis && documentAnalysis.extractedSections) {
-                        // For PDF/Word documents, use the server's section extraction from the API response
-                        const serverSections = documentAnalysis.extractedSections.map((section: any) => ({
-                            name: section.title,
-                            description: 'Section content',
-                            required: section.isMainSection || false
-                        }));
-                        analysis.outputSections.push(...serverSections);
-                        console.log(`📋 Added ${serverSections.length} sections from server analysis for ${file.name}`);
-                    } else {
-                        // For text files, use simplified extraction
-                        const sections = extractOutputSections(textContent, file.name);
-                        analysis.outputSections.push(...sections);
-                        console.log(`📋 Added ${sections.length} sections from client analysis for ${file.name}`);
-                    }
-                } catch (fileError) {
-                    console.error(`❌ Failed to analyze file ${file.name}:`, fileError);
-                    // Add fallback for failed files
-                    analysis.templateTypes.push('Output Template');
-                }
-            }
+            setAnalysis(placeholderAnalysis);
             
-            // Remove duplicate sections (if multiple templates have similar sections)
-            analysis.outputSections = removeDuplicateSections(analysis.outputSections);
-            
-            setAnalysis(analysis);
-            
-            // Update form data with analysis results for persistence
+            // Update form data with files only - analysis happens on backend
             updateFormData({ 
                 outputTemplates: files,
-                outputTemplatesAnalysis: analysis
+                outputTemplatesAnalysis: placeholderAnalysis
             });
             
         } catch (error) {
