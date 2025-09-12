@@ -83,7 +83,7 @@ export const useCreateFund = () => {
         formData.append('goodExamplesAnalysis', JSON.stringify(fundData.goodExamplesAnalysis));
       }
 
-      const response = await fetch('/api/funds-direct', {
+      const response = await fetch('/api/funds-direct-simple', {
         method: 'POST',
         body: formData,
       });
