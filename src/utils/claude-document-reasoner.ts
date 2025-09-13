@@ -69,38 +69,20 @@ export async function analyzeSelectionCriteriaWithClaude(
     return await fallbackToBasicAnalysis(documentContexts);
   }
 
+  // Add timeout protection - if this takes more than 25 seconds, fallback
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error('Claude analysis timeout')), 25000);
+  });
+
   try {
     console.log(`🧠 Starting Claude reasoning analysis on ${documentContexts.length} documents`);
     
-    // Step 1: Identify document roles with Claude's superior understanding
-    const documentRoles = await identifyDocumentRolesWithClaude(documentContexts);
+    const analysisPromise = performClaudeAnalysis(documentContexts);
     
-    // Step 2: Cross-reference criteria with deep contextual analysis
-    const criteriaAnalysis = await crossReferenceCriteriaWithClaude(documentContexts, documentRoles);
+    // Race between analysis and timeout
+    const reasonedAnalysis = await Promise.race([analysisPromise, timeoutPromise]);
     
-    // Step 3: Identify conflicts with nuanced understanding
-    const conflicts = await identifyConflictsWithClaude(documentContexts, criteriaAnalysis);
-    
-    // Step 4: Synthesize unified framework with superior logic
-    const framework = await synthesizeFrameworkWithClaude(documentContexts, criteriaAnalysis, conflicts);
-    
-    // Step 5: Generate final reasoned analysis
-    const reasonedAnalysis: ReasonedCriteriaAnalysis = {
-      documentRoles,
-      unifiedCriteria: criteriaAnalysis,
-      conflictsIdentified: conflicts,
-      synthesizedFramework: framework,
-      
-      // Backward compatibility fields
-      criteriaFound: criteriaAnalysis.reduce((sum, c) => sum + c.requirements.length, 0),
-      weightings: criteriaAnalysis.map(c => ({ name: c.category, weight: c.weight })),
-      categories: criteriaAnalysis.map(c => c.category),
-      detectedCriteria: criteriaAnalysis.flatMap(c => c.requirements),
-      textContent: documentContexts.map(d => d.content).join('\n\n'),
-      extractedSections: documentContexts.flatMap(d => d.extractedSections)
-    };
-    
-    console.log(`🧠 Claude reasoning complete: ${reasonedAnalysis.unifiedCriteria.length} unified criteria, ${conflicts.length} conflicts identified`);
+    console.log(`🧠 Claude reasoning complete: ${reasonedAnalysis.unifiedCriteria.length} unified criteria, ${reasonedAnalysis.conflictsIdentified.length} conflicts identified`);
     
     return reasonedAnalysis;
     
@@ -108,6 +90,36 @@ export async function analyzeSelectionCriteriaWithClaude(
     console.error('🤖 Claude reasoning failed, falling back to basic analysis:', error);
     return await fallbackToBasicAnalysis(documentContexts);
   }
+}
+
+async function performClaudeAnalysis(documentContexts: DocumentContext[]): Promise<ReasonedCriteriaAnalysis> {
+  // Step 1: Identify document roles with Claude's superior understanding
+  const documentRoles = await identifyDocumentRolesWithClaude(documentContexts);
+  
+  // Step 2: Cross-reference criteria with deep contextual analysis
+  const criteriaAnalysis = await crossReferenceCriteriaWithClaude(documentContexts, documentRoles);
+  
+  // Step 3: Identify conflicts with nuanced understanding
+  const conflicts = await identifyConflictsWithClaude(documentContexts, criteriaAnalysis);
+  
+  // Step 4: Synthesize unified framework with superior logic
+  const framework = await synthesizeFrameworkWithClaude(documentContexts, criteriaAnalysis, conflicts);
+  
+  // Step 5: Generate final reasoned analysis
+  return {
+    documentRoles,
+    unifiedCriteria: criteriaAnalysis,
+    conflictsIdentified: conflicts,
+    synthesizedFramework: framework,
+    
+    // Backward compatibility fields
+    criteriaFound: criteriaAnalysis.reduce((sum, c) => sum + c.requirements.length, 0),
+    weightings: criteriaAnalysis.map(c => ({ name: c.category, weight: c.weight })),
+    categories: criteriaAnalysis.map(c => c.category),
+    detectedCriteria: criteriaAnalysis.flatMap(c => c.requirements),
+    textContent: documentContexts.map(d => d.content).join('\n\n'),
+    extractedSections: documentContexts.flatMap(d => d.extractedSections)
+  };
 }
 
 /**
@@ -127,11 +139,8 @@ ${documentContexts.map(doc => `
 ═══ DOCUMENT: ${doc.filename} ═══
 SECTIONS IDENTIFIED: ${doc.extractedSections.slice(0, 15).join(', ')}${doc.extractedSections.length > 15 ? '...' : ''}
 
-CONTENT SAMPLE (first 2000 characters):
-${doc.content.substring(0, 2000)}...
-
-CONTENT SAMPLE (middle section):
-${doc.content.substring(Math.floor(doc.content.length/2), Math.floor(doc.content.length/2) + 1500)}...
+CONTENT SAMPLE (first 1500 characters):
+${doc.content.substring(0, 1500)}...
 `).join('\n')}
 
 Provide your analysis as a JSON array with this exact structure:
@@ -168,7 +177,7 @@ FULL DOCUMENT ANALYSIS:
 ${documentContexts.map(doc => `
 ═══ ${doc.filename} ═══
 ROLE: ${documentRoles.find(r => r.filename === doc.filename)?.identifiedRole || 'Unknown'}
-CONTENT: ${doc.content.substring(0, 3000)}...
+CONTENT: ${doc.content.substring(0, 1500)}...
 `).join('\n')}
 
 ANALYSIS REQUIREMENTS:
@@ -213,7 +222,7 @@ ${JSON.stringify(criteriaAnalysis, null, 2)}
 DOCUMENT CONTENTS FOR CONFLICT ANALYSIS:
 ${documentContexts.map(doc => `
 ═══ ${doc.filename} ═══
-${doc.content.substring(0, 2500)}...
+${doc.content.substring(0, 1000)}...
 `).join('\n')}
 
 CONFLICT ANALYSIS:
@@ -301,7 +310,7 @@ async function invokeClaude(prompt: string, taskDescription: string): Promise<st
 
   const requestBody = {
     anthropic_version: "bedrock-2023-05-31",
-    max_tokens: 4000,
+    max_tokens: 2000, // Reduced for faster responses
     temperature: 0.1, // Lower temperature for more consistent analytical reasoning
     messages: [
       {
