@@ -68,10 +68,20 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error analyzing criteria:', error);
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    
+    // Check if it's a timeout or AWS error
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const isTimeout = errorMessage.includes('timeout') || errorMessage.includes('Timeout');
+    const isAWSError = errorMessage.includes('AWS') || errorMessage.includes('Bedrock');
+    
+    console.log(`📊 Error type analysis: timeout=${isTimeout}, aws=${isAWSError}`);
+    
     return NextResponse.json(
       { 
         error: 'Failed to analyze selection criteria',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: errorMessage,
+        errorType: isTimeout ? 'timeout' : isAWSError ? 'aws' : 'unknown'
       },
       { status: 500 }
     );
