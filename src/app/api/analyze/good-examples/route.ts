@@ -43,14 +43,21 @@ export async function POST(request: NextRequest) {
                     console.log(`✅ Analysis successful for ${file.name}:`, {
                         sections: analysis.sections?.length || 0,
                         wordCount: analysis.wordCount || 0,
-                        questionsFound: analysis.questionsFound || 0
+                        questionsFound: analysis.questionsFound || 0,
+                        extractedSectionsLength: analysis.extractedSections?.length || 0
                     });
                     analyses.push(analysis);
                     
                     // Extract quality metrics from the analysis
                     // Base score on document completeness and structure
-                    const score = calculateQualityScore(analysis);
-                    allScores.push(score);
+                    try {
+                        const score = calculateQualityScore(analysis);
+                        console.log(`📊 Quality score for ${file.name}: ${score}`);
+                        allScores.push(score);
+                    } catch (scoreError) {
+                        console.error(`❌ Error calculating quality score for ${file.name}:`, scoreError);
+                        allScores.push(75); // Default score on error
+                    }
                     
                     // Extract writing patterns
                     if (analysis.wordCount > 0) {
@@ -84,7 +91,6 @@ export async function POST(request: NextRequest) {
                     if (analysis.sections.some(s => s.toLowerCase().includes('outcome') || s.toLowerCase().includes('impact'))) {
                         allStrengths.add('Measurable outcomes defined');
                     }
-                }
                 } else {
                     console.warn(`❌ No analysis returned for ${file.name}`);
                 }
