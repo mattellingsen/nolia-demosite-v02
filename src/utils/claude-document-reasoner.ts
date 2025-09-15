@@ -72,9 +72,9 @@ export async function analyzeSelectionCriteriaWithClaude(
   // Skip the development-only credentials check - let Claude try in all environments
   console.log('🧠 Proceeding with Claude analysis in all environments');
 
-  // Add aggressive timeout protection - if this takes more than 15 seconds, fallback
+  // Add timeout protection - give Claude 30 seconds to analyze complex documents
   const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error('Claude analysis timeout')), 15000);
+    setTimeout(() => reject(new Error('Claude analysis timeout')), 30000);
   });
 
   try {
@@ -89,8 +89,13 @@ export async function analyzeSelectionCriteriaWithClaude(
     
     return reasonedAnalysis;
     
-  } catch (error) {
-    console.error('🤖 Claude reasoning failed, falling back to basic analysis:', error);
+  } catch (error: any) {
+    console.error('🤖 Claude reasoning failed, falling back to basic analysis:', {
+      errorMessage: error.message,
+      errorName: error.name,
+      isTimeout: error.message === 'Claude analysis timeout',
+      documentsCount: documentContexts.length
+    });
     return await fallbackToBasicAnalysis(documentContexts);
   }
 }
