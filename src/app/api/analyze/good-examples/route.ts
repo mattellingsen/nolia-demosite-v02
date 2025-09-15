@@ -12,12 +12,13 @@ export async function POST(request: NextRequest) {
     try {
         console.log('📊 Parsing form data...');
         const formData = await request.formData();
-        const files: File[] = [];
+        const files: any[] = [];
         
         // Collect all files from FormData
         for (const [key, value] of formData.entries()) {
-            if (value instanceof File) {
-                console.log(`📊 Found file: ${value.name}, size: ${value.size}`);
+            // Check if it's a file-like object (has name and size properties)
+            if (value && typeof value === 'object' && 'name' in value && 'size' in value) {
+                console.log(`📊 Found file: ${(value as any).name}, size: ${(value as any).size}`);
                 files.push(value);
             }
         }
