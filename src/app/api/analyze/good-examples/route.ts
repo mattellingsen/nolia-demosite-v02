@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
             );
         }
         
-        console.log(`📊 Analyzing ${files.length} good example files`);
+        console.log(`📊 Analyzing ${files.length} good example files for quality assessment`);
         
         // Analyze each file to extract quality patterns
         const analyses = [];
