@@ -63,15 +63,28 @@ export async function analyzeSelectionCriteriaWithClaude(
   documentContexts: DocumentContext[]
 ): Promise<ReasonedCriteriaAnalysis> {
   
-  // Skip Claude if AWS region not configured (fallback to basic analysis)
+  // Skip Claude if AWS region not configured or if we're in local development without credentials
   if (!process.env.AWS_REGION) {
     console.log('🤖 AWS region not configured, using basic analysis');
     return await fallbackToBasicAnalysis(documentContexts);
   }
+  
+  // For local development, check if we have AWS credentials configured
+  if (process.env.NODE_ENV === 'development') {
+    try {
+      // Quick check - if we can't create the client, skip Claude
+      await bedrock.send({ $metadata: {} } as any);
+    } catch (credError: any) {
+      if (credError.name === 'CredentialsProviderError') {
+        console.log('🤖 AWS credentials not available in development, using basic analysis');
+        return await fallbackToBasicAnalysis(documentContexts);
+      }
+    }
+  }
 
-  // Add timeout protection - if this takes more than 25 seconds, fallback
+  // Add aggressive timeout protection - if this takes more than 15 seconds, fallback
   const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error('Claude analysis timeout')), 25000);
+    setTimeout(() => reject(new Error('Claude analysis timeout')), 15000);
   });
 
   try {
@@ -346,16 +359,56 @@ async function invokeClaude(prompt: string, taskDescription: string): Promise<st
  * Fallback to basic pattern-matching analysis if Claude is unavailable
  */
 async function fallbackToBasicAnalysis(documentContexts: DocumentContext[]): Promise<ReasonedCriteriaAnalysis> {
-  // Import and use the existing basic analysis functions
-  const { analyzeSelectionCriteria } = await import('./server-document-analyzer');
+  console.log('🔄 Using fallback basic analysis');
   
-  // Convert contexts back to File objects for the existing function
-  const mockFiles = documentContexts.map(ctx => {
-    const blob = new Blob([ctx.content], { type: 'text/plain' });
-    return new File([blob], ctx.filename, { type: 'text/plain' });
+  console.log('🔄 Performing basic pattern analysis directly');
+  
+  // Perform basic pattern analysis directly without importing Claude functions
+  const allSections: string[] = [];
+  const allContent = documentContexts.map(ctx => ctx.content).join('\n\n');
+  let totalWordCount = 0;
+  
+  documentContexts.forEach(ctx => {
+    allSections.push(...ctx.extractedSections);
+    totalWordCount += ctx.content.split(/\s+/).length;
   });
   
-  const basicAnalysis = await analyzeSelectionCriteria(mockFiles);
+  // Basic criteria detection using pattern matching
+  const criteriaPatterns = [
+    { name: 'Innovation & Technical Merit', keywords: ['innovation', 'technical', 'technology', 'novel', 'unique'], weight: 30 },
+    { name: 'Financial Viability', keywords: ['budget', 'financial', 'funding', 'cost', 'revenue'], weight: 25 },
+    { name: 'Team Capability', keywords: ['team', 'experience', 'qualifications', 'expertise', 'skills'], weight: 20 },
+    { name: 'Market Potential', keywords: ['market', 'customer', 'demand', 'opportunity', 'impact'], weight: 25 }
+  ];
+  
+  const detectedCriteria = criteriaPatterns.filter(pattern => 
+    pattern.keywords.some(keyword => 
+      allContent.toLowerCase().includes(keyword)
+    )
+  );
+  
+  // If no specific criteria found, use defaults
+  const finalCriteria = detectedCriteria.length > 0 ? detectedCriteria : [
+    { name: 'Overall Merit', keywords: ['quality', 'merit'], weight: 50 },
+    { name: 'Feasibility', keywords: ['feasible', 'achievable'], weight: 50 }
+  ];
+  
+  const basicAnalysis = {
+    criteriaFound: finalCriteria.length,
+    weightings: finalCriteria.map(c => ({ name: c.name, weight: c.weight })),
+    categories: finalCriteria.map(c => c.name),
+    detectedCriteria: finalCriteria.map(c => c.name),
+    textContent: allContent,
+    extractedSections: allSections,
+    scoringMethod: 'Percentage' as const,
+    sections: allSections,
+    wordCount: totalWordCount,
+    questionsFound: allSections.length,
+    fieldTypes: ['text', 'number', 'file'],
+    complexity: totalWordCount > 2000 ? 'Complex' : totalWordCount > 1000 ? 'Medium' : 'Simple'
+  };
+  
+  console.log(`✅ Basic pattern analysis complete: ${finalCriteria.length} criteria detected`);
   
   // Convert to ReasonedCriteriaAnalysis format
   return {
@@ -366,12 +419,12 @@ async function fallbackToBasicAnalysis(documentContexts: DocumentContext[]): Pro
       keyContributions: ['Assessment criteria', 'Requirements']
     })),
     
-    unifiedCriteria: basicAnalysis.categories.map((category, index) => ({
-      category,
-      weight: basicAnalysis.weightings[index]?.weight || 20,
-      requirements: basicAnalysis.detectedCriteria.slice(index * 5, (index + 1) * 5),
+    unifiedCriteria: finalCriteria.map((criterion) => ({
+      category: criterion.name,
+      weight: criterion.weight,
+      requirements: [`Must demonstrate ${criterion.name.toLowerCase()}`, `Provide evidence of ${criterion.name.toLowerCase()}`],
       sourceDocuments: documentContexts.map(ctx => ctx.filename),
-      reasoning: 'Extracted from document pattern analysis'
+      reasoning: `Extracted from document pattern analysis based on keyword detection`
     })),
     
     conflictsIdentified: [],
@@ -379,7 +432,7 @@ async function fallbackToBasicAnalysis(documentContexts: DocumentContext[]): Pro
     synthesizedFramework: {
       scoringMethod: basicAnalysis.scoringMethod,
       passingThreshold: 70,
-      weightingJustification: 'Weights based on pattern analysis',
+      weightingJustification: 'Weights based on pattern analysis of document content',
       assessmentProcess: ['Review application', 'Apply criteria', 'Generate score']
     },
     
