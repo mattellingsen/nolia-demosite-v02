@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { analyzeApplicationForm } from '@/utils/server-document-analyzer';
 
 interface QualityIndicator {
     name: string;
@@ -8,18 +7,23 @@ interface QualityIndicator {
 }
 
 export async function POST(request: NextRequest) {
+    console.log('📊 Good examples endpoint called');
+    
     try {
+        console.log('📊 Parsing form data...');
         const formData = await request.formData();
         const files: File[] = [];
         
         // Collect all files from FormData
         for (const [key, value] of formData.entries()) {
             if (value instanceof File) {
+                console.log(`📊 Found file: ${value.name}, size: ${value.size}`);
                 files.push(value);
             }
         }
         
         if (files.length === 0) {
+            console.log('📊 No files provided in request');
             return NextResponse.json(
                 { error: 'No files provided' },
                 { status: 400 }
@@ -37,6 +41,11 @@ export async function POST(request: NextRequest) {
         for (const file of files) {
             try {
                 console.log(`📊 Analyzing good example file: ${file.name}`);
+                
+                // Dynamic import to avoid potential production issues
+                const { analyzeApplicationForm } = await import('@/utils/server-document-analyzer');
+                console.log(`📊 Analyzer imported successfully`);
+                
                 const analysis = await analyzeApplicationForm(file);
                 
                 if (analysis) {
@@ -173,9 +182,17 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(result);
         
     } catch (error) {
-        console.error('Error analyzing good examples:', error);
+        console.error('❌ Error analyzing good examples:', {
+            message: error instanceof Error ? error.message : 'Unknown error',
+            stack: error instanceof Error ? error.stack : undefined,
+            type: error instanceof Error ? error.constructor.name : typeof error
+        });
+        
         return NextResponse.json(
-            { error: 'Failed to analyze good examples' },
+            { 
+                error: 'Failed to analyze good examples',
+                details: error instanceof Error ? error.message : 'Unknown error'
+            },
             { status: 500 }
         );
     }
