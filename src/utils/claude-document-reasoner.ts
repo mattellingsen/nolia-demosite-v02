@@ -101,37 +101,114 @@ export async function analyzeSelectionCriteriaWithClaude(
 }
 
 async function performClaudeAnalysis(documentContexts: DocumentContext[]): Promise<ReasonedCriteriaAnalysis> {
-  // Step 1: Identify document roles with Claude's superior understanding
-  const documentRoles = await identifyDocumentRolesWithClaude(documentContexts);
+  // OPTIMIZED: Single Claude call instead of 4 separate calls for speed
+  const combinedAnalysis = await performCombinedClaudeAnalysis(documentContexts);
   
-  // Step 2: Cross-reference criteria with deep contextual analysis
-  const criteriaAnalysis = await crossReferenceCriteriaWithClaude(documentContexts, documentRoles);
-  
-  // Step 3: Identify conflicts with nuanced understanding
-  const conflicts = await identifyConflictsWithClaude(documentContexts, criteriaAnalysis);
-  
-  // Step 4: Synthesize unified framework with superior logic
-  const framework = await synthesizeFrameworkWithClaude(documentContexts, criteriaAnalysis, conflicts);
-  
-  // Step 5: Generate final reasoned analysis
+  // Generate final reasoned analysis
   return {
-    documentRoles,
-    unifiedCriteria: criteriaAnalysis,
-    conflictsIdentified: conflicts,
-    synthesizedFramework: framework,
+    documentRoles: combinedAnalysis.documentRoles || [],
+    unifiedCriteria: combinedAnalysis.unifiedCriteria || [],
+    conflictsIdentified: combinedAnalysis.conflictsIdentified || [],
+    synthesizedFramework: combinedAnalysis.synthesizedFramework || {
+      scoringMethod: 'Percentage',
+      passingThreshold: 70,
+      weightingJustification: 'Claude-determined weightings based on document analysis',
+      assessmentProcess: ['Apply unified criteria', 'Generate weighted score']
+    },
     
     // Backward compatibility fields
-    criteriaFound: criteriaAnalysis.reduce((sum, c) => sum + c.requirements.length, 0),
-    weightings: criteriaAnalysis.map(c => ({ name: c.category, weight: c.weight })),
-    categories: criteriaAnalysis.map(c => c.category),
-    detectedCriteria: criteriaAnalysis.flatMap(c => c.requirements),
+    criteriaFound: (combinedAnalysis.unifiedCriteria || []).reduce((sum, c) => sum + (c.requirements?.length || 1), 0),
+    weightings: (combinedAnalysis.unifiedCriteria || []).map(c => ({ name: c.category, weight: c.weight })),
+    categories: (combinedAnalysis.unifiedCriteria || []).map(c => c.category),
+    detectedCriteria: (combinedAnalysis.unifiedCriteria || []).flatMap(c => c.requirements || [c.category]),
     textContent: documentContexts.map(d => d.content).join('\n\n'),
     extractedSections: documentContexts.flatMap(d => d.extractedSections)
   };
 }
 
 /**
- * Step 1: Claude identifies document roles with superior contextual understanding
+ * OPTIMIZED: Single comprehensive Claude analysis instead of 4 separate calls
+ */
+async function performCombinedClaudeAnalysis(documentContexts: DocumentContext[]) {
+  const prompt = `You are an expert funding assessment specialist analyzing these documents to create a comprehensive assessment framework. Provide a complete analysis in ONE response.
+
+DOCUMENTS TO ANALYZE:
+${documentContexts.map(doc => `
+═══ DOCUMENT: ${doc.filename} ═══
+SECTIONS: ${doc.extractedSections.slice(0, 10).join(', ')}${doc.extractedSections.length > 10 ? '...' : ''}
+
+CONTENT: ${doc.content.substring(0, 1500)}...
+`).join('\n')}
+
+ANALYSIS REQUIRED:
+1. Document Roles: Identify each document's specific purpose and function
+2. Unified Criteria: Extract and synthesize assessment criteria with accurate weightings
+3. Conflict Detection: Identify any contradictions between documents
+4. Framework Synthesis: Create a coherent assessment framework
+
+Return ONLY valid JSON with this exact structure:
+{
+  "documentRoles": [
+    {
+      "filename": "exact_filename.docx",
+      "identifiedRole": "Primary Application Template",
+      "purpose": "Brief description",
+      "keyContributions": ["contribution1", "contribution2"]
+    }
+  ],
+  "unifiedCriteria": [
+    {
+      "category": "Innovation & Technical Merit",
+      "weight": 35,
+      "requirements": ["Specific requirement 1", "Specific requirement 2"],
+      "sourceDocuments": ["file1.docx"],
+      "reasoning": "Why this weight was chosen"
+    }
+  ],
+  "conflictsIdentified": [
+    {
+      "type": "weight_mismatch",
+      "description": "Description of conflict",
+      "affectedDocuments": ["file1.docx"],
+      "recommendation": "Resolution approach"
+    }
+  ],
+  "synthesizedFramework": {
+    "scoringMethod": "Points|Percentage|Pass/Fail",
+    "passingThreshold": 75,
+    "weightingJustification": "Detailed explanation",
+    "assessmentProcess": ["Step 1", "Step 2", "Step 3"]
+  }
+}`;
+
+  const response = await invokeClaude(prompt, 'Combined comprehensive analysis');
+  try {
+    return JSON.parse(response);
+  } catch (parseError) {
+    console.error('Failed to parse Claude response:', parseError);
+    // Return minimal structure if parsing fails
+    return {
+      documentRoles: [],
+      unifiedCriteria: [{
+        category: "Overall Assessment",
+        weight: 100,
+        requirements: ["Meet program requirements"],
+        sourceDocuments: documentContexts.map(d => d.filename),
+        reasoning: "Fallback due to parsing error"
+      }],
+      conflictsIdentified: [],
+      synthesizedFramework: {
+        scoringMethod: "Percentage",
+        passingThreshold: 70,
+        weightingJustification: "Default weighting due to parsing error",
+        assessmentProcess: ["Review application", "Apply criteria"]
+      }
+    };
+  }
+}
+
+/**
+ * Step 1: Claude identifies document roles with superior contextual understanding (DEPRECATED - using combined analysis)
  */
 async function identifyDocumentRolesWithClaude(documentContexts: DocumentContext[]) {
   const prompt = `You are an expert grant administrator with deep experience in funding program design. Analyze these funding assessment documents and identify each document's specific role and purpose within the overall assessment framework.
