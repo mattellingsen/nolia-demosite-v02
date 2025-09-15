@@ -89,51 +89,52 @@ export async function analyzeApplicationForm(file: File): Promise<DocumentAnalys
  */
 export async function analyzeSelectionCriteria(files: File[]): Promise<CriteriaAnalysis> {
     try {
-        // Temporarily disable Claude to test basic functionality
-        console.log('🔧 Claude reasoning temporarily disabled for debugging - using basic analysis');
-        
-        // try {
-        //     const { analyzeSelectionCriteriaWithClaude } = await import('./claude-document-reasoner');
-        //     
-        //     // Prepare document contexts for Claude analysis
-        //     const documentContexts = [];
-        //     for (const file of files) {
-        //         const text = await extractTextFromFile(file);
-        //         const sections = extractSections(text);
-        //         
-        //         documentContexts.push({
-        //             filename: file.name,
-        //             content: text,
-        //             extractedSections: sections.map(s => s.title || s.toString())
-        //         });
-        //     }
-        //     
-        //     console.log(`🧠 Attempting Claude reasoning analysis on ${documentContexts.length} documents`);
-        //     const aiAnalysis = await analyzeSelectionCriteriaWithClaude(documentContexts);
-        //     
-        //     // Return the AI analysis in the expected format
-        //     return {
-        //         criteriaFound: aiAnalysis.criteriaFound,
-        //         weightings: aiAnalysis.weightings,
-        //         categories: aiAnalysis.categories,
-        //         scoringMethod: aiAnalysis.synthesizedFramework.scoringMethod,
-        //         textContent: aiAnalysis.textContent,
-        //         detectedCriteria: aiAnalysis.detectedCriteria,
-        //         extractedSections: aiAnalysis.extractedSections,
-        //         
-        //         // Include AI reasoning data for enhanced analysis
-        //         aiReasoning: {
-        //             documentRoles: aiAnalysis.documentRoles,
-        //             unifiedCriteria: aiAnalysis.unifiedCriteria,
-        //             conflictsIdentified: aiAnalysis.conflictsIdentified,
-        //             synthesizedFramework: aiAnalysis.synthesizedFramework
-        //         }
-        //     };
-        //     
-        // } catch (aiError) {
-        //     console.log('🤖 Claude analysis failed, using basic pattern matching:', aiError);
-        //     // Fall back to basic analysis
-        // }
+        // Try Claude reasoning first with enhanced optimization and proper fallback
+        try {
+            const { analyzeSelectionCriteriaWithClaude } = await import('./claude-document-reasoner');
+            
+            // Prepare document contexts for Claude analysis with size optimization
+            const documentContexts = [];
+            for (const file of files) {
+                const text = await extractTextFromFile(file);
+                const sections = extractSections(text);
+                
+                // Limit content size for faster processing
+                const optimizedContent = text.length > 3000 ? text.substring(0, 3000) + '...' : text;
+                
+                documentContexts.push({
+                    filename: file.name,
+                    content: optimizedContent,
+                    extractedSections: sections.map(s => s.title || s.toString()).slice(0, 20) // Limit sections
+                });
+            }
+            
+            console.log(`🧠 Attempting optimized Claude reasoning analysis on ${documentContexts.length} documents`);
+            const aiAnalysis = await analyzeSelectionCriteriaWithClaude(documentContexts);
+            
+            // Return the AI analysis in the expected format
+            return {
+                criteriaFound: aiAnalysis.criteriaFound,
+                weightings: aiAnalysis.weightings,
+                categories: aiAnalysis.categories,
+                scoringMethod: aiAnalysis.synthesizedFramework.scoringMethod,
+                textContent: aiAnalysis.textContent,
+                detectedCriteria: aiAnalysis.detectedCriteria,
+                extractedSections: aiAnalysis.extractedSections,
+                
+                // Include AI reasoning data for enhanced analysis
+                aiReasoning: {
+                    documentRoles: aiAnalysis.documentRoles,
+                    unifiedCriteria: aiAnalysis.unifiedCriteria,
+                    conflictsIdentified: aiAnalysis.conflictsIdentified,
+                    synthesizedFramework: aiAnalysis.synthesizedFramework
+                }
+            };
+            
+        } catch (aiError) {
+            console.log('🤖 Claude analysis failed, using basic pattern matching:', aiError);
+            // Fall through to basic analysis
+        }
         
         // Basic analysis fallback
         let combinedText = '';
