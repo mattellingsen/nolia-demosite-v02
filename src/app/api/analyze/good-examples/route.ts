@@ -36,9 +36,15 @@ export async function POST(request: NextRequest) {
         
         for (const file of files) {
             try {
+                console.log(`📊 Analyzing good example file: ${file.name}`);
                 const analysis = await analyzeApplicationForm(file);
                 
                 if (analysis) {
+                    console.log(`✅ Analysis successful for ${file.name}:`, {
+                        sections: analysis.sections?.length || 0,
+                        wordCount: analysis.wordCount || 0,
+                        questionsFound: analysis.questionsFound || 0
+                    });
                     analyses.push(analysis);
                     
                     // Extract quality metrics from the analysis
@@ -79,8 +85,14 @@ export async function POST(request: NextRequest) {
                         allStrengths.add('Measurable outcomes defined');
                     }
                 }
+                } else {
+                    console.warn(`❌ No analysis returned for ${file.name}`);
+                }
             } catch (error) {
-                console.error(`Error analyzing file ${file.name}:`, error);
+                console.error(`❌ Error analyzing file ${file.name}:`, {
+                    error: error instanceof Error ? error.message : error,
+                    stack: error instanceof Error ? error.stack : 'No stack trace'
+                });
             }
         }
         
