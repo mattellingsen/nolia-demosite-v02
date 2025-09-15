@@ -6,7 +6,7 @@ import { DocumentAnalysis, CriteriaAnalysis } from './browser-document-analyzer'
 /**
  * Extract text content from different file types (server-side with real parsing)
  */
-export async function extractTextFromFile(file: File): Promise<string> {
+export async function extractTextFromFile(file: any): Promise<string> {
     try {
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
@@ -52,7 +52,7 @@ export async function extractTextFromFile(file: File): Promise<string> {
 /**
  * Analyze application form document structure and content (server-side with real extraction)
  */
-export async function analyzeApplicationForm(file: File): Promise<DocumentAnalysis> {
+export async function analyzeApplicationForm(file: any): Promise<DocumentAnalysis> {
     try {
         const textContent = await extractTextFromFile(file);
         const lines = textContent.split('\n').filter(line => line.trim().length > 0);
@@ -87,7 +87,7 @@ export async function analyzeApplicationForm(file: File): Promise<DocumentAnalys
 /**
  * Analyze selection criteria documents (server-side with real extraction)
  */
-export async function analyzeSelectionCriteria(files: File[]): Promise<CriteriaAnalysis> {
+export async function analyzeSelectionCriteria(files: any[]): Promise<CriteriaAnalysis> {
     try {
         // Try Claude reasoning first with enhanced optimization and proper fallback
         try {
