@@ -69,18 +69,8 @@ export async function analyzeSelectionCriteriaWithClaude(
     return await fallbackToBasicAnalysis(documentContexts);
   }
   
-  // For local development, check if we have AWS credentials configured
-  if (process.env.NODE_ENV === 'development') {
-    try {
-      // Quick check - if we can't create the client, skip Claude
-      await bedrock.send({ $metadata: {} } as any);
-    } catch (credError: any) {
-      if (credError.name === 'CredentialsProviderError') {
-        console.log('🤖 AWS credentials not available in development, using basic analysis');
-        return await fallbackToBasicAnalysis(documentContexts);
-      }
-    }
-  }
+  // Skip the development-only credentials check - let Claude try in all environments
+  console.log('🧠 Proceeding with Claude analysis in all environments');
 
   // Add aggressive timeout protection - if this takes more than 15 seconds, fallback
   const timeoutPromise = new Promise<never>((_, reject) => {
