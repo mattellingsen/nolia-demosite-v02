@@ -114,24 +114,64 @@ export async function analyzeSelectionCriteria(files: any[]): Promise<CriteriaAn
             
             // Return the AI analysis in the expected format
             console.log('✅ Using Claude AI reasoning for criteria analysis');
-            return {
-                criteriaFound: aiAnalysis.criteriaFound,
-                weightings: aiAnalysis.weightings,
-                categories: aiAnalysis.categories,
-                scoringMethod: aiAnalysis.synthesizedFramework.scoringMethod,
-                textContent: aiAnalysis.textContent,
-                detectedCriteria: aiAnalysis.detectedCriteria,
-                extractedSections: aiAnalysis.extractedSections,
-                analysisMode: 'CLAUDE_AI_REASONING', // Clear indicator
-                
-                // Include AI reasoning data for enhanced analysis
-                aiReasoning: {
-                    documentRoles: aiAnalysis.documentRoles,
-                    unifiedCriteria: aiAnalysis.unifiedCriteria,
-                    conflictsIdentified: aiAnalysis.conflictsIdentified,
-                    synthesizedFramework: aiAnalysis.synthesizedFramework
-                }
-            };
+            
+            // Handle both old and new JSON structures for backwards compatibility
+            const isNewStructure = aiAnalysis.formalEvaluationCriteria !== undefined;
+            
+            if (isNewStructure) {
+                // New comprehensive structure
+                return {
+                    criteriaFound: aiAnalysis.formalEvaluationCriteria?.length || 0,
+                    weightings: aiAnalysis.formalEvaluationCriteria?.map(c => ({
+                        name: c.criteriaName,
+                        weight: parseInt(c.weight) || 0
+                    })) || [],
+                    categories: aiAnalysis.assessmentCategories?.map(c => c.categoryName) || [],
+                    scoringMethod: aiAnalysis.formalEvaluationCriteria?.[0]?.scoringMethod || 'Points',
+                    textContent: documentContexts.map(d => d.content).join('\n\n'),
+                    detectedCriteria: [
+                        ...(aiAnalysis.formalEvaluationCriteria?.map(c => c.criteriaName) || []),
+                        ...(aiAnalysis.eligibilityRequirements?.map(r => r.requirementName) || [])
+                    ],
+                    extractedSections: documentContexts.flatMap(d => d.extractedSections),
+                    analysisMode: 'CLAUDE_AI_REASONING',
+                    
+                    // NEW: Include comprehensive assessment categories
+                    assessmentCategories: aiAnalysis.assessmentCategories || [],
+                    
+                    // Include comprehensive AI reasoning data
+                    aiReasoning: {
+                        formalEvaluationCriteria: aiAnalysis.formalEvaluationCriteria || [],
+                        eligibilityRequirements: aiAnalysis.eligibilityRequirements || [],
+                        assessmentProcess: aiAnalysis.assessmentProcess || [],
+                        complianceElements: aiAnalysis.complianceElements || [],
+                        disqualifyingFactors: aiAnalysis.disqualifyingFactors || [],
+                        documentRoles: aiAnalysis.documentRoles || [],
+                        unifiedCriteria: aiAnalysis.unifiedCriteria || [],
+                        conflictsIdentified: aiAnalysis.conflictsIdentified || []
+                    }
+                };
+            } else {
+                // Old structure (fallback compatibility)
+                return {
+                    criteriaFound: aiAnalysis.criteriaFound,
+                    weightings: aiAnalysis.weightings,
+                    categories: aiAnalysis.categories,
+                    scoringMethod: aiAnalysis.synthesizedFramework.scoringMethod,
+                    textContent: aiAnalysis.textContent,
+                    detectedCriteria: aiAnalysis.detectedCriteria,
+                    extractedSections: aiAnalysis.extractedSections,
+                    analysisMode: 'CLAUDE_AI_REASONING',
+                    
+                    // Include AI reasoning data for enhanced analysis
+                    aiReasoning: {
+                        documentRoles: aiAnalysis.documentRoles,
+                        unifiedCriteria: aiAnalysis.unifiedCriteria,
+                        conflictsIdentified: aiAnalysis.conflictsIdentified,
+                        synthesizedFramework: aiAnalysis.synthesizedFramework
+                    }
+                };
+            }
             
         } catch (aiError) {
             console.log('🤖 Claude analysis failed, using basic pattern matching:', {
