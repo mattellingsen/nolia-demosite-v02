@@ -41,8 +41,57 @@ export async function POST(request: NextRequest) {
             );
         }
         
-        // Perform assessment based on document analysis
-        const assessment = evaluateApplication(analysis, criteria);
+        // Try Claude assessment first
+        let assessment;
+        try {
+            const { assessApplicationWithClaude } = await import('@/utils/claude-document-reasoner');
+            const { extractTextFromFile } = await import('@/utils/server-document-analyzer');
+            
+            // Get application content for Claude analysis
+            const applicationContent = await extractTextFromFile(file);
+            
+            // Get good examples data if available
+            const goodExamplesJson = formData.get('goodExamples') as string;
+            const goodExamplesData = goodExamplesJson ? JSON.parse(goodExamplesJson) : null;
+            
+            console.log('🎯 Using Claude AI reasoning for assessment');
+            const claudeAssessment = await assessApplicationWithClaude(
+                applicationContent,
+                file.name,
+                criteria,
+                goodExamplesData
+            );
+            
+            // Convert Claude assessment to expected format
+            assessment = {
+                score: claudeAssessment.overallScore,
+                innovation: claudeAssessment.categoryScores.innovation,
+                financial: claudeAssessment.categoryScores.financial,
+                team: claudeAssessment.categoryScores.team,
+                market: claudeAssessment.categoryScores.market,
+                feedback: claudeAssessment.detailedFeedback,
+                strengths: claudeAssessment.strengths,
+                weaknesses: claudeAssessment.weaknesses,
+                analysisMode: 'CLAUDE_AI_REASONING',
+                
+                // Enhanced Claude data
+                criteriaAlignment: claudeAssessment.criteriaAlignment,
+                recommendation: claudeAssessment.recommendation,
+                categoryScores: claudeAssessment.categoryScores
+            };
+            
+            console.log(`✅ Claude assessment complete: ${claudeAssessment.overallScore}% (${claudeAssessment.recommendation.decision})`);
+            
+        } catch (claudeError) {
+            console.log('🤖 Claude assessment failed, using basic evaluation:', {
+                error: claudeError instanceof Error ? claudeError.message : claudeError
+            });
+            
+            // Fallback to basic assessment
+            console.log('📋 Using basic pattern matching for assessment');
+            assessment = evaluateApplication(analysis, criteria);
+            assessment.analysisMode = 'BASIC_FALLBACK';
+        }
         
         console.log(`✅ Assessment complete for ${file.name}: Score ${assessment.score}`);
         
