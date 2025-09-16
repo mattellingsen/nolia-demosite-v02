@@ -438,9 +438,9 @@ export async function analyzeGoodExamplesWithClaude(documentContexts: DocumentCo
 GOOD EXAMPLE APPLICATIONS TO ANALYZE:
 ${documentContexts.map((doc, idx) => `
 ═══ EXEMPLARY APPLICATION ${idx + 1}: ${doc.filename} ═══
-SECTIONS: ${doc.extractedSections.slice(0, 15).join(', ')}${doc.extractedSections.length > 15 ? '...' : ''}
+SECTIONS: ${doc.extractedSections.slice(0, 8).join(', ')}${doc.extractedSections.length > 8 ? '...' : ''}
 
-CONTENT PREVIEW: ${doc.content.substring(0, 1500)}...
+CONTENT PREVIEW: ${doc.content.substring(0, 800)}...
 `).join('\n')}
 
 Analyze these exemplary applications and provide insights that will help assess future applications. Return ONLY valid JSON with this exact structure:
