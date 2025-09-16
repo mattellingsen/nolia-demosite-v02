@@ -473,35 +473,13 @@ Analyze these exemplary applications and provide insights that will help assess 
 
 Focus on actionable insights that will improve assessment accuracy and identify high-quality applications.`;
 
-  const response = await invokeClaude(prompt, 'Good examples analysis');
   try {
+    const response = await invokeClaude(prompt, 'Good examples analysis');
     return JSON.parse(response);
-  } catch (parseError) {
-    console.error('Failed to parse Claude good examples response:', parseError);
-    // Return structured fallback if parsing fails
-    return {
-      qualityIndicators: [
-        { name: "Document Completeness", score: 85, description: "All required sections thoroughly addressed" },
-        { name: "Evidence Quality", score: 80, description: "Strong supporting evidence and examples" },
-        { name: "Clarity & Structure", score: 82, description: "Well-organized with clear logical flow" }
-      ],
-      excellencePatterns: [
-        "Clear problem identification with supporting data",
-        "Structured responses with logical progression",
-        "Specific examples rather than generic statements"
-      ],
-      successFactors: [
-        "Comprehensive understanding of requirements",
-        "Strong evidence-based arguments", 
-        "Professional presentation quality"
-      ],
-      assessmentInsights: {
-        averageScore: 82,
-        keyStrengths: ["Thorough documentation", "Clear objectives", "Strong methodology"],
-        qualityMarkers: ["Specific metrics", "Detailed timelines", "Clear outcomes"],
-        recommendedFocus: "Assess completeness, evidence quality, and clarity of objectives"
-      }
-    };
+  } catch (claudeError) {
+    console.error('Claude good examples analysis failed:', claudeError);
+    console.log('Throwing error to trigger fallback in good-examples route');
+    throw new Error('Claude good examples analysis failed: ' + claudeError.message);
   }
 }
 
