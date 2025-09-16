@@ -176,9 +176,7 @@ Organize your findings in order of importance for assessment decisions:
 
 Present your analysis in a structured format that serves as a practical checklist for assessors. Use clear headings and bullet points to make the information easily scannable and actionable.
 
-Write your complete analysis inside <analysis> tags.
-
-Return ONLY valid JSON with this structure:
+Return ONLY valid JSON with this structure (no additional text or analysis tags):
 {
   "formalEvaluationCriteria": [
     {
@@ -266,10 +264,17 @@ Return ONLY valid JSON with this structure:
 }`;
 
   const response = await invokeClaude(prompt, 'Combined comprehensive analysis');
+  
+  console.log('📊 Claude response length:', response.length);
+  console.log('📊 Claude response preview:', response.substring(0, 500));
+  
   try {
-    return JSON.parse(response);
+    const parsed = JSON.parse(response);
+    console.log('✅ Successfully parsed Claude JSON with keys:', Object.keys(parsed));
+    return parsed;
   } catch (parseError) {
-    console.error('Failed to parse Claude response:', parseError);
+    console.error('❌ Failed to parse Claude response:', parseError);
+    console.error('📊 Raw Claude response:', response);
     // Return minimal structure if parsing fails
     return {
       documentRoles: [],
