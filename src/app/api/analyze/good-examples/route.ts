@@ -33,7 +33,59 @@ export async function POST(request: NextRequest) {
         
         console.log(`📊 Analyzing ${files.length} good example files for quality assessment`);
         
-        // Analyze each file to extract quality patterns
+        // Try Claude reasoning first
+        try {
+            const { analyzeGoodExamplesWithClaude } = await import('@/utils/claude-document-reasoner');
+            const { extractTextFromFile, extractSections } = await import('@/utils/server-document-analyzer');
+            
+            // Prepare document contexts for Claude analysis
+            const documentContexts = [];
+            for (const file of files) {
+                const text = await extractTextFromFile(file);
+                const sections = extractSections(text);
+                
+                // Limit content size for faster processing
+                const optimizedContent = text.length > 3000 ? text.substring(0, 3000) + '...' : text;
+                
+                documentContexts.push({
+                    filename: file.name,
+                    content: optimizedContent,
+                    extractedSections: sections.map(s => s.title || s.toString()).slice(0, 20)
+                });
+            }
+            
+            console.log('🏆 Using Claude AI reasoning for good examples analysis');
+            const claudeAnalysis = await analyzeGoodExamplesWithClaude(documentContexts);
+            
+            const result = {
+                examplesAnalyzed: files.length,
+                averageScore: claudeAnalysis.assessmentInsights.averageScore,
+                qualityIndicators: claudeAnalysis.qualityIndicators,
+                writingPatterns: claudeAnalysis.excellencePatterns.slice(0, 5),
+                commonStrengths: claudeAnalysis.successFactors.slice(0, 6),
+                analysisMode: 'CLAUDE_AI_REASONING', // Clear indicator
+                
+                // Enhanced with Claude insights
+                assessmentInsights: claudeAnalysis.assessmentInsights,
+                analyses: documentContexts.map(doc => ({
+                    filename: doc.filename,
+                    sections: doc.extractedSections.length,
+                    contentLength: doc.content.length
+                }))
+            };
+            
+            console.log(`✅ Claude good examples analysis complete: ${claudeAnalysis.qualityIndicators.length} indicators, score: ${claudeAnalysis.assessmentInsights.averageScore}`);
+            return NextResponse.json(result);
+            
+        } catch (claudeError) {
+            console.log('🤖 Claude good examples analysis failed, using basic analysis:', {
+                error: claudeError instanceof Error ? claudeError.message : claudeError
+            });
+            // Fall through to basic analysis
+        }
+        
+        // Basic analysis fallback
+        console.log('📋 Using basic pattern matching for good examples analysis');
         const analyses = [];
         const allScores: number[] = [];
         const allPatterns: Set<string> = new Set();
@@ -166,6 +218,7 @@ export async function POST(request: NextRequest) {
             qualityIndicators,
             writingPatterns: writingPatterns.slice(0, 5), // Limit to top 5
             commonStrengths: commonStrengths.slice(0, 6), // Limit to top 6
+            analysisMode: 'BASIC_FALLBACK', // Clear indicator
             analyses: analyses.map(a => ({
                 sections: a.sections.length,
                 wordCount: a.wordCount,

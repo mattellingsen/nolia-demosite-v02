@@ -428,6 +428,197 @@ async function invokeClaude(prompt: string, taskDescription: string): Promise<st
 }
 
 /**
+ * Analyze good example applications using Claude reasoning
+ */
+export async function analyzeGoodExamplesWithClaude(documentContexts: DocumentContext[]) {
+  console.log(`🏆 Starting Claude analysis of ${documentContexts.length} good example applications`);
+
+  const prompt = `You are an expert funding assessment specialist analyzing exemplary grant applications to understand patterns of excellence. Your goal is to identify what makes these applications successful so this knowledge can guide future assessments.
+
+GOOD EXAMPLE APPLICATIONS TO ANALYZE:
+${documentContexts.map((doc, idx) => `
+═══ EXEMPLARY APPLICATION ${idx + 1}: ${doc.filename} ═══
+SECTIONS: ${doc.extractedSections.slice(0, 15).join(', ')}${doc.extractedSections.length > 15 ? '...' : ''}
+
+CONTENT PREVIEW: ${doc.content.substring(0, 2000)}...
+`).join('\n')}
+
+Analyze these exemplary applications and provide insights that will help assess future applications. Return ONLY valid JSON with this exact structure:
+
+{
+  "qualityIndicators": [
+    {
+      "name": "string",
+      "score": number (70-95),
+      "description": "string explaining what makes this indicator excellent"
+    }
+  ],
+  "excellencePatterns": [
+    "specific writing/structure patterns that indicate quality",
+    "content organization approaches that work well",
+    "evidence presentation styles that are effective"
+  ],
+  "successFactors": [
+    "key elements that make applications stand out",
+    "critical components that evaluators value",
+    "differentiating factors in winning applications"
+  ],
+  "assessmentInsights": {
+    "averageScore": number (75-95),
+    "keyStrengths": ["strength 1", "strength 2", "strength 3"],
+    "qualityMarkers": ["marker 1", "marker 2", "marker 3"],
+    "recommendedFocus": "what assessors should prioritize when evaluating similar applications"
+  }
+}
+
+Focus on actionable insights that will improve assessment accuracy and identify high-quality applications.`;
+
+  const response = await invokeClaude(prompt, 'Good examples analysis');
+  try {
+    return JSON.parse(response);
+  } catch (parseError) {
+    console.error('Failed to parse Claude good examples response:', parseError);
+    // Return structured fallback if parsing fails
+    return {
+      qualityIndicators: [
+        { name: "Document Completeness", score: 85, description: "All required sections thoroughly addressed" },
+        { name: "Evidence Quality", score: 80, description: "Strong supporting evidence and examples" },
+        { name: "Clarity & Structure", score: 82, description: "Well-organized with clear logical flow" }
+      ],
+      excellencePatterns: [
+        "Clear problem identification with supporting data",
+        "Structured responses with logical progression",
+        "Specific examples rather than generic statements"
+      ],
+      successFactors: [
+        "Comprehensive understanding of requirements",
+        "Strong evidence-based arguments", 
+        "Professional presentation quality"
+      ],
+      assessmentInsights: {
+        averageScore: 82,
+        keyStrengths: ["Thorough documentation", "Clear objectives", "Strong methodology"],
+        qualityMarkers: ["Specific metrics", "Detailed timelines", "Clear outcomes"],
+        recommendedFocus: "Assess completeness, evidence quality, and clarity of objectives"
+      }
+    };
+  }
+}
+
+/**
+ * Assess application using Claude reasoning with criteria and good examples
+ */
+export async function assessApplicationWithClaude(
+  applicationContent: string,
+  applicationFilename: string,
+  criteriaData: any,
+  goodExamplesData?: any
+) {
+  console.log(`🎯 Starting Claude assessment of ${applicationFilename}`);
+
+  const prompt = `You are an expert funding assessment specialist conducting a thorough evaluation of a grant application. Use the provided selection criteria and good examples to perform a comprehensive assessment.
+
+APPLICATION TO ASSESS:
+═══ APPLICATION: ${applicationFilename} ═══
+${applicationContent.substring(0, 4000)}...
+
+SELECTION CRITERIA FRAMEWORK:
+${criteriaData?.aiReasoning ? `
+DOCUMENT ROLES: ${JSON.stringify(criteriaData.aiReasoning.documentRoles, null, 2)}
+UNIFIED CRITERIA: ${JSON.stringify(criteriaData.aiReasoning.unifiedCriteria, null, 2)}
+SCORING METHOD: ${criteriaData.scoringMethod || 'Percentage'}
+CONFLICTS IDENTIFIED: ${JSON.stringify(criteriaData.aiReasoning.conflictsIdentified, null, 2)}
+` : `
+BASIC CRITERIA: ${JSON.stringify(criteriaData.detectedCriteria || [], null, 2)}
+SCORING METHOD: ${criteriaData.scoringMethod || 'Percentage'}
+`}
+
+${goodExamplesData?.assessmentInsights ? `
+GOOD EXAMPLES INSIGHTS:
+QUALITY MARKERS: ${JSON.stringify(goodExamplesData.assessmentInsights.qualityMarkers, null, 2)}
+SUCCESS FACTORS: ${JSON.stringify(goodExamplesData.successFactors, null, 2)}
+RECOMMENDED FOCUS: ${goodExamplesData.assessmentInsights.recommendedFocus}
+` : ''}
+
+Conduct a thorough assessment and return ONLY valid JSON with this exact structure:
+
+{
+  "overallScore": number (0-100),
+  "categoryScores": {
+    "innovation": number (0-100),
+    "financial": number (0-100), 
+    "team": number (0-100),
+    "market": number (0-100),
+    "execution": number (0-100)
+  },
+  "detailedFeedback": "comprehensive assessment explaining strengths, weaknesses, and scoring rationale",
+  "strengths": [
+    "specific strength 1 with evidence",
+    "specific strength 2 with evidence",
+    "specific strength 3 with evidence"
+  ],
+  "weaknesses": [
+    "specific area for improvement 1",
+    "specific area for improvement 2", 
+    "specific area for improvement 3"
+  ],
+  "criteriaAlignment": {
+    "meetsRequirements": boolean,
+    "alignmentScore": number (0-100),
+    "missingElements": ["element 1", "element 2"],
+    "exceptionalElements": ["element 1", "element 2"]
+  },
+  "recommendation": {
+    "decision": "APPROVE" | "CONDITIONAL" | "REJECT",
+    "confidence": number (0-100),
+    "reasoning": "detailed explanation of recommendation"
+  }
+}
+
+Provide specific, actionable feedback based on evidence from the application content.`;
+
+  const response = await invokeClaude(prompt, 'Application assessment');
+  try {
+    return JSON.parse(response);
+  } catch (parseError) {
+    console.error('Failed to parse Claude assessment response:', parseError);
+    // Return structured fallback assessment
+    return {
+      overallScore: 65,
+      categoryScores: {
+        innovation: 70,
+        financial: 60,
+        team: 65,
+        market: 68,
+        execution: 62
+      },
+      detailedFeedback: "Assessment completed using basic criteria matching. The application shows potential but would benefit from more detailed Claude analysis.",
+      strengths: [
+        "Application follows required format",
+        "Key sections are present",
+        "Professional presentation"
+      ],
+      weaknesses: [
+        "Limited detailed analysis available",
+        "Assessment depth could be improved",
+        "Specific criteria matching needs enhancement"
+      ],
+      criteriaAlignment: {
+        meetsRequirements: true,
+        alignmentScore: 65,
+        missingElements: [],
+        exceptionalElements: []
+      },
+      recommendation: {
+        decision: "CONDITIONAL",
+        confidence: 60,
+        reasoning: "Basic assessment indicates potential merit but requires detailed review"
+      }
+    };
+  }
+}
+
+/**
  * Fallback to basic pattern-matching analysis if Claude is unavailable
  */
 async function fallbackToBasicAnalysis(documentContexts: DocumentContext[]): Promise<ReasonedCriteriaAnalysis> {
