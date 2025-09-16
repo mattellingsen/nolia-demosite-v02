@@ -433,45 +433,29 @@ async function invokeClaude(prompt: string, taskDescription: string): Promise<st
 export async function analyzeGoodExamplesWithClaude(documentContexts: DocumentContext[]) {
   console.log(`🏆 Starting Claude analysis of ${documentContexts.length} good example applications`);
 
-  const prompt = `You are an expert funding assessment specialist analyzing exemplary grant applications to understand patterns of excellence. Your goal is to identify what makes these applications successful so this knowledge can guide future assessments.
+  // Simplified prompt similar to Step 5's successful approach
+  const prompt = `Analyze these successful grant applications and identify excellence patterns.
 
-GOOD EXAMPLE APPLICATIONS TO ANALYZE:
+SUCCESSFUL APPLICATIONS:
 ${documentContexts.map((doc, idx) => `
-═══ EXEMPLARY APPLICATION ${idx + 1}: ${doc.filename} ═══
-SECTIONS: ${doc.extractedSections.slice(0, 8).join(', ')}${doc.extractedSections.length > 8 ? '...' : ''}
-
-CONTENT PREVIEW: ${doc.content.substring(0, 800)}...
+${idx + 1}. ${doc.filename}:
+${doc.content.substring(0, 1200)}
 `).join('\n')}
 
-Analyze these exemplary applications and provide insights that will help assess future applications. Return ONLY valid JSON with this exact structure:
-
+Return ONLY valid JSON:
 {
   "qualityIndicators": [
-    {
-      "name": "string",
-      "score": number (70-95),
-      "description": "string explaining what makes this indicator excellent"
-    }
+    {"name": "string", "score": number, "description": "string"}
   ],
-  "excellencePatterns": [
-    "specific writing/structure patterns that indicate quality",
-    "content organization approaches that work well",
-    "evidence presentation styles that are effective"
-  ],
-  "successFactors": [
-    "key elements that make applications stand out",
-    "critical components that evaluators value",
-    "differentiating factors in winning applications"
-  ],
+  "excellencePatterns": ["pattern 1", "pattern 2"],
+  "successFactors": ["factor 1", "factor 2"],
   "assessmentInsights": {
-    "averageScore": number (75-95),
-    "keyStrengths": ["strength 1", "strength 2", "strength 3"],
-    "qualityMarkers": ["marker 1", "marker 2", "marker 3"],
-    "recommendedFocus": "what assessors should prioritize when evaluating similar applications"
+    "averageScore": number,
+    "keyStrengths": ["strength 1", "strength 2"],
+    "qualityMarkers": ["marker 1", "marker 2"],
+    "recommendedFocus": "focus area"
   }
-}
-
-Focus on actionable insights that will improve assessment accuracy and identify high-quality applications.`;
+}`;
 
   try {
     const response = await invokeClaude(prompt, 'Good examples analysis');
