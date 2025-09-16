@@ -44,13 +44,13 @@ export async function POST(request: NextRequest) {
                 const text = await extractTextFromFile(file);
                 const sections = extractSections(text);
                 
-                // Limit content size for faster processing
-                const optimizedContent = text.length > 3000 ? text.substring(0, 3000) + '...' : text;
+                // Limit content size for faster processing - match Claude function limits
+                const optimizedContent = text.length > 800 ? text.substring(0, 800) + '...' : text;
                 
                 documentContexts.push({
                     filename: file.name,
                     content: optimizedContent,
-                    extractedSections: sections.map(s => s.title || s.toString()).slice(0, 20)
+                    extractedSections: sections.map(s => s.title || s.toString()).slice(0, 8)
                 });
             }
             
