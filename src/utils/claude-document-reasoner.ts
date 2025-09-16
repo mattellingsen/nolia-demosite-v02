@@ -440,7 +440,7 @@ ${documentContexts.map((doc, idx) => `
 ═══ EXEMPLARY APPLICATION ${idx + 1}: ${doc.filename} ═══
 SECTIONS: ${doc.extractedSections.slice(0, 15).join(', ')}${doc.extractedSections.length > 15 ? '...' : ''}
 
-CONTENT PREVIEW: ${doc.content.substring(0, 2000)}...
+CONTENT PREVIEW: ${doc.content.substring(0, 1500)}...
 `).join('\n')}
 
 Analyze these exemplary applications and provide insights that will help assess future applications. Return ONLY valid JSON with this exact structure:
@@ -520,7 +520,7 @@ export async function assessApplicationWithClaude(
 
 APPLICATION TO ASSESS:
 ═══ APPLICATION: ${applicationFilename} ═══
-${applicationContent.substring(0, 4000)}...
+${applicationContent.substring(0, 3500)}...
 
 SELECTION CRITERIA FRAMEWORK:
 ${criteriaData?.aiReasoning ? `
@@ -540,10 +540,12 @@ SUCCESS FACTORS: ${JSON.stringify(goodExamplesData.successFactors, null, 2)}
 RECOMMENDED FOCUS: ${goodExamplesData.assessmentInsights.recommendedFocus}
 ` : ''}
 
+CRITICAL: Each application is unique. Provide genuinely different scores based on actual content quality, completeness, and merit. Avoid using the same scores for different applications.
+
 Conduct a thorough assessment and return ONLY valid JSON with this exact structure:
 
 {
-  "overallScore": number (0-100),
+  "overallScore": number (15-95, vary significantly based on actual quality),
   "categoryScores": {
     "innovation": number (0-100),
     "financial": number (0-100), 
