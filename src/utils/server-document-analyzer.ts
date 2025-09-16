@@ -110,7 +110,17 @@ export async function analyzeSelectionCriteria(files: any[]): Promise<CriteriaAn
             }
             
             console.log(`🧠 Attempting optimized Claude reasoning analysis on ${documentContexts.length} documents`);
-            const aiAnalysis = await analyzeSelectionCriteriaWithClaude(documentContexts);
+            
+            // Add timeout protection like Step 4
+            const timeoutPromise = new Promise<never>((_, reject) => {
+                setTimeout(() => reject(new Error('Claude criteria analysis timeout')), 25000);
+            });
+            
+            const analysisPromise = async () => {
+                return await analyzeSelectionCriteriaWithClaude(documentContexts);
+            };
+            
+            const aiAnalysis = await Promise.race([analysisPromise(), timeoutPromise]);
             
             console.log('📊 AI Analysis received, structure type check:', {
                 hasFormalCriteria: !!aiAnalysis.formalEvaluationCriteria,
