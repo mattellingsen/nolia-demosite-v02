@@ -113,6 +113,7 @@ export async function analyzeSelectionCriteria(files: any[]): Promise<CriteriaAn
             const aiAnalysis = await analyzeSelectionCriteriaWithClaude(documentContexts);
             
             // Return the AI analysis in the expected format
+            console.log('✅ Using Claude AI reasoning for criteria analysis');
             return {
                 criteriaFound: aiAnalysis.criteriaFound,
                 weightings: aiAnalysis.weightings,
@@ -121,6 +122,7 @@ export async function analyzeSelectionCriteria(files: any[]): Promise<CriteriaAn
                 textContent: aiAnalysis.textContent,
                 detectedCriteria: aiAnalysis.detectedCriteria,
                 extractedSections: aiAnalysis.extractedSections,
+                analysisMode: 'CLAUDE_AI_REASONING', // Clear indicator
                 
                 // Include AI reasoning data for enhanced analysis
                 aiReasoning: {
@@ -132,7 +134,10 @@ export async function analyzeSelectionCriteria(files: any[]): Promise<CriteriaAn
             };
             
         } catch (aiError) {
-            console.log('🤖 Claude analysis failed, using basic pattern matching:', aiError);
+            console.log('🤖 Claude analysis failed, using basic pattern matching:', {
+                error: aiError instanceof Error ? aiError.message : aiError,
+                stack: aiError instanceof Error ? aiError.stack : undefined
+            });
             // Fall through to basic analysis
         }
         
@@ -155,6 +160,7 @@ export async function analyzeSelectionCriteria(files: any[]): Promise<CriteriaAn
         const scoringMethod = detectScoringMethod(combinedText);
         const detectedCriteria = extractSpecificCriteria(combinedText);
         
+        console.log('📋 Using basic pattern matching (fallback mode)');
         return {
             criteriaFound,
             weightings,
@@ -162,7 +168,8 @@ export async function analyzeSelectionCriteria(files: any[]): Promise<CriteriaAn
             scoringMethod,
             textContent: combinedText,
             detectedCriteria,
-            extractedSections // Add sections to match other steps
+            extractedSections, // Add sections to match other steps
+            analysisMode: 'BASIC_FALLBACK' // Clear indicator
         };
     } catch (error) {
         console.error('Error analyzing selection criteria:', error);
