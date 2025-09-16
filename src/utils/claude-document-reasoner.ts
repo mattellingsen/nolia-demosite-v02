@@ -433,12 +433,17 @@ async function invokeClaude(prompt: string, taskDescription: string): Promise<st
 export async function analyzeGoodExamplesWithClaude(documentContexts: DocumentContext[]) {
   console.log(`🏆 Starting Claude analysis of ${documentContexts.length} good example applications`);
 
-  // Use the EXACT same pattern as assessApplicationWithClaude (which works)
-  const applicationsText = documentContexts.map((doc, idx) => 
-    `APPLICATION ${idx + 1}: ${doc.filename}\n${doc.content.substring(0, 2000)}`
-  ).join('\n\n');
-  
-  const prompt = `You are an expert funding assessment specialist. Analyze these successful applications and identify patterns.
+  // Add timeout protection like Step 2 (which works successfully)
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error('Claude good examples analysis timeout')), 30000);
+  });
+
+  const analysisPromise = async () => {
+    const applicationsText = documentContexts.map((doc, idx) => 
+      `APPLICATION ${idx + 1}: ${doc.filename}\n${doc.content.substring(0, 2000)}`
+    ).join('\n\n');
+    
+    const prompt = `You are an expert funding assessment specialist. Analyze these successful applications and identify patterns.
 
 ${applicationsText}
 
@@ -457,9 +462,15 @@ CRITICAL: Return ONLY valid JSON with exactly this structure:
   }
 }`;
 
-  try {
     const response = await invokeClaude(prompt, 'Good examples analysis');
     return JSON.parse(response);
+  };
+
+  try {
+    // Race between analysis and timeout - SAME PATTERN AS STEP 2
+    const result = await Promise.race([analysisPromise(), timeoutPromise]);
+    console.log('✅ Claude good examples analysis completed successfully');
+    return result;
   } catch (claudeError) {
     console.error('Claude good examples analysis failed:', claudeError);
     throw new Error('Claude good examples analysis failed: ' + claudeError.message);
