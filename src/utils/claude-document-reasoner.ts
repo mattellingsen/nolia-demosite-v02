@@ -106,6 +106,7 @@ async function performClaudeAnalysis(documentContexts: DocumentContext[]): Promi
   
   // Generate final reasoned analysis
   return {
+    assessmentCategories: combinedAnalysis.assessmentCategories || [],
     documentRoles: combinedAnalysis.documentRoles || [],
     unifiedCriteria: combinedAnalysis.unifiedCriteria || [],
     conflictsIdentified: combinedAnalysis.conflictsIdentified || [],
@@ -130,30 +131,38 @@ async function performClaudeAnalysis(documentContexts: DocumentContext[]): Promi
  * OPTIMIZED: Single comprehensive Claude analysis instead of 4 separate calls
  */
 async function performCombinedClaudeAnalysis(documentContexts: DocumentContext[]) {
-  const prompt = `You are an expert funding assessment specialist analyzing these documents to create a comprehensive assessment framework. Provide a complete analysis in ONE response.
+  const prompt = `I need you to assess all the documents and determine the "Assessment Categories" you can find. I only need the top 4 or 6... but if there are only 4 don't make up extra to find me 6.
+
+For each category provide:
+- Clear category name
+- Key questions/criteria
+- Focus/requirements
+- Any specific details
 
 DOCUMENTS TO ANALYZE:
 ${documentContexts.map(doc => `
 ═══ DOCUMENT: ${doc.filename} ═══
-SECTIONS: ${doc.extractedSections.slice(0, 10).join(', ')}${doc.extractedSections.length > 10 ? '...' : ''}
+${doc.content.substring(0, 4000)}...
+`).join('\n\n')}
 
-CONTENT: ${doc.content.substring(0, 1500)}...
-`).join('\n')}
+Analyze these documents thoroughly and identify the core assessment categories that applications will be evaluated against.
 
-ANALYSIS REQUIRED:
-1. Document Roles: Identify each document's specific purpose and function
-2. Unified Criteria: Extract and synthesize assessment criteria with accurate weightings
-3. Conflict Detection: Identify any contradictions between documents
-4. Framework Synthesis: Create a coherent assessment framework
-
-Return ONLY valid JSON with this structure (generate ACTUAL values, not these examples):
+Return ONLY valid JSON with this structure:
 {
+  "assessmentCategories": [
+    {
+      "categoryName": "actual category name",
+      "keyQuestions": ["key question 1", "key question 2"],
+      "focus": "description of what this category focuses on",
+      "requirements": ["specific requirement 1", "specific requirement 2"],
+      "details": "any additional important details about this category"
+    }
+  ],
   "documentRoles": [
     {
       "filename": <actual_filename>,
       "identifiedRole": <actual_role>,
-      "purpose": <actual_purpose>,
-      "keyContributions": [<actual_contributions>]
+      "purpose": <actual_purpose>
     }
   ],
   "unifiedCriteria": [
