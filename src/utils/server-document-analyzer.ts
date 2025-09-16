@@ -99,8 +99,8 @@ export async function analyzeSelectionCriteria(files: any[]): Promise<CriteriaAn
                 const text = await extractTextFromFile(file);
                 const sections = extractSections(text);
                 
-                // Limit content size for faster processing
-                const optimizedContent = text.length > 3000 ? text.substring(0, 3000) + '...' : text;
+                // Use full content for thorough Claude analysis
+                const optimizedContent = text;
                 
                 documentContexts.push({
                     filename: file.name,

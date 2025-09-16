@@ -142,7 +142,7 @@ For each category provide:
 DOCUMENTS TO ANALYZE:
 ${documentContexts.map(doc => `
 ═══ DOCUMENT: ${doc.filename} ═══
-${doc.content.substring(0, 4000)}...
+${doc.content}
 `).join('\n\n')}
 
 Analyze these documents thoroughly and identify the core assessment categories that applications will be evaluated against.
@@ -234,7 +234,7 @@ ${documentContexts.map(doc => `
 SECTIONS IDENTIFIED: ${doc.extractedSections.slice(0, 15).join(', ')}${doc.extractedSections.length > 15 ? '...' : ''}
 
 CONTENT SAMPLE (first 1500 characters):
-${doc.content.substring(0, 1500)}...
+${doc.content}
 `).join('\n')}
 
 Provide your analysis as a JSON array with this exact structure:
@@ -271,7 +271,7 @@ FULL DOCUMENT ANALYSIS:
 ${documentContexts.map(doc => `
 ═══ ${doc.filename} ═══
 ROLE: ${documentRoles.find(r => r.filename === doc.filename)?.identifiedRole || 'Unknown'}
-CONTENT: ${doc.content.substring(0, 1500)}...
+CONTENT: ${doc.content}
 `).join('\n')}
 
 ANALYSIS REQUIREMENTS:
@@ -316,7 +316,7 @@ ${JSON.stringify(criteriaAnalysis, null, 2)}
 DOCUMENT CONTENTS FOR CONFLICT ANALYSIS:
 ${documentContexts.map(doc => `
 ═══ ${doc.filename} ═══
-${doc.content.substring(0, 1000)}...
+${doc.content}
 `).join('\n')}
 
 CONFLICT ANALYSIS:
@@ -449,7 +449,7 @@ export async function analyzeGoodExamplesWithClaude(documentContexts: DocumentCo
 
   const analysisPromise = async () => {
     const applicationsText = documentContexts.map((doc, idx) => 
-      `APPLICATION ${idx + 1}: ${doc.filename}\n${doc.content.substring(0, 2000)}`
+      `APPLICATION ${idx + 1}: ${doc.filename}\n${doc.content}`
     ).join('\n\n');
     
     const prompt = `You are an expert funding assessment specialist. Analyze these successful applications and identify patterns.
@@ -501,7 +501,7 @@ export async function assessApplicationWithClaude(
 
 APPLICATION TO ASSESS:
 ═══ APPLICATION: ${applicationFilename} ═══
-${applicationContent.substring(0, 3500)}...
+${applicationContent}
 
 SELECTION CRITERIA FRAMEWORK:
 ${criteriaData?.aiReasoning ? `
