@@ -512,18 +512,23 @@ SUCCESS FACTORS: ${JSON.stringify(goodExamplesData.successFactors, null, 2)}
 RECOMMENDED FOCUS: ${goodExamplesData.assessmentInsights.recommendedFocus}
 ` : ''}
 
-CRITICAL: Each application is unique. Provide genuinely different scores based on actual content quality, completeness, and merit. Avoid using the same scores for different applications.
+MANDATORY: Score THIS specific application based on its ACTUAL content!
+- NEVER use identical scores across different applications
+- AVOID default scores like 82, 85, 75, 90, 80
+- Score ranges: Poor(15-50), Average(51-70), Good(71-85), Excellent(86-95)
+- Each category MUST reflect THIS application's actual strengths/weaknesses
 
-Conduct a thorough assessment and return ONLY valid JSON with this exact structure:
+Analyze the application content above and assign UNIQUE scores.
+Return ONLY valid JSON with actual numbers (not placeholders):
 
 {
-  "overallScore": number (15-95, vary significantly based on actual quality),
+  "overallScore": (number between 15-95),
   "categoryScores": {
-    "innovation": number (0-100),
-    "financial": number (0-100), 
-    "team": number (0-100),
-    "market": number (0-100),
-    "execution": number (0-100)
+    "innovation": (number between 0-100),
+    "financial": (number between 0-100), 
+    "team": (number between 0-100),
+    "market": (number between 0-100),
+    "execution": (number between 0-100)
   },
   "detailedFeedback": "comprehensive assessment explaining strengths, weaknesses, and scoring rationale",
   "strengths": [
