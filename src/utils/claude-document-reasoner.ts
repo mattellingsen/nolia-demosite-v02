@@ -433,27 +433,27 @@ async function invokeClaude(prompt: string, taskDescription: string): Promise<st
 export async function analyzeGoodExamplesWithClaude(documentContexts: DocumentContext[]) {
   console.log(`🏆 Starting Claude analysis of ${documentContexts.length} good example applications`);
 
-  // Simplified prompt similar to Step 5's successful approach
-  const prompt = `Analyze these successful grant applications and identify excellence patterns.
+  // Use the EXACT same pattern as assessApplicationWithClaude (which works)
+  const applicationsText = documentContexts.map((doc, idx) => 
+    `APPLICATION ${idx + 1}: ${doc.filename}\n${doc.content.substring(0, 2000)}`
+  ).join('\n\n');
+  
+  const prompt = `You are an expert funding assessment specialist. Analyze these successful applications and identify patterns.
 
-SUCCESSFUL APPLICATIONS:
-${documentContexts.map((doc, idx) => `
-${idx + 1}. ${doc.filename}:
-${doc.content.substring(0, 1200)}
-`).join('\n')}
+${applicationsText}
 
-Return ONLY valid JSON:
+CRITICAL: Return ONLY valid JSON with exactly this structure:
 {
   "qualityIndicators": [
-    {"name": "string", "score": number, "description": "string"}
+    {"name": "Completeness", "score": 85, "description": "description"}
   ],
-  "excellencePatterns": ["pattern 1", "pattern 2"],
-  "successFactors": ["factor 1", "factor 2"],
+  "excellencePatterns": ["Clear structure", "Strong evidence"],
+  "successFactors": ["Strong team", "Clear objectives"],
   "assessmentInsights": {
-    "averageScore": number,
-    "keyStrengths": ["strength 1", "strength 2"],
-    "qualityMarkers": ["marker 1", "marker 2"],
-    "recommendedFocus": "focus area"
+    "averageScore": 82,
+    "keyStrengths": ["strength1", "strength2"],
+    "qualityMarkers": ["marker1", "marker2"],
+    "recommendedFocus": "focus description"
   }
 }`;
 
@@ -462,7 +462,6 @@ Return ONLY valid JSON:
     return JSON.parse(response);
   } catch (claudeError) {
     console.error('Claude good examples analysis failed:', claudeError);
-    console.log('Throwing error to trigger fallback in good-examples route');
     throw new Error('Claude good examples analysis failed: ' + claudeError.message);
   }
 }
