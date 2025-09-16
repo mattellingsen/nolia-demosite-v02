@@ -21,6 +21,13 @@ interface CriteriaAnalysis {
     weightings: { name: string; weight: number }[];
     categories: string[];
     scoringMethod: 'Points' | 'Percentage' | 'Pass/Fail';
+    assessmentCategories?: {
+        categoryName: string;
+        keyQuestions: string[];
+        focus: string;
+        requirements: string[];
+        details: string;
+    }[];
 }
 
 export const Step2SelectionCriteria: React.FC<Step2Props> = ({ 
@@ -181,72 +188,33 @@ export const Step2SelectionCriteria: React.FC<Step2Props> = ({
                 </div>
             )}
 
-            {/* Analysis Results */}
+            {/* Analysis Results - Simplified */}
             {analysis && hasFiles && (
-                <div className="bg-gray-50 rounded-lg p-6 space-y-6">
+                <div className="bg-gray-50 rounded-lg p-6">
                     <div className="flex items-center gap-3">
                         <FeaturedIcon size="md" color="brand" theme="light" icon={CheckCircle} />
                         <h3 className="text-lg font-semibold text-primary">Criteria Analysis Complete</h3>
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="bg-white rounded-lg p-4 border border-gray-200">
-                            <p className="text-2xl font-bold text-brand-600 mb-1">{analysis.criteriaFound}</p>
-                            <p className="text-sm text-secondary">Assessment Criteria</p>
-                        </div>
-                        
-                        <div className="bg-white rounded-lg p-4 border border-gray-200">
-                            <p className="text-2xl font-bold text-brand-600 mb-1">{analysis.categories.length}</p>
-                            <p className="text-sm text-secondary">Categories</p>
-                        </div>
-                        
-                        <div className="bg-white rounded-lg p-4 border border-gray-200">
-                            <p className="text-2xl font-bold text-brand-600 mb-1">{analysis.scoringMethod}</p>
-                            <p className="text-sm text-secondary">Scoring Method</p>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div>
-                            <p className="text-sm font-medium text-primary mb-3">Assessment Categories:</p>
-                            <div className="space-y-2">
-                                {analysis.categories.map((category, index) => (
-                                    <div key={index} className="flex items-center gap-2 p-2 bg-white rounded border border-gray-200">
-                                        <span className="px-2 py-1 bg-brand-50 text-brand-700 text-xs font-medium rounded">
-                                            {index + 1}
-                                        </span>
-                                        <p className="text-sm text-primary">{category}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                        
-                        <div>
-                            <p className="text-sm font-medium text-primary mb-3">Detected Weightings:</p>
-                            <div className="space-y-2">
-                                {analysis.weightings.map((weighting, index) => (
-                                    <div key={index} className="flex items-center justify-between p-2 bg-white rounded border border-gray-200">
-                                        <p className="text-sm text-primary">{weighting.name}</p>
-                                        <span className="px-2 py-1 bg-success-50 text-success-700 text-xs font-medium rounded">
-                                            {weighting.weight}%
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                    
-                    {/* Specific Assessment Criteria */}
-                    {analysis.detectedCriteria && analysis.detectedCriteria.length > 0 && (
-                        <div>
-                            <p className="text-sm font-medium text-primary mb-3">Specific Assessment Criteria:</p>
-                            <div className="space-y-2">
-                                {analysis.detectedCriteria.map((criterion, index) => (
-                                    <div key={index} className="flex items-start gap-2 p-3 bg-white rounded border border-gray-200">
-                                        <span className="px-2 py-1 bg-warning-50 text-warning-700 text-xs font-medium rounded shrink-0">
-                                            {index + 1}
-                                        </span>
-                                        <p className="text-sm text-primary">{criterion}</p>
+                    {/* Show assessment categories from Claude analysis if available */}
+                    {analysis.assessmentCategories && analysis.assessmentCategories.length > 0 && (
+                        <div className="mt-6">
+                            <p className="text-sm font-medium text-primary mb-4">Assessment Categories Identified:</p>
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                {analysis.assessmentCategories.map((category, index) => (
+                                    <div key={index} className="bg-white p-4 rounded-lg border border-gray-200">
+                                        <h4 className="text-sm font-semibold text-primary mb-2">{category.categoryName}</h4>
+                                        <p className="text-xs text-secondary mb-2">{category.focus}</p>
+                                        {category.keyQuestions && category.keyQuestions.length > 0 && (
+                                            <div className="text-xs text-tertiary">
+                                                <p className="font-medium mb-1">Key Questions:</p>
+                                                <ul className="list-disc list-inside space-y-1">
+                                                    {category.keyQuestions.slice(0, 2).map((question, qIndex) => (
+                                                        <li key={qIndex}>{question}</li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                             </div>
