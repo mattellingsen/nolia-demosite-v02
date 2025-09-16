@@ -33,24 +33,20 @@ export async function POST(request: NextRequest) {
         
         console.log(`📊 Analyzing ${files.length} good example files for quality assessment`);
         
-        // Try Claude reasoning first
+        // Try Claude reasoning first - simplified approach like Step 5
         try {
             const { analyzeGoodExamplesWithClaude } = await import('@/utils/claude-document-reasoner');
-            const { extractTextFromFile, extractSections } = await import('@/utils/server-document-analyzer');
+            const { extractTextFromFile } = await import('@/utils/server-document-analyzer');
             
-            // Prepare document contexts for Claude analysis
+            // Prepare document contexts for Claude analysis - simpler approach
             const documentContexts = [];
             for (const file of files) {
                 const text = await extractTextFromFile(file);
-                const sections = extractSections(text);
-                
-                // Limit content size for faster processing - match Claude function limits
-                const optimizedContent = text.length > 800 ? text.substring(0, 800) + '...' : text;
                 
                 documentContexts.push({
                     filename: file.name,
-                    content: optimizedContent,
-                    extractedSections: sections.map(s => s.title || s.toString()).slice(0, 8)
+                    content: text, // Use full text like Step 5 does
+                    extractedSections: [] // Simplified - remove sections complexity
                 });
             }
             
