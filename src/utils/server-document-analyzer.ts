@@ -112,6 +112,13 @@ export async function analyzeSelectionCriteria(files: any[]): Promise<CriteriaAn
             console.log(`🧠 Attempting optimized Claude reasoning analysis on ${documentContexts.length} documents`);
             const aiAnalysis = await analyzeSelectionCriteriaWithClaude(documentContexts);
             
+            console.log('📊 AI Analysis received, structure type check:', {
+                hasFormalCriteria: !!aiAnalysis.formalEvaluationCriteria,
+                hasAssessmentCategories: !!aiAnalysis.assessmentCategories,
+                hasOldCriteriaFound: !!aiAnalysis.criteriaFound,
+                keys: Object.keys(aiAnalysis)
+            });
+            
             // Return the AI analysis in the expected format
             console.log('✅ Using Claude AI reasoning for criteria analysis');
             
