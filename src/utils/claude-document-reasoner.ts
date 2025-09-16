@@ -131,31 +131,106 @@ async function performClaudeAnalysis(documentContexts: DocumentContext[]): Promi
  * OPTIMIZED: Single comprehensive Claude analysis instead of 4 separate calls
  */
 async function performCombinedClaudeAnalysis(documentContexts: DocumentContext[]) {
-  const prompt = `I need you to assess all the documents and determine the "Assessment Categories" you can find. I only need the top 4 or 6... but if there are only 4 don't make up extra to find me 6.
+  const prompt = `You will be analyzing documents to comprehensively identify assessment criteria and requirements for evaluating applications. Your goal is to create a structured guide that assessors can use when reviewing applications.
 
-For each category provide:
-- Clear category name
-- Key questions/criteria
-- Focus/requirements
-- Any specific details
+Here are the documents to analyze:
 
-DOCUMENTS TO ANALYZE:
+<documents>
 ${documentContexts.map(doc => `
 ═══ DOCUMENT: ${doc.filename} ═══
 ${doc.content}
 `).join('\n\n')}
+</documents>
 
-Analyze these documents thoroughly and identify the core assessment categories that applications will be evaluated against.
+Your task is to thoroughly review these documents and extract all essential assessment criteria and requirements. You need to identify five key categories of information:
+
+1. **Formal evaluation criteria** - Look for explicitly stated assessment criteria, evaluation criteria, scoring rubrics, or review criteria that assessors use to evaluate applications
+
+2. **Key eligibility requirements** - Identify mandatory requirements that must be met, such as business type, financial capacity, specific ratios, minimum thresholds, geographic requirements, etc.
+
+3. **Assessment process mapping** - Note who conducts assessments, what they assess, the sequence of reviews, any dependencies between assessment stages, and timing requirements
+
+4. **Critical compliance elements** - Include requirements around documentation, reporting obligations, ongoing conditions, monitoring requirements, or other compliance factors
+
+5. **Disqualifying factors** - Note any automatic rejection criteria, conflicts of interest, reputational risks, or other factors that would prevent approval
+
+For each element you identify, you must provide:
+- The exact name or title as it appears in the documents
+- Which specific document(s) it appears in
+- Whether it is mandatory (must be met) or advisory (considered but not required)
+- Any specific thresholds, ratios, percentages, dollar amounts, or other measurable standards
+
+Pay special attention to:
+- Numerical thresholds and financial requirements
+- Time-based requirements or deadlines
+- Documentation that must be provided
+- Qualifications or certifications required
+- Geographic or sector restrictions
+
+If the documents contain different types of grants, programs, or application tracks, clearly specify which criteria apply to which type.
+
+Organize your findings in order of importance for assessment decisions:
+1. Start with mandatory pass/fail criteria that could immediately disqualify an application
+2. Then scored or weighted evaluation criteria used for ranking applications
+3. Finally, supplementary requirements that support the assessment process
+
+Present your analysis in a structured format that serves as a practical checklist for assessors. Use clear headings and bullet points to make the information easily scannable and actionable.
+
+Write your complete analysis inside <analysis> tags.
 
 Return ONLY valid JSON with this structure:
 {
+  "formalEvaluationCriteria": [
+    {
+      "criteriaName": "exact name from documents",
+      "sourceDocument": "filename",
+      "isMandatory": true,
+      "thresholds": ["specific values/percentages"],
+      "scoringMethod": "points/percentage/pass-fail",
+      "weight": "percentage if specified"
+    }
+  ],
+  "eligibilityRequirements": [
+    {
+      "requirementName": "exact name from documents", 
+      "sourceDocument": "filename",
+      "isMandatory": true,
+      "specificValues": ["dollar amounts/ratios/thresholds"],
+      "applicableTo": "business type/sector if specified"
+    }
+  ],
+  "assessmentProcess": [
+    {
+      "stageName": "name of assessment stage",
+      "assessor": "who conducts this assessment",
+      "focus": "what is assessed",
+      "timing": "when this occurs",
+      "dependencies": ["previous stages required"]
+    }
+  ],
+  "complianceElements": [
+    {
+      "elementName": "compliance requirement name",
+      "sourceDocument": "filename", 
+      "documentationRequired": ["list of required docs"],
+      "ongoingObligations": ["reporting/monitoring requirements"],
+      "deadlines": ["specific timeframes"]
+    }
+  ],
+  "disqualifyingFactors": [
+    {
+      "factorName": "exact disqualification criteria",
+      "sourceDocument": "filename",
+      "description": "detailed explanation",
+      "automaticRejection": true
+    }
+  ],
   "assessmentCategories": [
     {
-      "categoryName": "actual category name",
-      "keyQuestions": ["key question 1", "key question 2"],
-      "focus": "description of what this category focuses on",
-      "requirements": ["specific requirement 1", "specific requirement 2"],
-      "details": "any additional important details about this category"
+      "categoryName": "simplified category for display",
+      "priority": "critical/high/medium/low",
+      "keyQuestions": ["assessment questions"],
+      "focus": "what this evaluates"
     }
   ],
   "documentRoles": [
