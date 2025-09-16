@@ -146,23 +146,23 @@ ANALYSIS REQUIRED:
 3. Conflict Detection: Identify any contradictions between documents
 4. Framework Synthesis: Create a coherent assessment framework
 
-Return ONLY valid JSON with this exact structure:
+Return ONLY valid JSON with this structure (generate ACTUAL values, not these examples):
 {
   "documentRoles": [
     {
-      "filename": "exact_filename.docx",
-      "identifiedRole": "Primary Application Template",
-      "purpose": "Brief description",
-      "keyContributions": ["contribution1", "contribution2"]
+      "filename": <actual_filename>,
+      "identifiedRole": <actual_role>,
+      "purpose": <actual_purpose>,
+      "keyContributions": [<actual_contributions>]
     }
   ],
   "unifiedCriteria": [
     {
-      "category": "Innovation & Technical Merit",
-      "weight": 35,
-      "requirements": ["Specific requirement 1", "Specific requirement 2"],
-      "sourceDocuments": ["file1.docx"],
-      "reasoning": "Why this weight was chosen"
+      "category": <actual_category_name>,
+      "weight": <calculate_actual_weight_1_to_100>,
+      "requirements": [<actual_requirements>],
+      "sourceDocuments": [<actual_source_files>],
+      "reasoning": <actual_reasoning>
     }
   ],
   "conflictsIdentified": [
@@ -447,18 +447,18 @@ export async function analyzeGoodExamplesWithClaude(documentContexts: DocumentCo
 
 ${applicationsText}
 
-CRITICAL: Return ONLY valid JSON with exactly this structure:
+Analyze and return ONLY valid JSON (use ACTUAL analysis, not these placeholders):
 {
   "qualityIndicators": [
-    {"name": "Completeness", "score": 85, "description": "description"}
+    {"name": <actual_indicator>, "score": <actual_score>, "description": <actual_description>}
   ],
-  "excellencePatterns": ["Clear structure", "Strong evidence"],
-  "successFactors": ["Strong team", "Clear objectives"],
+  "excellencePatterns": [<actual_patterns_found>],
+  "successFactors": [<actual_factors_identified>],
   "assessmentInsights": {
-    "averageScore": 82,
-    "keyStrengths": ["strength1", "strength2"],
-    "qualityMarkers": ["marker1", "marker2"],
-    "recommendedFocus": "focus description"
+    "averageScore": <calculate_actual_average>,
+    "keyStrengths": [<actual_strengths>],
+    "qualityMarkers": [<actual_markers>],
+    "recommendedFocus": <actual_recommendation>
   }
 }`;
 
