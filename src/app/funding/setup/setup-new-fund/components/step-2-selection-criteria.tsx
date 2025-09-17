@@ -221,6 +221,18 @@ export const Step2SelectionCriteria: React.FC<Step2Props> = ({
                         </div>
                     </div>
                     
+                    {/* Comprehensive Analysis Summary */}
+                    {analysis.comprehensiveAnalysis && (
+                        <div className="mb-6">
+                            <p className="text-sm font-medium text-primary mb-4">Analysis Summary:</p>
+                            <div className="bg-white p-4 rounded-lg border border-gray-200">
+                                <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-line">
+                                    {analysis.comprehensiveAnalysis}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
                     {/* Show detected criteria - always show if available */}
                     {analysis.detectedCriteria && analysis.detectedCriteria.length > 0 && (
                         <div>

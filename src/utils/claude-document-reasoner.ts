@@ -117,6 +117,9 @@ async function performClaudeAnalysis(documentContexts: DocumentContext[]): Promi
       assessmentProcess: ['Apply unified criteria', 'Generate weighted score']
     },
     
+    // Add the comprehensive analysis narrative summary
+    comprehensiveAnalysis: combinedAnalysis.comprehensiveAnalysis || 'Analysis completed. Please review the identified criteria and requirements.',
+    
     // Backward compatibility fields
     criteriaFound: (combinedAnalysis.unifiedCriteria || []).reduce((sum, c) => sum + (c.requirements?.length || 1), 0),
     weightings: (combinedAnalysis.unifiedCriteria || []).map(c => ({ name: c.category, weight: c.weight })),
@@ -159,6 +162,7 @@ Output format: Provide a structured summary that an assessor could use as a chec
 
 Return ONLY valid JSON (no extra text):
 {
+  "comprehensiveAnalysis": "Detailed narrative summary of all identified assessment criteria, eligibility requirements, and evaluation standards. Explain what was found, from which documents, and how assessors should apply these criteria. Present this as a comprehensive summary an assessor could read to understand the complete evaluation framework.",
   "assessmentCategories": [
     {
       "categoryName": "Main Category Name",
@@ -243,7 +247,8 @@ Return ONLY valid JSON (no extra text):
         passingThreshold: 70,
         weightingJustification: "Default weighting due to parsing error",
         assessmentProcess: ["Review application", "Apply criteria"]
-      }
+      },
+      comprehensiveAnalysis: "Analysis could not be completed due to a parsing error. Please check the uploaded documents and try again, or contact support if this issue persists."
     };
   }
 }
@@ -718,6 +723,9 @@ async function fallbackToBasicAnalysis(documentContexts: DocumentContext[]): Pro
       weightingJustification: 'Weights based on pattern analysis of document content',
       assessmentProcess: ['Review application', 'Apply criteria', 'Generate score']
     },
+    
+    // Add comprehensive analysis for fallback mode
+    comprehensiveAnalysis: `Basic pattern analysis completed on ${documentContexts.length} document(s). Identified ${finalCriteria.length} evaluation criteria: ${finalCriteria.map(c => c.name).join(', ')}. This analysis uses keyword pattern matching and may be less comprehensive than AI-powered analysis. For more detailed analysis, ensure Claude AI integration is properly configured.`,
     
     // Pass through basic analysis
     ...basicAnalysis
