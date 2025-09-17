@@ -496,17 +496,19 @@ ${applicationsText}
 Analyze and return ONLY valid JSON (use ACTUAL analysis, not these placeholders):
 {
   "qualityIndicators": [
-    {"name": <actual_indicator>, "score": <actual_score>, "description": <actual_description>}
+    {"name": <actual_indicator>, "score": <actual_score_as_percentage_0_to_100>, "description": <actual_description>}
   ],
   "excellencePatterns": [<actual_patterns_found>],
   "successFactors": [<actual_factors_identified>],
   "assessmentInsights": {
-    "averageScore": <calculate_actual_average>,
+    "averageScore": <calculate_actual_average_as_percentage_0_to_100>,
     "keyStrengths": [<actual_strengths>],
     "qualityMarkers": [<actual_markers>],
     "recommendedFocus": <actual_recommendation>
   }
-}`;
+}
+
+IMPORTANT: All scores must be integers between 0-100 representing percentages (e.g., 85 for 85%, not 0.85).`;
 
     const response = await invokeClaude(prompt, 'Good examples analysis');
     return JSON.parse(response);
