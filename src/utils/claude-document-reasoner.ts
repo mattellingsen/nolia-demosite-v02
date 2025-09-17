@@ -131,18 +131,31 @@ async function performClaudeAnalysis(documentContexts: DocumentContext[]): Promi
  * OPTIMIZED: Single comprehensive Claude analysis instead of 4 separate calls
  */
 async function performCombinedClaudeAnalysis(documentContexts: DocumentContext[]) {
-  const prompt = `Analyze these assessment criteria documents to identify practical evaluation categories for grant applications.
+  const prompt = `Review all uploaded documents comprehensively and identify the essential assessment criteria and requirements needed to evaluate applications effectively.
 
 DOCUMENTS:
 ${documentContexts.map(doc => `
 ${doc.filename}: ${doc.content.substring(0, 2000)}${doc.content.length > 2000 ? '...' : ''}
 `).join('\n\n')}
 
-TASK: Extract the key assessment categories that evaluators will use to score applications. Focus on:
-1. Main evaluation criteria with scoring weights
-2. Mandatory eligibility requirements 
-3. Required documentation
-4. Disqualifying factors
+Your analysis should:
+1. Identify the formal evaluation criteria - Look for explicitly stated assessment criteria, evaluation criteria, or review criteria that assessors use to score/evaluate applications
+2. Extract key eligibility requirements - Identify mandatory requirements that must be met (e.g., business type, financial capacity, ratios, thresholds)
+3. Map the assessment process - Note who assesses what, when, and any sequential dependencies
+4. Highlight critical compliance elements - Include requirements around documentation, reporting, conditions, or other compliance factors
+5. Identify disqualifying factors - Note any automatic fails, conflicts of interest, or reputational risks that would prevent approval
+
+For each element you identify, provide:
+* The exact name/title used in the documents
+* Where it appears (which document(s))
+* Whether it's mandatory or advisory
+* Any specific thresholds, ratios, or measurable standards
+
+Present your findings in order of importance for making an assessment decision, starting with mandatory pass/fail criteria, then scored/evaluated criteria, then supplementary requirements.
+
+If the documents contain different types of grants or programs, clarify which criteria apply to which type.
+
+Output format: Provide a structured summary that an assessor could use as a checklist or guide when reviewing applications.
 
 Return ONLY valid JSON (no extra text):
 {

@@ -221,73 +221,15 @@ export const Step2SelectionCriteria: React.FC<Step2Props> = ({
                         </div>
                     </div>
                     
-                    {/* Show assessment categories from Claude analysis if available */}
-                    {analysis.assessmentCategories && analysis.assessmentCategories.length > 0 && (
-                        <div className="mb-6">
-                            <p className="text-sm font-medium text-primary mb-4">Assessment Categories Identified:</p>
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                {analysis.assessmentCategories.map((category, index) => (
-                                    <div key={index} className="bg-white p-4 rounded-lg border border-gray-200">
-                                        <h4 className="text-sm font-semibold text-primary mb-2">{category.categoryName}</h4>
-                                        <p className="text-xs text-secondary mb-2">{category.focus}</p>
-                                        {category.keyQuestions && category.keyQuestions.length > 0 && (
-                                            <div className="text-xs text-tertiary">
-                                                <p className="font-medium mb-1">Key Questions:</p>
-                                                <ul className="list-disc list-inside space-y-1">
-                                                    {category.keyQuestions.slice(0, 2).map((question, qIndex) => (
-                                                        <li key={qIndex}>{question}</li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                    
-                    {/* Show detected criteria if no assessment categories */}
-                    {(!analysis.assessmentCategories || analysis.assessmentCategories.length === 0) && analysis.detectedCriteria && analysis.detectedCriteria.length > 0 && (
-                        <div className="mb-6">
+                    {/* Show detected criteria - always show if available */}
+                    {analysis.detectedCriteria && analysis.detectedCriteria.length > 0 && (
+                        <div>
                             <p className="text-sm font-medium text-primary mb-4">Detected Criteria:</p>
                             <div className="bg-white p-4 rounded-lg border border-gray-200">
                                 <div className="flex flex-wrap gap-2">
                                     {analysis.detectedCriteria.map((criteria, index) => (
                                         <span key={index} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-brand-secondary-50 text-brand-secondary-700">
                                             {criteria}
-                                        </span>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                    
-                    {/* Show weightings if available */}
-                    {analysis.weightings && analysis.weightings.length > 0 && (
-                        <div className="mb-6">
-                            <p className="text-sm font-medium text-primary mb-4">Criteria Weightings:</p>
-                            <div className="bg-white p-4 rounded-lg border border-gray-200">
-                                <div className="space-y-2">
-                                    {analysis.weightings.map((weighting, index) => (
-                                        <div key={index} className="flex justify-between items-center">
-                                            <span className="text-sm text-primary">{weighting.name}</span>
-                                            <span className="text-sm font-medium text-brand-secondary">{weighting.weight}%</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                    
-                    {/* Categories list if no detailed assessment categories */}
-                    {(!analysis.assessmentCategories || analysis.assessmentCategories.length === 0) && analysis.categories && analysis.categories.length > 0 && (
-                        <div>
-                            <p className="text-sm font-medium text-primary mb-4">Assessment Categories:</p>
-                            <div className="bg-white p-4 rounded-lg border border-gray-200">
-                                <div className="flex flex-wrap gap-2">
-                                    {analysis.categories.map((category, index) => (
-                                        <span key={index} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                            {category}
                                         </span>
                                     ))}
                                 </div>
