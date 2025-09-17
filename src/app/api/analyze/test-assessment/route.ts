@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
             );
         }
         
-        // Try Claude assessment first
+        // Try Claude assessment first with timeout protection
         let assessment;
         try {
             const { assessApplicationWithClaude } = await import('@/utils/claude-document-reasoner');
@@ -54,13 +54,21 @@ export async function POST(request: NextRequest) {
             const goodExamplesJson = formData.get('goodExamples') as string;
             const goodExamplesData = goodExamplesJson ? JSON.parse(goodExamplesJson) : null;
             
-            console.log('🎯 Using Claude AI reasoning for assessment');
-            const claudeAssessment = await assessApplicationWithClaude(
+            console.log('🎯 Using Claude AI reasoning for assessment with timeout protection');
+            
+            // Add timeout protection to prevent 504 errors
+            const timeoutPromise = new Promise<never>((_, reject) => {
+                setTimeout(() => reject(new Error('Claude assessment timeout')), 25000);
+            });
+            
+            const assessmentPromise = assessApplicationWithClaude(
                 applicationContent,
                 file.name,
                 criteria,
                 goodExamplesData
             );
+            
+            const claudeAssessment = await Promise.race([assessmentPromise, timeoutPromise]);
             
             // Convert Claude assessment to expected format
             assessment = {
