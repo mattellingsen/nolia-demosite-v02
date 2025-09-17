@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
         
         console.log(`📊 Analyzing ${files.length} good example files for quality assessment`);
         
-        // Try Claude reasoning first - simplified approach like Step 5
+        // Try Claude reasoning first with timeout protection
         try {
             const { analyzeGoodExamplesWithClaude } = await import('@/utils/claude-document-reasoner');
             const { extractTextFromFile } = await import('@/utils/server-document-analyzer');
@@ -50,15 +50,31 @@ export async function POST(request: NextRequest) {
                 });
             }
             
-            console.log('🏆 Using Claude AI reasoning for good examples analysis');
-            const claudeAnalysis = await analyzeGoodExamplesWithClaude(documentContexts);
+            console.log('🏆 Using Claude AI reasoning for good examples analysis with timeout protection');
+            
+            // Add timeout protection to prevent issues
+            const timeoutPromise = new Promise<never>((_, reject) => {
+                setTimeout(() => reject(new Error('Claude good examples analysis timeout')), 25000);
+            });
+            
+            const analysisPromise = analyzeGoodExamplesWithClaude(documentContexts);
+            const claudeAnalysis = await Promise.race([analysisPromise, timeoutPromise]);
+            
+            // Normalize scores to ensure they're in percentage format (0-100)
+            const normalizeScore = (score: number) => {
+                if (score <= 1) return Math.round(score * 100); // Convert decimal to percentage
+                return Math.round(score); // Already a percentage
+            };
             
             const result = {
                 examplesAnalyzed: files.length,
-                averageScore: claudeAnalysis.assessmentInsights.averageScore,
-                qualityIndicators: claudeAnalysis.qualityIndicators,
-                writingPatterns: claudeAnalysis.excellencePatterns.slice(0, 5),
-                commonStrengths: claudeAnalysis.successFactors.slice(0, 6),
+                averageScore: normalizeScore(claudeAnalysis.assessmentInsights.averageScore || 75),
+                qualityIndicators: (claudeAnalysis.qualityIndicators || []).map((indicator: any) => ({
+                    ...indicator,
+                    score: normalizeScore(indicator.score || 75)
+                })),
+                writingPatterns: claudeAnalysis.excellencePatterns?.slice(0, 5) || [],
+                commonStrengths: claudeAnalysis.successFactors?.slice(0, 6) || [],
                 analysisMode: 'CLAUDE_AI_REASONING', // Clear indicator
                 
                 // Enhanced with Claude insights
