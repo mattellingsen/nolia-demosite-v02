@@ -72,9 +72,9 @@ export async function analyzeSelectionCriteriaWithClaude(
   // Skip the development-only credentials check - let Claude try in all environments
   console.log('🧠 Proceeding with Claude analysis in all environments');
 
-  // Add timeout protection - give Claude 30 seconds to analyze complex documents
+  // Add timeout protection - give Claude more time for comprehensive analysis
   const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error('Claude analysis timeout')), 30000);
+    setTimeout(() => reject(new Error('Claude analysis timeout')), 45000);
   });
 
   try {
@@ -134,95 +134,35 @@ async function performClaudeAnalysis(documentContexts: DocumentContext[]): Promi
  * OPTIMIZED: Single comprehensive Claude analysis instead of 4 separate calls
  */
 async function performCombinedClaudeAnalysis(documentContexts: DocumentContext[]) {
-  // Enhanced comprehensive analysis prompt for selection criteria  
-  const prompt = `You are a government funding assessment expert. Analyze the provided selection criteria documents and provide a comprehensive, detailed analysis following this exact structure:
+  // Optimized comprehensive analysis prompt that balances detail with timeout protection
+  const prompt = `You are a government funding assessment expert. Analyze these selection criteria documents and provide a comprehensive assessment report.
 
-**COMPREHENSIVE SELECTION CRITERIA ANALYSIS**
-
-**1. MANDATORY REQUIREMENTS & ELIGIBILITY**
-Examine all mandatory requirements, eligibility criteria, and pass/fail thresholds. Include:
-- Specific eligibility cutoffs with exact figures/percentages
-- Geographic, sector, or organizational requirements
-- Minimum thresholds for funding amounts, project duration, etc.
-- Any disqualifying factors or exclusion criteria
-- Cite specific document sections/pages for each requirement
-
-**2. ASSESSMENT CATEGORIES & SCORING METHODOLOGY** 
-Detail the complete scoring framework:
-- List all assessment categories with exact weightings/percentages
-- Explain the scoring scale (e.g., 1-5 points, percentage-based, etc.)
-- Describe how categories combine for overall scores
-- Note any tie-breaking procedures or secondary criteria
-- Include any quality thresholds for each category
-
-**3. DETAILED EVALUATION CRITERIA BREAKDOWN**
-For each major assessment area, provide:
-- Specific evaluation questions assessors must consider
-- Sub-criteria and detailed requirements within each area
-- Expected evidence or documentation for each criterion  
-- Quality indicators and performance benchmarks
-- Scoring guidance for different performance levels
-
-**4. APPLICATION SUBMISSION & PROCESS REQUIREMENTS**
-Document all procedural requirements:
-- Required documentation formats and specifications
-- Application deadlines and submission procedures
-- Page limits, word counts, or format requirements
-- Supporting materials and attachments needed
-- Review timeline and notification procedures
-
-**5. COMPLIANCE, REGULATORY & POLICY REQUIREMENTS**
-Identify all compliance obligations:
-- Regulatory standards and certifications required
-- Policy compliance requirements (privacy, accessibility, etc.)
-- Industry-specific standards or accreditations
-- Legal requirements and statutory obligations
-- Reporting and monitoring requirements
-
-**6. FINANCIAL CRITERIA & BUDGET REQUIREMENTS**
-Analyze all financial aspects:
-- Funding amount ranges, minimums, and maximums
-- Budget breakdown requirements and categories
-- Co-funding, matching funds, or leverage requirements
-- Financial sustainability and viability criteria
-- Cost-effectiveness and value-for-money expectations
-
-**7. OUTCOMES, DELIVERABLES & PERFORMANCE STANDARDS**
-Define expected results and success measures:
-- Specific deliverables and project outcomes required
-- Performance indicators and measurement methods
-- Success benchmarks and target achievements
-- Reporting requirements and milestones
-- Long-term impact expectations and evaluation criteria
-
-**CRITICAL SUCCESS FACTORS SUMMARY**
-Conclude with a summary of the most critical factors that will determine application success, ranked by importance based on document emphasis and weighting.
-
-**FORMAT REQUIREMENTS:**
-- Provide detailed narrative analysis (minimum 700 words)
-- Use numbered sections as shown above
-- Include specific document references for each requirement
-- Quote exact figures, percentages, and thresholds where available
-- Ensure comprehensive coverage - no major criterion should be omitted
-- Focus on actionable guidance for applicants and assessors
-
-**Documents to analyze:**
+DOCUMENTS:
 ${documentContexts.map(doc => `
-**Source: ${doc.filename}**
-Content: ${doc.content.substring(0, 15000)}
-`).join('\n\n---\n\n')}
+=== ${doc.filename} ===
+${doc.content.substring(0, 12000)}
+`).join('\n\n')}
 
-CRITICAL: Your response must be valid JSON. Put the comprehensive analysis above into the "comprehensiveAnalysis" field as a single string with proper escaping.
+Create a detailed analysis that covers:
+1. All mandatory eligibility requirements with specific thresholds
+2. Complete scoring framework and weightings  
+3. Detailed evaluation criteria for each assessment area
+4. Application submission and process requirements
+5. Compliance and regulatory obligations
+6. Financial criteria and budget requirements
+7. Expected outcomes and performance standards
 
-Return ONLY this JSON structure:
+Write a comprehensive narrative analysis (500+ words) that thoroughly explains each area, includes specific document references, quotes exact figures/percentages, and provides actionable guidance for applicants and assessors.
+
+Return ONLY valid JSON:
 {
-  "comprehensiveAnalysis": "The detailed multi-section analysis above, properly escaped as a JSON string",
+  "comprehensiveAnalysis": "Comprehensive multi-section analysis covering all 7 areas above with specific details, thresholds, and document references",
   "assessmentCategories": [
     {
       "categoryName": "Category Name",
       "priority": "critical/high/medium", 
-      "keyQuestions": ["Question 1", "Question 2"],
-      "focus": "What this evaluates",
+      "keyQuestions": ["Key evaluation questions"],
+      "focus": "What this category evaluates",
       "weight": "percentage if specified",
       "isMandatory": true
     }
@@ -231,45 +171,45 @@ Return ONLY this JSON structure:
     {
       "requirementName": "Requirement Name",
       "isMandatory": true,
-      "specificValues": ["thresholds/amounts"],
-      "sourceDocument": "filename"
+      "specificValues": ["specific thresholds/amounts"],
+      "sourceDocument": "document filename"
     }
   ],
   "disqualifyingFactors": [
     {
       "factorName": "Disqualification criteria",
-      "description": "explanation"
+      "description": "Detailed explanation"
     }
   ],
   "documentRoles": [
     {
       "filename": "actual_filename",
-      "identifiedRole": "actual_role",
-      "purpose": "actual_purpose"
+      "identifiedRole": "document_role",
+      "purpose": "document_purpose"
     }
   ],
   "unifiedCriteria": [
     {
-      "category": "actual_category_name",
+      "category": "assessment_category",
       "weight": 25,
-      "requirements": ["actual_requirements"],
-      "sourceDocuments": ["actual_source_files"],
-      "reasoning": "actual_reasoning"
+      "requirements": ["specific_requirements"],
+      "sourceDocuments": ["source_files"],
+      "reasoning": "justification_for_weighting"
     }
   ],
   "conflictsIdentified": [
     {
       "type": "weight_mismatch",
-      "description": "Description of conflict",
-      "affectedDocuments": ["file1.docx"],
+      "description": "Specific conflict description",
+      "affectedDocuments": ["affected_files"],
       "recommendation": "Resolution approach"
     }
   ],
   "synthesizedFramework": {
     "scoringMethod": "Points|Percentage|Pass/Fail",
     "passingThreshold": 75,
-    "weightingJustification": "Detailed explanation",
-    "assessmentProcess": ["Step 1", "Step 2", "Step 3"]
+    "weightingJustification": "Explanation of final weightings",
+    "assessmentProcess": ["Assessment steps"]
   }
 }`;
 
@@ -498,7 +438,7 @@ async function invokeClaude(prompt: string, taskDescription: string): Promise<st
                                   taskDescription.includes('comprehensive') || 
                                   taskDescription.includes('narrative') ||
                                   taskDescription.includes('Combined comprehensive');
-  const maxTokens = isComprehensiveAnalysis ? 8000 : 2000;
+  const maxTokens = isComprehensiveAnalysis ? 4000 : 2000;
   
   const requestBody = {
     anthropic_version: "bedrock-2023-05-31",
