@@ -72,9 +72,9 @@ export async function analyzeSelectionCriteriaWithClaude(
   // Skip the development-only credentials check - let Claude try in all environments
   console.log('🧠 Proceeding with Claude analysis in all environments');
 
-  // Add timeout protection - give Claude more time for comprehensive analysis
+  // Add timeout protection - stay well within Lambda 30s limit
   const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error('Claude analysis timeout')), 45000);
+    setTimeout(() => reject(new Error('Claude analysis timeout')), 20000);
   });
 
   try {
@@ -134,29 +134,26 @@ async function performClaudeAnalysis(documentContexts: DocumentContext[]): Promi
  * OPTIMIZED: Single comprehensive Claude analysis instead of 4 separate calls
  */
 async function performCombinedClaudeAnalysis(documentContexts: DocumentContext[]) {
-  // Optimized comprehensive analysis prompt that balances detail with timeout protection
-  const prompt = `You are a government funding assessment expert. Analyze these selection criteria documents and provide a comprehensive assessment report.
+  // FAST ANALYSIS: Essential data extraction within Lambda timeout limits
+  const prompt = `Analyze these selection criteria documents. Extract key information quickly and concisely.
 
 DOCUMENTS:
 ${documentContexts.map(doc => `
 === ${doc.filename} ===
-${doc.content.substring(0, 12000)}
+${doc.content.substring(0, 8000)}
 `).join('\n\n')}
 
-Create a detailed analysis that covers:
-1. All mandatory eligibility requirements with specific thresholds
-2. Complete scoring framework and weightings  
-3. Detailed evaluation criteria for each assessment area
-4. Application submission and process requirements
-5. Compliance and regulatory obligations
-6. Financial criteria and budget requirements
-7. Expected outcomes and performance standards
+Extract essential information:
+- Key assessment categories and weights
+- Mandatory requirements and thresholds
+- Scoring methodology
+- Document roles and purposes
 
-Write a comprehensive narrative analysis (500+ words) that thoroughly explains each area, includes specific document references, quotes exact figures/percentages, and provides actionable guidance for applicants and assessors.
+Write a focused analysis (200-300 words) summarizing the key criteria, requirements, and assessment framework.
 
 Return ONLY valid JSON:
 {
-  "comprehensiveAnalysis": "Comprehensive multi-section analysis covering all 7 areas above with specific details, thresholds, and document references",
+  "comprehensiveAnalysis": "Concise but detailed analysis of the selection criteria covering key requirements, scoring framework, and assessment methodology",
   "assessmentCategories": [
     {
       "categoryName": "Category Name",
@@ -433,12 +430,12 @@ Return JSON:
 async function invokeClaude(prompt: string, taskDescription: string): Promise<string> {
   console.log(`🧠 Claude ${taskDescription}...`);
 
-  // Use higher max_tokens for comprehensive analysis, lower for other tasks
+  // Use faster token limits to stay within Lambda timeout
   const isComprehensiveAnalysis = taskDescription.includes('Comprehensive') || 
                                   taskDescription.includes('comprehensive') || 
                                   taskDescription.includes('narrative') ||
                                   taskDescription.includes('Combined comprehensive');
-  const maxTokens = isComprehensiveAnalysis ? 4000 : 2000;
+  const maxTokens = isComprehensiveAnalysis ? 2000 : 1500;
   
   const requestBody = {
     anthropic_version: "bedrock-2023-05-31",
