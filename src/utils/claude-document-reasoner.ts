@@ -134,41 +134,95 @@ async function performClaudeAnalysis(documentContexts: DocumentContext[]): Promi
  * OPTIMIZED: Single comprehensive Claude analysis instead of 4 separate calls
  */
 async function performCombinedClaudeAnalysis(documentContexts: DocumentContext[]) {
-  const prompt = `Review all uploaded documents comprehensively and identify the essential assessment criteria and requirements needed to evaluate applications effectively.
+  // Enhanced comprehensive analysis prompt for selection criteria  
+  const prompt = `You are a government funding assessment expert. Analyze the provided selection criteria documents and provide a comprehensive, detailed analysis following this exact structure:
 
-DOCUMENTS:
+**COMPREHENSIVE SELECTION CRITERIA ANALYSIS**
+
+**1. MANDATORY REQUIREMENTS & ELIGIBILITY**
+Examine all mandatory requirements, eligibility criteria, and pass/fail thresholds. Include:
+- Specific eligibility cutoffs with exact figures/percentages
+- Geographic, sector, or organizational requirements
+- Minimum thresholds for funding amounts, project duration, etc.
+- Any disqualifying factors or exclusion criteria
+- Cite specific document sections/pages for each requirement
+
+**2. ASSESSMENT CATEGORIES & SCORING METHODOLOGY** 
+Detail the complete scoring framework:
+- List all assessment categories with exact weightings/percentages
+- Explain the scoring scale (e.g., 1-5 points, percentage-based, etc.)
+- Describe how categories combine for overall scores
+- Note any tie-breaking procedures or secondary criteria
+- Include any quality thresholds for each category
+
+**3. DETAILED EVALUATION CRITERIA BREAKDOWN**
+For each major assessment area, provide:
+- Specific evaluation questions assessors must consider
+- Sub-criteria and detailed requirements within each area
+- Expected evidence or documentation for each criterion  
+- Quality indicators and performance benchmarks
+- Scoring guidance for different performance levels
+
+**4. APPLICATION SUBMISSION & PROCESS REQUIREMENTS**
+Document all procedural requirements:
+- Required documentation formats and specifications
+- Application deadlines and submission procedures
+- Page limits, word counts, or format requirements
+- Supporting materials and attachments needed
+- Review timeline and notification procedures
+
+**5. COMPLIANCE, REGULATORY & POLICY REQUIREMENTS**
+Identify all compliance obligations:
+- Regulatory standards and certifications required
+- Policy compliance requirements (privacy, accessibility, etc.)
+- Industry-specific standards or accreditations
+- Legal requirements and statutory obligations
+- Reporting and monitoring requirements
+
+**6. FINANCIAL CRITERIA & BUDGET REQUIREMENTS**
+Analyze all financial aspects:
+- Funding amount ranges, minimums, and maximums
+- Budget breakdown requirements and categories
+- Co-funding, matching funds, or leverage requirements
+- Financial sustainability and viability criteria
+- Cost-effectiveness and value-for-money expectations
+
+**7. OUTCOMES, DELIVERABLES & PERFORMANCE STANDARDS**
+Define expected results and success measures:
+- Specific deliverables and project outcomes required
+- Performance indicators and measurement methods
+- Success benchmarks and target achievements
+- Reporting requirements and milestones
+- Long-term impact expectations and evaluation criteria
+
+**CRITICAL SUCCESS FACTORS SUMMARY**
+Conclude with a summary of the most critical factors that will determine application success, ranked by importance based on document emphasis and weighting.
+
+**FORMAT REQUIREMENTS:**
+- Provide detailed narrative analysis (minimum 700 words)
+- Use numbered sections as shown above
+- Include specific document references for each requirement
+- Quote exact figures, percentages, and thresholds where available
+- Ensure comprehensive coverage - no major criterion should be omitted
+- Focus on actionable guidance for applicants and assessors
+
+**Documents to analyze:**
 ${documentContexts.map(doc => `
-${doc.filename}: ${doc.content.substring(0, 2000)}${doc.content.length > 2000 ? '...' : ''}
-`).join('\n\n')}
+**Source: ${doc.filename}**
+Content: ${doc.content.substring(0, 15000)}
+`).join('\n\n---\n\n')}
 
-Your analysis should:
-1. Identify the formal evaluation criteria - Look for explicitly stated assessment criteria, evaluation criteria, or review criteria that assessors use to score/evaluate applications
-2. Extract key eligibility requirements - Identify mandatory requirements that must be met (e.g., business type, financial capacity, ratios, thresholds)
-3. Map the assessment process - Note who assesses what, when, and any sequential dependencies
-4. Highlight critical compliance elements - Include requirements around documentation, reporting, conditions, or other compliance factors
-5. Identify disqualifying factors - Note any automatic fails, conflicts of interest, or reputational risks that would prevent approval
+CRITICAL: Your response must be valid JSON. Put the comprehensive analysis above into the "comprehensiveAnalysis" field as a single string with proper escaping.
 
-For each element you identify, provide:
-* The exact name/title used in the documents
-* Where it appears (which document(s))
-* Whether it's mandatory or advisory
-* Any specific thresholds, ratios, or measurable standards
-
-Present your findings in order of importance for making an assessment decision, starting with mandatory pass/fail criteria, then scored/evaluated criteria, then supplementary requirements.
-
-If the documents contain different types of grants or programs, clarify which criteria apply to which type.
-
-Output format: Provide a structured summary that an assessor could use as a checklist or guide when reviewing applications.
-
-Return ONLY valid JSON (no extra text):
+Return ONLY this JSON structure:
 {
-  "comprehensiveAnalysis": "Detailed narrative summary of all identified assessment criteria, eligibility requirements, and evaluation standards. Explain what was found, from which documents, and how assessors should apply these criteria. Present this as a comprehensive summary an assessor could read to understand the complete evaluation framework.",
+  "comprehensiveAnalysis": "The detailed multi-section analysis above, properly escaped as a JSON string",
   "assessmentCategories": [
     {
-      "categoryName": "Main Category Name",
+      "categoryName": "Category Name",
       "priority": "critical/high/medium", 
       "keyQuestions": ["Question 1", "Question 2"],
-      "focus": "What this category evaluates",
+      "focus": "What this evaluates",
       "weight": "percentage if specified",
       "isMandatory": true
     }
@@ -189,18 +243,18 @@ Return ONLY valid JSON (no extra text):
   ],
   "documentRoles": [
     {
-      "filename": <actual_filename>,
-      "identifiedRole": <actual_role>,
-      "purpose": <actual_purpose>
+      "filename": "actual_filename",
+      "identifiedRole": "actual_role",
+      "purpose": "actual_purpose"
     }
   ],
   "unifiedCriteria": [
     {
-      "category": <actual_category_name>,
-      "weight": <calculate_actual_weight_1_to_100>,
-      "requirements": [<actual_requirements>],
-      "sourceDocuments": [<actual_source_files>],
-      "reasoning": <actual_reasoning>
+      "category": "actual_category_name",
+      "weight": 25,
+      "requirements": ["actual_requirements"],
+      "sourceDocuments": ["actual_source_files"],
+      "reasoning": "actual_reasoning"
     }
   ],
   "conflictsIdentified": [
@@ -439,9 +493,16 @@ Return JSON:
 async function invokeClaude(prompt: string, taskDescription: string): Promise<string> {
   console.log(`🧠 Claude ${taskDescription}...`);
 
+  // Use higher max_tokens for comprehensive analysis, lower for other tasks
+  const isComprehensiveAnalysis = taskDescription.includes('Comprehensive') || 
+                                  taskDescription.includes('comprehensive') || 
+                                  taskDescription.includes('narrative') ||
+                                  taskDescription.includes('Combined comprehensive');
+  const maxTokens = isComprehensiveAnalysis ? 8000 : 2000;
+  
   const requestBody = {
     anthropic_version: "bedrock-2023-05-31",
-    max_tokens: 2000, // Reduced for faster responses
+    max_tokens: maxTokens, // Higher limit for comprehensive analysis
     temperature: 0.1, // Lower temperature for more consistent analytical reasoning
     messages: [
       {
