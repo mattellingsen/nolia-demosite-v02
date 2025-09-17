@@ -7,7 +7,7 @@ import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-ic
 import { ButtonGroup, ButtonGroupItem } from "@/components/base/button-group/button-group";
 import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
 import { ConversationalPreview } from "./conversational-preview";
-import { useCreateFundAsync, useJobStatus, useProcessJobs, type CreateFundData } from "@/hooks/useFunds";
+import { useCreateFundAsync, useCreateFund, useJobStatus, useProcessJobs, type CreateFundData } from "@/hooks/useFunds";
 
 interface PreviewAndLaunchProps {
     formData: any;
@@ -26,8 +26,9 @@ export const PreviewAndLaunch: React.FC<PreviewAndLaunchProps> = ({
     const [isLaunched, setIsLaunched] = useState(false);
     const [showProgress, setShowProgress] = useState(false);
     
-    // Use the async fund creation hooks
-    const createFund = useCreateFundAsync();
+    // Use both async and sync fund creation hooks for fallback
+    const createFundAsync = useCreateFundAsync();
+    const createFundSync = useCreateFund(); // Fallback to old method
     const jobStatus = useJobStatus(jobId, { enabled: showProgress });
     const processJobs = useProcessJobs();
     
@@ -71,30 +72,40 @@ export const PreviewAndLaunch: React.FC<PreviewAndLaunchProps> = ({
             return;
         }
 
-        try {
-            const fundData: CreateFundData = {
-                fundName: formData.fundName,
-                applicationForm: formData.applicationForm,
-                applicationFormAnalysis: formData.applicationFormAnalysis,
-                selectionCriteria: formData.selectionCriteria || [],
-                selectionCriteriaAnalysis: formData.selectionCriteriaAnalysis,
-                goodExamples: formData.goodExamples || [],
-                goodExamplesAnalysis: formData.goodExamplesAnalysis,
-            };
+        const fundData: CreateFundData = {
+            fundName: formData.fundName,
+            applicationForm: formData.applicationForm,
+            applicationFormAnalysis: formData.applicationFormAnalysis,
+            selectionCriteria: formData.selectionCriteria || [],
+            selectionCriteriaAnalysis: formData.selectionCriteriaAnalysis,
+            goodExamples: formData.goodExamples || [],
+            goodExamplesAnalysis: formData.goodExamplesAnalysis,
+        };
 
-            const result = await createFund.mutateAsync(fundData);
+        try {
+            console.log('🚀 Attempting async fund creation...');
+            const result = await createFundAsync.mutateAsync(fundData);
             setFundId(result.fund.id);
             setJobId(result.jobId);
             setShowProgress(true);
 
             // Automatically trigger job processing for development
-            // In production, this would be handled by Lambda functions
             setTimeout(() => {
                 processJobs.mutate({ jobId: result.jobId });
             }, 1000);
 
-        } catch (error) {
-            console.error('Failed to create fund:', error);
+        } catch (asyncError) {
+            console.log('⚠️ Async fund creation failed, trying synchronous method:', asyncError);
+            
+            try {
+                // Fallback to synchronous fund creation
+                const syncResult = await createFundSync.mutateAsync(fundData);
+                setFundId(syncResult.id);
+                setIsLaunched(true); // Mark as launched immediately for sync method
+                
+            } catch (syncError) {
+                console.error('❌ Both async and sync fund creation failed:', syncError);
+            }
         }
     };
 
@@ -205,8 +216,8 @@ export const PreviewAndLaunch: React.FC<PreviewAndLaunchProps> = ({
                 </div>
             </div>
 
-            {/* Success State */}
-            {jobStatus?.data?.status === 'COMPLETED' && jobStatus?.data?.brainStatus?.assembled && (
+            {/* Success State - for both async completion and sync immediate success */}
+            {(jobStatus?.data?.status === 'COMPLETED' && jobStatus?.data?.brainStatus?.assembled) || (isLaunched && !showProgress) ? (
                 <div className="bg-success-50 border border-success-200 rounded-lg p-6 text-center space-y-4">
                     <FeaturedIcon size="lg" color="success" theme="light" icon={CheckCircle} className="mx-auto" />
                     <div>
@@ -226,7 +237,7 @@ export const PreviewAndLaunch: React.FC<PreviewAndLaunchProps> = ({
                         </div>
                     </div>
                 </div>
-            )}
+            ) : null}
 
             {/* Progress Tracking */}
             {showProgress && jobStatus?.data && jobStatus.data.status !== 'COMPLETED' && (
@@ -504,25 +515,25 @@ export const PreviewAndLaunch: React.FC<PreviewAndLaunchProps> = ({
                 </Button>
                 
                 <div className="flex items-center gap-4">
-                    {createFund.isError && (
+                    {(createFundAsync.isError || createFundSync.isError) && (
                         <div className="flex items-center gap-2 text-error-600">
                             <AlertCircle className="w-4 h-4" />
                             <span className="text-sm">Failed to create fund</span>
                         </div>
                     )}
                     
-                    {!showProgress && !jobStatus?.data && (
+                    {!showProgress && !jobStatus?.data && !isLaunched && (
                         <Button
                             size="lg"
                             color="primary"
-                            iconTrailing={createFund.isPending ? undefined : Rocket01}
+                            iconTrailing={(createFundAsync.isPending || createFundSync.isPending) ? undefined : Rocket01}
                             onClick={handleLaunch}
-                            isDisabled={createFund.isPending || !formData.fundName || !formData.applicationForm}
+                            isDisabled={(createFundAsync.isPending || createFundSync.isPending) || !formData.fundName || !formData.applicationForm}
                         >
-                            {createFund.isPending && (
+                            {(createFundAsync.isPending || createFundSync.isPending) && (
                                 <LoadingIndicator type="dot-circle" size="sm" />
                             )}
-                            {createFund.isPending ? 'Creating Fund...' : 'Create & Launch Fund'}
+                            {(createFundAsync.isPending || createFundSync.isPending) ? 'Creating Fund...' : 'Create & Launch Fund'}
                         </Button>
                     )}
                     
@@ -543,7 +554,7 @@ export const PreviewAndLaunch: React.FC<PreviewAndLaunchProps> = ({
                         </div>
                     )}
                     
-                    {jobStatus?.data?.status === 'COMPLETED' && jobStatus?.data?.brainStatus?.assembled && (
+                    {((jobStatus?.data?.status === 'COMPLETED' && jobStatus?.data?.brainStatus?.assembled) || (isLaunched && !showProgress)) && (
                         <div className="flex items-center gap-4">
                             <div className="flex items-center gap-2 text-success-600">
                                 <CheckCircle className="w-5 h-5" />
@@ -583,7 +594,7 @@ export const PreviewAndLaunch: React.FC<PreviewAndLaunchProps> = ({
                 </div>
             )}
             
-            {jobStatus?.data?.status === 'COMPLETED' && jobStatus?.data?.brainStatus?.assembled && (
+            {((jobStatus?.data?.status === 'COMPLETED' && jobStatus?.data?.brainStatus?.assembled) || (isLaunched && !showProgress)) && (
                 <div className="bg-success-50 rounded-lg p-4 border border-success-200">
                     <p className="text-sm text-success-800">
                         <strong>🎉 Your AI Assessment Engine is Live!</strong> The system has processed your documents 
