@@ -156,6 +156,9 @@ export async function analyzeSelectionCriteria(files: any[]): Promise<CriteriaAn
                     // NEW: Include comprehensive assessment categories
                     assessmentCategories: aiAnalysis.assessmentCategories || [],
                     
+                    // CRITICAL: Add the comprehensive analysis text summary
+                    comprehensiveAnalysis: aiAnalysis.comprehensiveAnalysis || 'Analysis completed. Please review the identified criteria and requirements.',
+                    
                     // Include comprehensive AI reasoning data
                     aiReasoning: {
                         formalEvaluationCriteria: aiAnalysis.formalEvaluationCriteria || [],
@@ -179,6 +182,9 @@ export async function analyzeSelectionCriteria(files: any[]): Promise<CriteriaAn
                     detectedCriteria: aiAnalysis.detectedCriteria,
                     extractedSections: aiAnalysis.extractedSections,
                     analysisMode: 'CLAUDE_AI_REASONING',
+                    
+                    // CRITICAL: Add the comprehensive analysis text summary
+                    comprehensiveAnalysis: aiAnalysis.comprehensiveAnalysis || 'Analysis completed using Claude AI reasoning. Please review the identified criteria and requirements.',
                     
                     // Include AI reasoning data for enhanced analysis
                     aiReasoning: {
@@ -226,7 +232,10 @@ export async function analyzeSelectionCriteria(files: any[]): Promise<CriteriaAn
             textContent: combinedText,
             detectedCriteria,
             extractedSections, // Add sections to match other steps
-            analysisMode: 'BASIC_FALLBACK' // Clear indicator
+            analysisMode: 'BASIC_FALLBACK', // Clear indicator
+            
+            // CRITICAL: Add comprehensive analysis for fallback mode
+            comprehensiveAnalysis: `Basic pattern analysis completed on ${files.length} document(s). Identified ${criteriaFound} evaluation criteria and ${categories.length} assessment categories: ${categories.join(', ')}. This analysis uses keyword pattern matching and may be less comprehensive than AI-powered analysis. For more detailed analysis, ensure Claude AI integration is properly configured.`
         };
     } catch (error) {
         console.error('Error analyzing selection criteria:', error);
