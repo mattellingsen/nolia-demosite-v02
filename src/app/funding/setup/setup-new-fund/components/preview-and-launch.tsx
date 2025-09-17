@@ -7,7 +7,7 @@ import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-ic
 import { ButtonGroup, ButtonGroupItem } from "@/components/base/button-group/button-group";
 import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
 import { ConversationalPreview } from "./conversational-preview";
-import { useCreateFund, type CreateFundData } from "@/hooks/useFunds";
+import { useCreateFundAsync, useJobStatus, useProcessJobs, type CreateFundData } from "@/hooks/useFunds";
 
 interface PreviewAndLaunchProps {
     formData: any;
@@ -22,10 +22,14 @@ export const PreviewAndLaunch: React.FC<PreviewAndLaunchProps> = ({
     const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile'>('desktop');
     const [embedCodeCopied, setEmbedCodeCopied] = useState(false);
     const [fundId, setFundId] = useState<string>('');
+    const [jobId, setJobId] = useState<string>('');
     const [isLaunched, setIsLaunched] = useState(false);
+    const [showProgress, setShowProgress] = useState(false);
     
-    // Use the fund creation hook
-    const createFund = useCreateFund();
+    // Use the async fund creation hooks
+    const createFund = useCreateFundAsync();
+    const jobStatus = useJobStatus(jobId, { enabled: showProgress });
+    const processJobs = useProcessJobs();
     
     // Generate embed code
     const embedCode = `<div id="nolia-application-form"></div>
@@ -78,9 +82,17 @@ export const PreviewAndLaunch: React.FC<PreviewAndLaunchProps> = ({
                 goodExamplesAnalysis: formData.goodExamplesAnalysis,
             };
 
-            const createdFund = await createFund.mutateAsync(fundData);
-            setFundId(createdFund.id);
-            setIsLaunched(true);
+            const result = await createFund.mutateAsync(fundData);
+            setFundId(result.fund.id);
+            setJobId(result.jobId);
+            setShowProgress(true);
+
+            // Automatically trigger job processing for development
+            // In production, this would be handled by Lambda functions
+            setTimeout(() => {
+                processJobs.mutate({ jobId: result.jobId });
+            }, 1000);
+
         } catch (error) {
             console.error('Failed to create fund:', error);
         }
@@ -194,7 +206,7 @@ export const PreviewAndLaunch: React.FC<PreviewAndLaunchProps> = ({
             </div>
 
             {/* Success State */}
-            {isLaunched && (
+            {jobStatus?.data?.status === 'COMPLETED' && jobStatus?.data?.brainStatus?.assembled && (
                 <div className="bg-success-50 border border-success-200 rounded-lg p-6 text-center space-y-4">
                     <FeaturedIcon size="lg" color="success" theme="light" icon={CheckCircle} className="mx-auto" />
                     <div>
@@ -212,6 +224,82 @@ export const PreviewAndLaunch: React.FC<PreviewAndLaunchProps> = ({
                                 Get Embed Code
                             </Button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Progress Tracking */}
+            {showProgress && jobStatus?.data && jobStatus.data.status !== 'COMPLETED' && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 space-y-4">
+                    <div className="flex items-center gap-3">
+                        <LoadingIndicator type="dot-circle" size="md" />
+                        <h3 className="text-lg font-semibold text-blue-800">
+                            {jobStatus.data.status === 'PENDING' ? 'Preparing Documents...' : 'Processing Documents...'}
+                        </h3>
+                    </div>
+                    
+                    <div className="space-y-3">
+                        <div className="flex justify-between text-sm text-blue-700">
+                            <span>Progress: {jobStatus.data.processedDocuments} of {jobStatus.data.totalDocuments} documents</span>
+                            <span>{jobStatus.data.progress}%</span>
+                        </div>
+                        
+                        <div className="w-full bg-blue-200 rounded-full h-2">
+                            <div 
+                                className="bg-blue-600 h-2 rounded-full transition-all duration-500" 
+                                style={{ width: `${jobStatus.data.progress}%` }}
+                            />
+                        </div>
+                        
+                        {jobStatus.data.estimatedCompletion && (
+                            <p className="text-sm text-blue-600">
+                                Estimated completion: {new Date(jobStatus.data.estimatedCompletion).toLocaleTimeString()}
+                            </p>
+                        )}
+                        
+                        <div className="grid grid-cols-3 gap-4 text-center">
+                            <div className="bg-white p-3 rounded border border-blue-200">
+                                <p className="text-sm font-medium text-blue-800">Application Form</p>
+                                <p className="text-xs text-blue-600">
+                                    {jobStatus.data.processedDocuments > 0 ? '✓ Analyzed' : 'Pending...'}
+                                </p>
+                            </div>
+                            <div className="bg-white p-3 rounded border border-blue-200">
+                                <p className="text-sm font-medium text-blue-800">Selection Criteria</p>
+                                <p className="text-xs text-blue-600">
+                                    {jobStatus.data.processedDocuments > 1 ? '✓ Analyzed' : 'Pending...'}
+                                </p>
+                            </div>
+                            <div className="bg-white p-3 rounded border border-blue-200">
+                                <p className="text-sm font-medium text-blue-800">Good Examples</p>
+                                <p className="text-xs text-blue-600">
+                                    {jobStatus.data.processedDocuments >= jobStatus.data.totalDocuments ? '✓ Analyzed' : 'Pending...'}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Error State */}
+            {jobStatus?.data?.status === 'FAILED' && (
+                <div className="bg-error-50 border border-error-200 rounded-lg p-6 text-center space-y-4">
+                    <FeaturedIcon size="lg" color="error" theme="light" icon={AlertCircle} className="mx-auto" />
+                    <div>
+                        <h3 className="text-lg font-semibold text-error-800 mb-2">
+                            Processing Failed
+                        </h3>
+                        <p className="text-error-700 mb-4">
+                            {jobStatus.data.errorMessage || 'An error occurred while processing your documents.'}
+                        </p>
+                        <Button 
+                            size="md" 
+                            color="error" 
+                            onClick={() => processJobs.mutate({ jobId })}
+                            isDisabled={processJobs.isPending}
+                        >
+                            {processJobs.isPending ? 'Retrying...' : 'Retry Processing'}
+                        </Button>
                     </div>
                 </div>
             )}
@@ -423,7 +511,7 @@ export const PreviewAndLaunch: React.FC<PreviewAndLaunchProps> = ({
                         </div>
                     )}
                     
-                    {!createFund.isSuccess && (
+                    {!showProgress && !jobStatus?.data && (
                         <Button
                             size="lg"
                             color="primary"
@@ -438,11 +526,28 @@ export const PreviewAndLaunch: React.FC<PreviewAndLaunchProps> = ({
                         </Button>
                     )}
                     
-                    {createFund.isSuccess && (
+                    {showProgress && jobStatus?.data?.status === 'PROCESSING' && (
+                        <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2 text-blue-600">
+                                <LoadingIndicator type="dot-circle" size="sm" />
+                                <span className="text-sm font-medium">Processing Documents...</span>
+                            </div>
+                            <Button
+                                size="lg"
+                                color="secondary"
+                                onClick={() => processJobs.mutate({ force: true })}
+                                isDisabled={processJobs.isPending}
+                            >
+                                {processJobs.isPending ? 'Processing...' : 'Speed Up Processing'}
+                            </Button>
+                        </div>
+                    )}
+                    
+                    {jobStatus?.data?.status === 'COMPLETED' && jobStatus?.data?.brainStatus?.assembled && (
                         <div className="flex items-center gap-4">
                             <div className="flex items-center gap-2 text-success-600">
                                 <CheckCircle className="w-5 h-5" />
-                                <span className="text-sm font-medium">Fund Created Successfully!</span>
+                                <span className="text-sm font-medium">Fund Ready & Live!</span>
                             </div>
                             <Button
                                 size="lg"
@@ -458,22 +563,32 @@ export const PreviewAndLaunch: React.FC<PreviewAndLaunchProps> = ({
             </div>
 
             {/* Final Help Text */}
-            {!createFund.isSuccess && (
+            {!showProgress && !jobStatus?.data && (
                 <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
                     <p className="text-sm text-purple-800">
-                        <strong>Ready to go live?</strong> Once created, your AI application form will be 
-                        available 24/7 to guide applicants and automatically validate submissions according 
-                        to your criteria. You can always modify settings later.
+                        <strong>Ready to go live?</strong> Once created, your documents will be processed by AI 
+                        to build a custom assessment engine. Your application form will then be available 24/7 
+                        to guide applicants and automatically assess submissions.
                     </p>
                 </div>
             )}
             
-            {createFund.isSuccess && (
+            {showProgress && jobStatus?.data && jobStatus.data.status !== 'COMPLETED' && (
+                <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                    <p className="text-sm text-blue-800">
+                        <strong>🤖 AI Processing in Progress</strong> Our AI is analyzing your documents to build 
+                        a custom assessment engine. This creates a reusable "brain" that can evaluate unlimited 
+                        applications based on your criteria and examples.
+                    </p>
+                </div>
+            )}
+            
+            {jobStatus?.data?.status === 'COMPLETED' && jobStatus?.data?.brainStatus?.assembled && (
                 <div className="bg-success-50 rounded-lg p-4 border border-success-200">
                     <p className="text-sm text-success-800">
-                        <strong>🎉 Your fund has been created!</strong> The AI system has processed your documents 
-                        and is ready to assess applications. You can now view your fund in the dashboard and 
-                        start receiving applications.
+                        <strong>🎉 Your AI Assessment Engine is Live!</strong> The system has processed your documents 
+                        and assembled a reusable "brain" that can now assess unlimited applications instantly. 
+                        Your fund is ready to receive applications!
                     </p>
                 </div>
             )}

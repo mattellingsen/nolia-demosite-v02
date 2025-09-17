@@ -53,6 +53,11 @@ model Fund {
   selectionCriteriaAnalysis Json? // CriteriaAnalysis from step 2
   goodExamplesAnalysis      Json? // Analysis from step 3
   
+  // Brain assembly system for reusable assessment engine
+  fundBrain            Json?    // Assembled assessment engine combining all analyses
+  brainVersion         Int      @default(1) // Version tracking for brain updates
+  brainAssembledAt     DateTime? // When the brain was last assembled
+  
   // Relationships
   documents   FundDocument[]
   backgroundJobs BackgroundJob[]
