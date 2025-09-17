@@ -35,7 +35,7 @@ interface TestApplication {
     id: string;
     name: string;
     file: File;
-    status: 'pending' | 'testing' | 'pass' | 'fail';
+    status: 'pending' | 'testing' | 'pass' | 'fail' | 'error';
     score?: number;
     feedback?: string;
     assessmentDetails?: {
@@ -47,6 +47,8 @@ interface TestApplication {
         risk: number;
     };
     expectedResult?: 'pass' | 'fail';
+    errorType?: 'TIMEOUT' | 'GENERAL';
+    errorMessage?: string;
 }
 
 export const Step5TestAssessment: React.FC<Step5Props> = ({ 
@@ -151,24 +153,24 @@ export const Step5TestAssessment: React.FC<Step5Props> = ({
                     } : a
                 ));
                 
-            } catch (error) {
+            } catch (error: any) {
                 console.error('Assessment error for', app.name, error);
                 
-                // Fallback to failed status if API call fails
+                // Check if this is a timeout error from the API
+                const isTimeoutError = error.response?.status === 408 || 
+                                     error.response?.data?.errorType === 'TIMEOUT';
+                
+                const errorMessage = error.response?.data?.message || 
+                                   (isTimeoutError ? 'Assessment timed out. Please try again with a different test application.' : 'Assessment failed - please try again');
+                
+                // Set error status instead of fallback scores
                 setTestApplications(prev => prev.map(a => 
                     a.id === app.id ? { 
                         ...a, 
-                        status: 'fail',
-                        score: 0,
-                        feedback: 'Assessment failed - please try again',
-                        assessmentDetails: {
-                            criteriaScore: 0,
-                            innovation: 0,
-                            financial: 0,
-                            team: 0,
-                            market: 0,
-                            risk: 0
-                        }
+                        status: 'error',
+                        errorType: isTimeoutError ? 'TIMEOUT' : 'GENERAL',
+                        errorMessage,
+                        feedback: errorMessage
                     } : a
                 ));
             }
@@ -180,7 +182,8 @@ export const Step5TestAssessment: React.FC<Step5Props> = ({
         setTestApplications(prev => {
             const passes = prev.filter(app => app.status === 'pass').length;
             const fails = prev.filter(app => app.status === 'fail').length;
-            setTestResults({ passes, fails, total: prev.length });
+            const errors = prev.filter(app => app.status === 'error').length;
+            setTestResults({ passes, fails: fails + errors, total: prev.length });
             return prev;
         });
     };
@@ -195,7 +198,7 @@ export const Step5TestAssessment: React.FC<Step5Props> = ({
     };
 
     const hasApplications = testApplications.length > 0;
-    const allTested = testApplications.every(app => app.status === 'pass' || app.status === 'fail');
+    const allTested = testApplications.every(app => app.status === 'pass' || app.status === 'fail' || app.status === 'error');
     const canContinue = hasApplications && allTested && testResults;
 
     const handleCompleteFund = async () => {
@@ -267,6 +270,8 @@ export const Step5TestAssessment: React.FC<Step5Props> = ({
                 return <Badge size="sm" color="success">Pass</Badge>;
             case 'fail':
                 return <Badge size="sm" color="error">Fail</Badge>;
+            case 'error':
+                return <Badge size="sm" color="error">Error</Badge>;
             default:
                 return <Badge size="sm" color="gray">Unknown</Badge>;
         }
@@ -357,9 +362,14 @@ export const Step5TestAssessment: React.FC<Step5Props> = ({
                                             <div className="flex items-center gap-3 mb-2">
                                                 <p className="text-sm font-medium text-primary">{app.name}</p>
                                                 {app.status !== 'pending' && getStatusBadge(app.status)}
-                                                {app.score && (
+                                                {app.score && app.status !== 'error' && (
                                                     <span className="text-sm font-medium text-secondary">
                                                         Score: {app.score}/100
+                                                    </span>
+                                                )}
+                                                {app.status === 'error' && app.errorType && (
+                                                    <span className="text-sm font-medium text-error-600">
+                                                        {app.errorType === 'TIMEOUT' ? 'Timed Out' : 'Failed'}
                                                     </span>
                                                 )}
                                             </div>
@@ -378,11 +388,21 @@ export const Step5TestAssessment: React.FC<Step5Props> = ({
                                             
                                             {/* Assessment Results */}
                                             {app.feedback && (
-                                                <div className="bg-gray-50 rounded p-3 mt-2">
-                                                    <p className="text-xs font-medium text-primary mb-1">AI Feedback:</p>
-                                                    <p className="text-xs text-secondary">{app.feedback}</p>
+                                                <div className={`rounded p-3 mt-2 ${app.status === 'error' ? 'bg-error-50 border border-error-200' : 'bg-gray-50'}`}>
+                                                    <p className={`text-xs font-medium mb-1 ${app.status === 'error' ? 'text-error-700' : 'text-primary'}`}>
+                                                        {app.status === 'error' ? 'Error Details:' : 'AI Feedback:'}
+                                                    </p>
+                                                    <p className={`text-xs ${app.status === 'error' ? 'text-error-600' : 'text-secondary'}`}>
+                                                        {app.feedback}
+                                                    </p>
                                                     
-                                                    {app.assessmentDetails && (
+                                                    {app.status === 'error' && app.errorType === 'TIMEOUT' && (
+                                                        <div className="mt-2 text-xs text-error-600">
+                                                            <strong>Suggestion:</strong> Try a smaller or simpler test application, or wait a moment and try again.
+                                                        </div>
+                                                    )}
+                                                    
+                                                    {app.assessmentDetails && app.status !== 'error' && (
                                                         <div className="grid grid-cols-2 gap-2 mt-2 text-xs">
                                                             <div>Innovation: {app.assessmentDetails.innovation}%</div>
                                                             <div>Financial: {app.assessmentDetails.financial}%</div>

@@ -91,11 +91,22 @@ export async function POST(request: NextRequest) {
             console.log(`✅ Claude assessment complete: ${claudeAssessment.overallScore}% (${claudeAssessment.recommendation.decision})`);
             
         } catch (claudeError) {
+            const errorMessage = claudeError instanceof Error ? claudeError.message : String(claudeError);
             console.log('🤖 Claude assessment failed, using basic evaluation:', {
-                error: claudeError instanceof Error ? claudeError.message : claudeError
+                error: errorMessage
             });
             
-            // Fallback to basic assessment
+            // Check if this was a timeout specifically
+            if (errorMessage.includes('Claude assessment timeout')) {
+                // Return timeout error instead of fallback scores
+                return NextResponse.json({
+                    error: 'Claude assessment timed out',
+                    errorType: 'TIMEOUT',
+                    message: 'The AI assessment took too long to complete. This may be due to a complex document or temporary service issues. Please try again or use a different test application.'
+                }, { status: 408 });
+            }
+            
+            // Fallback to basic assessment for other errors
             console.log('📋 Using basic pattern matching for assessment');
             assessment = evaluateApplication(analysis, criteria);
             assessment.analysisMode = 'BASIC_FALLBACK';
