@@ -126,7 +126,10 @@ export async function analyzeSelectionCriteria(files: any[]): Promise<CriteriaAn
                 hasFormalCriteria: !!aiAnalysis.formalEvaluationCriteria,
                 hasAssessmentCategories: !!aiAnalysis.assessmentCategories,
                 hasOldCriteriaFound: !!aiAnalysis.criteriaFound,
-                keys: Object.keys(aiAnalysis)
+                hasUnifiedCriteria: !!aiAnalysis.unifiedCriteria,
+                unifiedCriteriaLength: aiAnalysis.unifiedCriteria?.length || 0,
+                keys: Object.keys(aiAnalysis),
+                sample: aiAnalysis.unifiedCriteria?.[0] || 'none'
             });
             
             // Return the AI analysis in the expected format
@@ -174,8 +177,17 @@ export async function analyzeSelectionCriteria(files: any[]): Promise<CriteriaAn
                 };
             } else if (hasUnifiedCriteria) {
                 // Current structure with unifiedCriteria (from our optimized prompt)
+                const criteriaCount = (aiAnalysis.unifiedCriteria || []).reduce((sum, c) => sum + (c.requirements?.length || 1), 0);
+                // Fallback: if still 0 but we have analysis, use unifiedCriteria length as minimum
+                const finalCriteriaCount = criteriaCount > 0 ? criteriaCount : (aiAnalysis.unifiedCriteria?.length || 0);
+                console.log('🔧 Processing unifiedCriteria structure:', {
+                    unifiedCriteria: aiAnalysis.unifiedCriteria,
+                    criteriaCount,
+                    weightings: (aiAnalysis.unifiedCriteria || []).map(c => ({ name: c.category, weight: c.weight }))
+                });
+                
                 return {
-                    criteriaFound: (aiAnalysis.unifiedCriteria || []).reduce((sum, c) => sum + (c.requirements?.length || 1), 0),
+                    criteriaFound: finalCriteriaCount,
                     weightings: (aiAnalysis.unifiedCriteria || []).map(c => ({ name: c.category, weight: c.weight })),
                     categories: (aiAnalysis.unifiedCriteria || []).map(c => c.category),
                     scoringMethod: aiAnalysis.synthesizedFramework?.scoringMethod || 'Percentage',
