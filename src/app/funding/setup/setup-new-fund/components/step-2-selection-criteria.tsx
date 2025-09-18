@@ -202,18 +202,10 @@ export const Step2SelectionCriteria: React.FC<Step2Props> = ({
                     </div>
                     
                     {/* Basic Analysis Summary */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div className="grid grid-cols-2 gap-4 mb-6">
                         <div className="bg-white p-4 rounded-lg border border-gray-200 text-center">
                             <p className="text-2xl font-bold text-brand-secondary">{analysis.criteriaFound || 0}</p>
                             <p className="text-xs text-secondary">Criteria Found</p>
-                        </div>
-                        <div className="bg-white p-4 rounded-lg border border-gray-200 text-center">
-                            <p className="text-2xl font-bold text-brand-secondary">{analysis.categories?.length || 0}</p>
-                            <p className="text-xs text-secondary">Categories</p>
-                        </div>
-                        <div className="bg-white p-4 rounded-lg border border-gray-200 text-center">
-                            <p className="text-2xl font-bold text-brand-secondary">{analysis.weightings?.length || 0}</p>
-                            <p className="text-xs text-secondary">Weightings</p>
                         </div>
                         <div className="bg-white p-4 rounded-lg border border-gray-200 text-center">
                             <p className="text-sm font-semibold text-brand-secondary">{analysis.scoringMethod || 'Unknown'}</p>
