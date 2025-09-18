@@ -253,36 +253,45 @@ export async function analyzeSelectionCriteria(files: any[]): Promise<CriteriaAn
         // Extract sections using the same 3-rule approach as other steps
         const extractedSections = extractSections(combinedText);
         
-        // Extract criteria and weightings
-        const criteriaFound = countCriteria(combinedText);
-        const weightings = extractWeightings(combinedText);
-        const categories = extractCriteriaCategories(combinedText);
-        const scoringMethod = detectScoringMethod(combinedText);
-        const detectedCriteria = extractSpecificCriteria(combinedText);
+        // Simple, reliable document analysis - just count actual sections and content
+        const lines = combinedText.split('\n').filter(line => line.trim().length > 0);
+        const wordCount = combinedText.split(/\s+/).length;
         
-        // Ensure we have at least some criteria if documents were processed
-        const finalCriteriaFound = criteriaFound > 0 ? criteriaFound : Math.max(3, categories.length);
+        // Count actual sections/headings in the documents
+        const sections = combinedText.match(/^[A-Z][^\.]*:|\d+\.\s*[A-Z][^\.]*|[A-Z\s]{3,}$/gm) || [];
+        const criteriaKeywords = ['criteria', 'requirement', 'evaluation', 'assessment', 'scoring', 'eligibility'];
+        const criteriaLines = lines.filter(line => 
+            criteriaKeywords.some(keyword => line.toLowerCase().includes(keyword))
+        );
         
-        console.log('📋 Basic pattern matching results:', {
-            criteriaFound,
+        // Simple, honest counts based on actual document content
+        const finalCriteriaFound = Math.max(criteriaLines.length, sections.length, 1);
+        const scoringMethod = combinedText.toLowerCase().includes('pass') && combinedText.toLowerCase().includes('fail') ? 'Pass/Fail' : 'Percentage';
+        
+        // Real detected criteria from document text
+        const detectedCriteria = criteriaLines.slice(0, 10).map(line => line.trim().substring(0, 100));
+        
+        console.log('📋 Simple document analysis results:', {
+            wordCount,
+            sectionsFound: sections.length,
+            criteriaLinesFound: criteriaLines.length,
             finalCriteriaFound,
-            categoriesLength: categories.length,
-            weightingsLength: weightings.length,
             scoringMethod,
             textLength: combinedText.length
         });
+        
         return {
             criteriaFound: finalCriteriaFound,
-            weightings,
-            categories,
+            weightings: [], // Keep empty since we don't have reliable weighting detection
+            categories: [], // Keep empty since categories are unreliable
             scoringMethod,
             textContent: combinedText,
             detectedCriteria,
-            extractedSections, // Add sections to match other steps
-            analysisMode: 'BASIC_FALLBACK', // Clear indicator
+            extractedSections,
+            analysisMode: 'SIMPLE_DOCUMENT_SCAN',
             
-            // CRITICAL: Add comprehensive analysis for fallback mode
-            comprehensiveAnalysis: `Basic pattern analysis completed on ${files.length} document(s). Identified ${finalCriteriaFound} evaluation criteria and ${categories.length} assessment categories: ${categories.join(', ')}. This analysis uses keyword pattern matching and may be less comprehensive than AI-powered analysis. For more detailed analysis, ensure Claude AI integration is properly configured.`
+            // Honest analysis summary
+            comprehensiveAnalysis: `Document analysis completed on ${files.length} document(s) containing ${wordCount} words. Found ${sections.length} document sections and ${criteriaLines.length} criteria-related lines. Scoring method appears to be ${scoringMethod}. This is a basic document scan - Claude AI analysis is currently unavailable.`
         };
     } catch (error) {
         console.error('Error analyzing selection criteria:', error);
