@@ -134,6 +134,7 @@ export async function analyzeSelectionCriteria(files: any[]): Promise<CriteriaAn
             
             // Handle both old and new JSON structures for backwards compatibility
             const isNewStructure = aiAnalysis.formalEvaluationCriteria !== undefined;
+            const hasUnifiedCriteria = aiAnalysis.unifiedCriteria !== undefined;
             
             if (isNewStructure) {
                 // New comprehensive structure
@@ -171,13 +172,36 @@ export async function analyzeSelectionCriteria(files: any[]): Promise<CriteriaAn
                         conflictsIdentified: aiAnalysis.conflictsIdentified || []
                     }
                 };
+            } else if (hasUnifiedCriteria) {
+                // Current structure with unifiedCriteria (from our optimized prompt)
+                return {
+                    criteriaFound: (aiAnalysis.unifiedCriteria || []).reduce((sum, c) => sum + (c.requirements?.length || 1), 0),
+                    weightings: (aiAnalysis.unifiedCriteria || []).map(c => ({ name: c.category, weight: c.weight })),
+                    categories: (aiAnalysis.unifiedCriteria || []).map(c => c.category),
+                    scoringMethod: aiAnalysis.synthesizedFramework?.scoringMethod || 'Percentage',
+                    textContent: documentContexts.map(d => d.content).join('\n\n'),
+                    detectedCriteria: (aiAnalysis.unifiedCriteria || []).flatMap(c => c.requirements || [c.category]),
+                    extractedSections: documentContexts.flatMap(d => d.extractedSections),
+                    analysisMode: 'CLAUDE_AI_REASONING',
+                    
+                    // CRITICAL: Add the comprehensive analysis text summary
+                    comprehensiveAnalysis: aiAnalysis.comprehensiveAnalysis || 'Analysis completed using Claude AI reasoning. Please review the identified criteria and requirements.',
+                    
+                    // Include AI reasoning data for enhanced analysis
+                    aiReasoning: {
+                        documentRoles: aiAnalysis.documentRoles,
+                        unifiedCriteria: aiAnalysis.unifiedCriteria,
+                        conflictsIdentified: aiAnalysis.conflictsIdentified,
+                        synthesizedFramework: aiAnalysis.synthesizedFramework
+                    }
+                };
             } else {
                 // Old structure (fallback compatibility)
                 return {
                     criteriaFound: aiAnalysis.criteriaFound,
                     weightings: aiAnalysis.weightings,
                     categories: aiAnalysis.categories,
-                    scoringMethod: aiAnalysis.synthesizedFramework.scoringMethod,
+                    scoringMethod: aiAnalysis.synthesizedFramework?.scoringMethod || 'Percentage',
                     textContent: aiAnalysis.textContent,
                     detectedCriteria: aiAnalysis.detectedCriteria,
                     extractedSections: aiAnalysis.extractedSections,
