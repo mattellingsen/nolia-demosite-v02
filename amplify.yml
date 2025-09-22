@@ -3,7 +3,7 @@ frontend:
   phases:
     preBuild:
       commands:
-        - nvm use 18
+        - nvm use 20
         - npm ci
         - echo "DATABASE_URL=$DATABASE_URL" >> .env.production
         - echo "OPENSEARCH_ENDPOINT=$OPENSEARCH_ENDPOINT" >> .env.production
