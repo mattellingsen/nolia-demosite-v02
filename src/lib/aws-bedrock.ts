@@ -3,21 +3,16 @@ import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedroc
 
 // Initialize Bedrock client
 const bedrockClient = new BedrockRuntimeClient({
-  region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'us-east-1',
-  // Force IAM Role in production by not providing credentials if they start with ASIA
-  ...(process.env.NODE_ENV === 'development' && 
-      process.env.AWS_ACCESS_KEY_ID && 
-      process.env.AWS_SECRET_ACCESS_KEY && 
-      !process.env.AWS_ACCESS_KEY_ID.startsWith('ASIA') ? {
-    credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    },
-  } : {}),
+  region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',
+  // Use default credential chain which includes:
+  // 1. Environment variables (AWS_ACCESS_KEY_ID, etc.)
+  // 2. AWS profiles (AWS_PROFILE)
+  // 3. IAM roles (in production)
+  // 4. EC2/ECS instance profiles
 });
 
-// Claude model configuration
-const CLAUDE_MODEL_ID = 'anthropic.claude-3-sonnet-20240229-v1:0';
+// Claude model configuration - Updated to use Claude 3.5 Sonnet v2 (working model)
+const CLAUDE_MODEL_ID = 'anthropic.claude-3-5-sonnet-20241022-v2:0';
 
 export interface RAGContext {
   relevantDocuments: string[];
@@ -41,6 +36,15 @@ export interface AssessmentResult {
     met: boolean;
     evidence: string;
   }[];
+  extractedFields?: {
+    organizationName?: string;
+    numberOfStudents?: string;
+    fundingAmount?: string;
+    businessSummary?: string;
+    recentRnDActivities?: string;
+    plannedRnDActivities?: string;
+    studentExposureDescription?: string;
+  };
 }
 
 /**
@@ -129,13 +133,31 @@ Return your response in this JSON format:
       break;
       
     case 'scoring':
-      basePrompt += `TASK: Score this application against the selection criteria (0-100).
-      
-Return your response in this JSON format:
+      basePrompt += `TASK: Score this application against the selection criteria (0-100) AND fill the assessment template.
+
+First, extract the following information from the application:
+- Organization/Company Name
+- Number of students requested
+- Funding amount requested
+- Business summary/description
+- Recent R&D activities
+- Planned R&D activities
+- How students will be exposed to technical work
+
+Then return your response in this JSON format:
 {
   "score": 85,
   "feedback": "detailed scoring rationale",
   "recommendations": ["ways to improve score"],
+  "extractedFields": {
+    "organizationName": "extracted organization name",
+    "numberOfStudents": "number only",
+    "fundingAmount": "amount as number or string",
+    "businessSummary": "business description",
+    "recentRnDActivities": "recent R&D work description",
+    "plannedRnDActivities": "planned R&D activities",
+    "studentExposureDescription": "how students will be exposed to technical work"
+  },
   "criteriaMatch": [
     {
       "criterion": "specific criterion",
@@ -185,7 +207,8 @@ function parseClaudeResponse(response: string, assessmentType: string): Assessme
       eligible: parsed.eligible,
       feedback: parsed.feedback,
       recommendations: parsed.recommendations || [],
-      criteriaMatch: parsed.criteriaMatch || []
+      criteriaMatch: parsed.criteriaMatch || [],
+      extractedFields: parsed.extractedFields || {}
     };
     
   } catch (error) {
