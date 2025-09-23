@@ -156,7 +156,7 @@ export class ResilientAssessmentService {
     const claudeResponse = await claudeService.executeTask({
       task: 'assess_application',
       prompt: assessmentPrompt,
-      maxTokens: 2000,
+      maxTokens: 16000,
       temperature: 0.1
     });
 
