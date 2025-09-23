@@ -55,20 +55,20 @@ export async function extractTextFromFile(file: any): Promise<string> {
 export async function analyzeApplicationForm(file: any): Promise<DocumentAnalysis> {
     try {
         const textContent = await extractTextFromFile(file);
-        const lines = textContent.split('\n').filter(line => line.trim().length > 0);
-        
-        // Extract sections (look for common section patterns)
         const sections = extractSections(textContent);
-        
+        const lines = textContent.split('\n').filter(line => line.trim().length > 0);
+
+        console.log('📋 Using pattern matching analysis for application form (immediate feedback)');
+
         // Count questions (look for question patterns)
         const questionCount = countQuestions(textContent);
-        
+
         // Detect field types based on common patterns
         const fieldTypes = detectFieldTypes(textContent);
-        
+
         // Determine complexity based on various factors
         const complexity = determineComplexity(textContent, sections.length, questionCount, file);
-        
+
         return {
             questionsFound: questionCount,
             fieldTypes,
@@ -76,7 +76,8 @@ export async function analyzeApplicationForm(file: any): Promise<DocumentAnalysi
             complexity,
             textContent,
             wordCount: textContent.split(/\s+/).length,
-            extractedSections: sections
+            extractedSections: sections,
+            analysisMode: 'BASIC_FALLBACK'
         };
     } catch (error) {
         console.error('Error analyzing application form:', error);
@@ -89,159 +90,7 @@ export async function analyzeApplicationForm(file: any): Promise<DocumentAnalysi
  */
 export async function analyzeSelectionCriteria(files: any[]): Promise<CriteriaAnalysis> {
     try {
-        // Try Claude reasoning first with enhanced optimization and proper fallback
-        try {
-            const { analyzeSelectionCriteriaWithClaude } = await import('./claude-document-reasoner');
-            
-            // Prepare document contexts for Claude analysis with size optimization
-            const documentContexts = [];
-            for (const file of files) {
-                const text = await extractTextFromFile(file);
-                const sections = extractSections(text);
-                
-                // Use full content for thorough Claude analysis
-                const optimizedContent = text;
-                
-                documentContexts.push({
-                    filename: file.name,
-                    content: optimizedContent,
-                    extractedSections: sections.map(s => s.title || s.toString()).slice(0, 20) // Limit sections
-                });
-            }
-            
-            console.log(`🧠 Attempting optimized Claude reasoning analysis on ${documentContexts.length} documents`);
-            
-            // Add timeout protection like Step 4
-            const timeoutPromise = new Promise<never>((_, reject) => {
-                setTimeout(() => reject(new Error('Claude criteria analysis timeout')), 25000);
-            });
-            
-            const analysisPromise = async () => {
-                return await analyzeSelectionCriteriaWithClaude(documentContexts);
-            };
-            
-            const aiAnalysis = await Promise.race([analysisPromise(), timeoutPromise]);
-            
-            console.log('📊 AI Analysis received, structure type check:', {
-                hasFormalCriteria: !!aiAnalysis.formalEvaluationCriteria,
-                hasAssessmentCategories: !!aiAnalysis.assessmentCategories,
-                hasOldCriteriaFound: !!aiAnalysis.criteriaFound,
-                hasUnifiedCriteria: !!aiAnalysis.unifiedCriteria,
-                unifiedCriteriaLength: aiAnalysis.unifiedCriteria?.length || 0,
-                keys: Object.keys(aiAnalysis),
-                sample: aiAnalysis.unifiedCriteria?.[0] || 'none'
-            });
-            
-            // Return the AI analysis in the expected format
-            console.log('✅ Using Claude AI reasoning for criteria analysis');
-            
-            // Handle both old and new JSON structures for backwards compatibility
-            const isNewStructure = aiAnalysis.formalEvaluationCriteria !== undefined;
-            const hasUnifiedCriteria = aiAnalysis.unifiedCriteria !== undefined;
-            
-            if (isNewStructure) {
-                // New comprehensive structure
-                return {
-                    criteriaFound: aiAnalysis.formalEvaluationCriteria?.length || 0,
-                    weightings: aiAnalysis.formalEvaluationCriteria?.map(c => ({
-                        name: c.criteriaName,
-                        weight: parseInt(c.weight) || 0
-                    })) || [],
-                    categories: aiAnalysis.assessmentCategories?.map(c => c.categoryName) || [],
-                    scoringMethod: aiAnalysis.formalEvaluationCriteria?.[0]?.scoringMethod || 'Points',
-                    textContent: documentContexts.map(d => d.content).join('\n\n'),
-                    detectedCriteria: [
-                        ...(aiAnalysis.formalEvaluationCriteria?.map(c => c.criteriaName) || []),
-                        ...(aiAnalysis.eligibilityRequirements?.map(r => r.requirementName) || [])
-                    ],
-                    extractedSections: documentContexts.flatMap(d => d.extractedSections),
-                    analysisMode: 'CLAUDE_AI_REASONING',
-                    
-                    // NEW: Include comprehensive assessment categories
-                    assessmentCategories: aiAnalysis.assessmentCategories || [],
-                    
-                    // CRITICAL: Add the comprehensive analysis text summary
-                    comprehensiveAnalysis: aiAnalysis.comprehensiveAnalysis || 'Analysis completed. Please review the identified criteria and requirements.',
-                    
-                    // Include comprehensive AI reasoning data
-                    aiReasoning: {
-                        formalEvaluationCriteria: aiAnalysis.formalEvaluationCriteria || [],
-                        eligibilityRequirements: aiAnalysis.eligibilityRequirements || [],
-                        assessmentProcess: aiAnalysis.assessmentProcess || [],
-                        complianceElements: aiAnalysis.complianceElements || [],
-                        disqualifyingFactors: aiAnalysis.disqualifyingFactors || [],
-                        documentRoles: aiAnalysis.documentRoles || [],
-                        unifiedCriteria: aiAnalysis.unifiedCriteria || [],
-                        conflictsIdentified: aiAnalysis.conflictsIdentified || []
-                    }
-                };
-            } else if (hasUnifiedCriteria) {
-                // Current structure with unifiedCriteria (from our optimized prompt)
-                const criteriaCount = (aiAnalysis.unifiedCriteria || []).reduce((sum, c) => sum + (c.requirements?.length || 1), 0);
-                // Fallback: if still 0 but we have analysis, use unifiedCriteria length as minimum
-                const finalCriteriaCount = criteriaCount > 0 ? criteriaCount : (aiAnalysis.unifiedCriteria?.length || 0);
-                console.log('🔧 Processing unifiedCriteria structure:', {
-                    unifiedCriteria: aiAnalysis.unifiedCriteria,
-                    criteriaCount,
-                    weightings: (aiAnalysis.unifiedCriteria || []).map(c => ({ name: c.category, weight: c.weight }))
-                });
-                
-                return {
-                    criteriaFound: finalCriteriaCount,
-                    weightings: (aiAnalysis.unifiedCriteria || []).map(c => ({ name: c.category, weight: c.weight })),
-                    categories: (aiAnalysis.unifiedCriteria || []).map(c => c.category),
-                    scoringMethod: aiAnalysis.synthesizedFramework?.scoringMethod || 'Percentage',
-                    textContent: documentContexts.map(d => d.content).join('\n\n'),
-                    detectedCriteria: (aiAnalysis.unifiedCriteria || []).flatMap(c => c.requirements || [c.category]),
-                    extractedSections: documentContexts.flatMap(d => d.extractedSections),
-                    analysisMode: 'CLAUDE_AI_REASONING',
-                    
-                    // CRITICAL: Add the comprehensive analysis text summary
-                    comprehensiveAnalysis: aiAnalysis.comprehensiveAnalysis || 'Analysis completed using Claude AI reasoning. Please review the identified criteria and requirements.',
-                    
-                    // Include AI reasoning data for enhanced analysis
-                    aiReasoning: {
-                        documentRoles: aiAnalysis.documentRoles,
-                        unifiedCriteria: aiAnalysis.unifiedCriteria,
-                        conflictsIdentified: aiAnalysis.conflictsIdentified,
-                        synthesizedFramework: aiAnalysis.synthesizedFramework
-                    }
-                };
-            } else {
-                // Old structure (fallback compatibility)
-                return {
-                    criteriaFound: aiAnalysis.criteriaFound,
-                    weightings: aiAnalysis.weightings,
-                    categories: aiAnalysis.categories,
-                    scoringMethod: aiAnalysis.synthesizedFramework?.scoringMethod || 'Percentage',
-                    textContent: aiAnalysis.textContent,
-                    detectedCriteria: aiAnalysis.detectedCriteria,
-                    extractedSections: aiAnalysis.extractedSections,
-                    analysisMode: 'CLAUDE_AI_REASONING',
-                    
-                    // CRITICAL: Add the comprehensive analysis text summary
-                    comprehensiveAnalysis: aiAnalysis.comprehensiveAnalysis || 'Analysis completed using Claude AI reasoning. Please review the identified criteria and requirements.',
-                    
-                    // Include AI reasoning data for enhanced analysis
-                    aiReasoning: {
-                        documentRoles: aiAnalysis.documentRoles,
-                        unifiedCriteria: aiAnalysis.unifiedCriteria,
-                        conflictsIdentified: aiAnalysis.conflictsIdentified,
-                        synthesizedFramework: aiAnalysis.synthesizedFramework
-                    }
-                };
-            }
-            
-        } catch (aiError) {
-            console.log('🤖 Claude analysis failed, using basic pattern matching:', {
-                error: aiError instanceof Error ? aiError.message : aiError,
-                stack: aiError instanceof Error ? aiError.stack : undefined
-            });
-            // Fall through to basic analysis
-        }
-        
-        // Basic analysis fallback
-        console.log('📋 Using basic pattern matching analysis (Claude failed or unavailable)');
+        console.log('📋 Using pattern matching analysis for selection criteria (immediate feedback)');
         let combinedText = '';
         
         // Process all criteria files with real text extraction

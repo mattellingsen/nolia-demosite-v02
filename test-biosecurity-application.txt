@@ -1,0 +1,42 @@
+Student Experience Grant Application
+
+Section 1: Organization Information
+1.1 Organization Name: BioSecurity Systems
+1.2 Contact Email: contact@biosecurity.co.nz
+1.3 Phone Number: +64 9 123 4567
+
+Section 2: Project Details
+2.1 Project Title: Smart Pest Detection System
+2.2 Project Description: Development of an AI-powered pest detection system for agricultural use. The system will use computer vision and machine learning to identify pests in real-time and provide automated alerts to farmers.
+2.3 Project Category: Technology
+2.4 Project Duration: 12 months
+2.5 Total Funding Requested: $11,120
+
+Section 3: Business Information
+3.1 Business Summary: BioSecurity Systems is a technology company focused on developing innovative solutions for agricultural pest management. We specialize in IoT devices and AI-powered monitoring systems.
+
+3.2 Recent R&D Activities: Over the past 12 months, we have developed prototype sensors for environmental monitoring and completed initial testing of computer vision algorithms for pest identification.
+
+3.3 Planned R&D Activities: We plan to integrate our pest detection algorithms with edge computing devices, develop a mobile app interface, and conduct field trials with partner farms.
+
+Section 4: Student Engagement
+4.1 Student Exposure Description: The student will work directly with our R&D team on developing machine learning models for pest classification. They will gain hands-on experience with computer vision, data analysis, and agricultural IoT systems.
+
+4.2 Professional Development Plan: We will provide mentorship from senior engineers, opportunities to present at team meetings, and exposure to the complete product development lifecycle from research to deployment.
+
+4.3 Supervision Arrangements: The student will report to our Head of R&D and work closely with our machine learning engineer. Weekly one-on-one meetings and monthly progress reviews are planned.
+
+Section 5: Business Benefits
+5.1 Internal Capability Building: The student will help us accelerate our AI development capabilities and bring fresh perspectives to our pest detection algorithms.
+
+5.2 Benefit to Business: This collaboration will enhance our technical expertise in machine learning while providing valuable research support for our core product development.
+
+Section 6: Declarations
+6.1 Entity Type: Yes - NZ registered limited company
+6.2 Financial Viability: Yes - financially viable for next 12 months
+6.3 Funding Capability: Yes - able to fund student wages upfront
+6.4 Terms and Conditions: Agreed
+6.5 Data Privacy Agreement: Agreed
+
+Application submitted by: BioSecurity Systems
+Date: September 2025

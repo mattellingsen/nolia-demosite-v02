@@ -8,7 +8,7 @@ import crypto from 'crypto';
 
 // S3 client configuration - matches pattern from database-s3.ts
 const s3Client = new S3Client({
-  region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'us-east-1',
+  region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',
   ...(process.env.NODE_ENV === 'development' && 
       process.env.AWS_ACCESS_KEY_ID && 
       process.env.AWS_SECRET_ACCESS_KEY && 
@@ -20,7 +20,7 @@ const s3Client = new S3Client({
   } : {}),
 });
 
-const S3_BUCKET = process.env.S3_BUCKET_DOCUMENTS || 'nolia-funding-documents-599065966827';
+const S3_BUCKET = process.env.S3_BUCKET_DOCUMENTS || 'nolia-funding-documents-ap-southeast-2-599065966827';
 
 interface UploadRequest {
   fundId: string;
@@ -28,7 +28,7 @@ interface UploadRequest {
     filename: string;
     mimeType: string;
     fileSize: number;
-    documentType: 'APPLICATION_FORM' | 'SELECTION_CRITERIA' | 'GOOD_EXAMPLES';
+    documentType: 'APPLICATION_FORM' | 'SELECTION_CRITERIA' | 'GOOD_EXAMPLES' | 'OUTPUT_TEMPLATES';
   }>;
 }
 
@@ -133,6 +133,29 @@ export async function POST(request: NextRequest) {
         mimeType: doc.mimeType,
       }))
     );
+
+    // In development, trigger processing automatically after a short delay
+    // to allow S3 uploads to complete
+    if (process.env.NODE_ENV === 'development') {
+      setTimeout(async () => {
+        try {
+          console.log(`Auto-triggering processing for job ${job.id} in development mode...`);
+          const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/jobs/process`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ jobId: job.id })
+          });
+          
+          if (!response.ok) {
+            console.error('Failed to auto-trigger processing:', await response.text());
+          } else {
+            console.log('Auto-processing triggered successfully');
+          }
+        } catch (error) {
+          console.error('Error auto-triggering processing:', error);
+        }
+      }, 10000); // 10 second delay to allow S3 uploads to complete
+    }
 
     return NextResponse.json({
       success: true,

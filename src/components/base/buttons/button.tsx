@@ -129,6 +129,17 @@ export const styles = sortCx({
                 "*:data-icon:text-fg-error-secondary hover:*:data-icon:text-fg-error-primary",
             ].join(" "),
         },
+        warning: {
+            root: [
+                "bg-warning-solid text-white shadow-xs-skeumorphic ring-1 ring-transparent outline-warning ring-inset hover:bg-warning-solid_hover data-loading:bg-warning-solid_hover",
+                // Inner border gradient
+                "before:absolute before:inset-px before:border before:border-white/12 before:mask-b-from-0%",
+                // Disabled styles
+                "disabled:bg-disabled disabled:shadow-xs disabled:ring-disabled_subtle",
+                // Icon styles
+                "*:data-icon:text-button-warning-icon hover:*:data-icon:text-button-warning-icon_hover",
+            ].join(" "),
+        },
     },
 });
 

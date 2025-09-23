@@ -20,7 +20,7 @@ const INDEX_NAME = 'funding-documents';
 export interface DocumentVector {
   id: string;
   fundId: string;
-  documentType: 'APPLICATION_FORM' | 'SELECTION_CRITERIA' | 'GOOD_EXAMPLES';
+  documentType: 'APPLICATION_FORM' | 'SELECTION_CRITERIA' | 'GOOD_EXAMPLES' | 'OUTPUT_TEMPLATES';
   filename: string;
   content: string;
   embedding: number[];

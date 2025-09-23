@@ -10,7 +10,7 @@ interface RouteParams {
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const { jobId } = params;
+    const { jobId } = await params;
 
     if (!jobId) {
       return NextResponse.json({
@@ -89,7 +89,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 // PUT endpoint to update job status (for processors)
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
-    const { jobId } = params;
+    const { jobId } = await params;
     const { processedDocuments, metadata, status, errorMessage } = await request.json();
 
     if (!jobId) {

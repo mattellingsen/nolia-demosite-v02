@@ -16,7 +16,7 @@ export interface FundData {
 
 export interface DocumentMetadata {
   id: string;
-  documentType: 'APPLICATION_FORM' | 'SELECTION_CRITERIA' | 'GOOD_EXAMPLES';
+  documentType: 'APPLICATION_FORM' | 'SELECTION_CRITERIA' | 'GOOD_EXAMPLES' | 'OUTPUT_TEMPLATES';
   filename: string;
   mimeType: string;
   fileSize: number;
@@ -200,12 +200,15 @@ export async function analyzeGoodExamplesViaAPI(files: File[]): Promise<any> {
 /**
  * Run test assessment on application document via API
  */
-export async function runTestAssessmentViaAPI(applicationFile: File, criteria: any): Promise<any> {
+export async function runTestAssessmentViaAPI(applicationFile: File, options: { fundId?: string; criteria?: any }): Promise<any> {
   const formData = new FormData();
   formData.append('application', applicationFile);
-  
-  if (criteria) {
-    formData.append('criteria', JSON.stringify(criteria));
+
+  // Support both new fundId approach and legacy criteria
+  if (options.fundId) {
+    formData.append('fundId', options.fundId);
+  } else if (options.criteria) {
+    formData.append('criteria', JSON.stringify(options.criteria));
   }
   
   const response = await fetch('/api/analyze/test-assessment', {

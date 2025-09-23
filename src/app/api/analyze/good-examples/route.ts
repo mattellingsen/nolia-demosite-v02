@@ -32,87 +32,24 @@ export async function POST(request: NextRequest) {
         }
         
         console.log(`📊 Analyzing ${files.length} good example files for quality assessment`);
-        
-        // Try Claude reasoning first with timeout protection
-        try {
-            const { analyzeGoodExamplesWithClaude } = await import('@/utils/claude-document-reasoner');
-            const { extractTextFromFile } = await import('@/utils/server-document-analyzer');
-            
-            // Prepare document contexts for Claude analysis - simpler approach
-            const documentContexts = [];
-            for (const file of files) {
-                const text = await extractTextFromFile(file);
-                
-                documentContexts.push({
-                    filename: file.name,
-                    content: text, // Use full text like Step 5 does
-                    extractedSections: [] // Simplified - remove sections complexity
-                });
-            }
-            
-            console.log('🏆 Using Claude AI reasoning for good examples analysis with timeout protection');
-            
-            // Add timeout protection to prevent issues
-            const timeoutPromise = new Promise<never>((_, reject) => {
-                setTimeout(() => reject(new Error('Claude good examples analysis timeout')), 25000);
-            });
-            
-            const analysisPromise = analyzeGoodExamplesWithClaude(documentContexts);
-            const claudeAnalysis = await Promise.race([analysisPromise, timeoutPromise]);
-            
-            // Normalize scores to ensure they're in percentage format (0-100)
-            const normalizeScore = (score: number) => {
-                if (score <= 1) return Math.round(score * 100); // Convert decimal to percentage
-                return Math.round(score); // Already a percentage
-            };
-            
-            const result = {
-                examplesAnalyzed: files.length,
-                averageScore: normalizeScore(claudeAnalysis.assessmentInsights.averageScore || 75),
-                qualityIndicators: (claudeAnalysis.qualityIndicators || []).map((indicator: any) => ({
-                    ...indicator,
-                    score: normalizeScore(indicator.score || 75)
-                })),
-                writingPatterns: claudeAnalysis.excellencePatterns?.slice(0, 5) || [],
-                commonStrengths: claudeAnalysis.successFactors?.slice(0, 6) || [],
-                analysisMode: 'CLAUDE_AI_REASONING', // Clear indicator
-                
-                // Enhanced with Claude insights
-                assessmentInsights: claudeAnalysis.assessmentInsights,
-                analyses: documentContexts.map(doc => ({
-                    filename: doc.filename,
-                    sections: doc.extractedSections.length,
-                    contentLength: doc.content.length
-                }))
-            };
-            
-            console.log(`✅ Claude good examples analysis complete: ${claudeAnalysis.qualityIndicators.length} indicators, score: ${claudeAnalysis.assessmentInsights.averageScore}`);
-            return NextResponse.json(result);
-            
-        } catch (claudeError) {
-            console.log('🤖 Claude good examples analysis failed, using basic analysis:', {
-                error: claudeError instanceof Error ? claudeError.message : claudeError
-            });
-            // Fall through to basic analysis
-        }
-        
-        // Basic analysis fallback
-        console.log('📋 Using basic pattern matching for good examples analysis');
+
+        // Use pattern matching for immediate feedback (fast response)
+        console.log('📋 Using pattern matching analysis for good examples (immediate feedback)');
         const analyses = [];
         const allScores: number[] = [];
         const allPatterns: Set<string> = new Set();
         const allStrengths: Set<string> = new Set();
-        
+
         for (const file of files) {
             try {
                 console.log(`📊 Analyzing good example file: ${file.name}`);
-                
+
                 // Dynamic import to avoid potential production issues
                 const { analyzeApplicationForm } = await import('@/utils/server-document-analyzer');
                 console.log(`📊 Analyzer imported successfully`);
-                
+
                 const analysis = await analyzeApplicationForm(file);
-                
+
                 if (analysis) {
                     console.log(`✅ Analysis successful for ${file.name}:`, {
                         sections: analysis.sections?.length || 0,
@@ -121,7 +58,7 @@ export async function POST(request: NextRequest) {
                         extractedSectionsLength: analysis.extractedSections?.length || 0
                     });
                     analyses.push(analysis);
-                    
+
                     // Extract quality metrics from the analysis
                     // Base score on document completeness and structure
                     try {
@@ -132,17 +69,17 @@ export async function POST(request: NextRequest) {
                         console.error(`❌ Error calculating quality score for ${file.name}:`, scoreError);
                         allScores.push(75); // Default score on error
                     }
-                    
+
                     // Extract writing patterns
                     if (analysis.wordCount > 0) {
                         const avgWordsPerSection = Math.round(analysis.wordCount / (analysis.sections.length || 1));
                         allPatterns.add(`Average section length: ${avgWordsPerSection} words`);
                     }
-                    
+
                     if (analysis.extractedSections?.length > 0) {
                         allPatterns.add(`Structured with ${analysis.extractedSections.length} clear sections`);
                     }
-                    
+
                     // Extract common strengths based on content
                     if (analysis.questionsFound > 10) {
                         allStrengths.add('Comprehensive coverage of all required questions');
@@ -230,7 +167,7 @@ export async function POST(request: NextRequest) {
             qualityIndicators,
             writingPatterns: writingPatterns.slice(0, 5), // Limit to top 5
             commonStrengths: commonStrengths.slice(0, 6), // Limit to top 6
-            analysisMode: 'BASIC_FALLBACK', // Clear indicator
+            analysisMode: 'PATTERN_MATCHING', // Immediate feedback mode
             analyses: analyses.map(a => ({
                 sections: a.sections.length,
                 wordCount: a.wordCount,

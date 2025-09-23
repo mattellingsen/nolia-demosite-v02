@@ -5,7 +5,7 @@ import crypto from 'crypto';
 
 // SQS client configuration - matches S3 client pattern from database-s3.ts
 const sqsClient = new SQSClient({
-  region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'us-east-1',
+  region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',
   // Only use explicit credentials in development when they are intentionally set
   ...(process.env.NODE_ENV === 'development' && 
       process.env.AWS_ACCESS_KEY_ID && 
@@ -21,15 +21,15 @@ const sqsClient = new SQSClient({
 });
 
 // Queue URLs from environment variables
-const DOCUMENT_PROCESSING_QUEUE = process.env.SQS_DOCUMENT_PROCESSING_QUEUE || 'nolia-document-processing';
-const BRAIN_ASSEMBLY_QUEUE = process.env.SQS_BRAIN_ASSEMBLY_QUEUE || 'nolia-brain-assembly';
+const DOCUMENT_PROCESSING_QUEUE = process.env.SQS_QUEUE_URL || process.env.SQS_DOCUMENT_PROCESSING_QUEUE || 'nolia-document-processing';
+const BRAIN_ASSEMBLY_QUEUE = process.env.SQS_DLQ_URL || process.env.SQS_BRAIN_ASSEMBLY_QUEUE || 'nolia-brain-assembly';
 
 export interface DocumentProcessingMessage {
   jobId: string;
   fundId: string;
   documentId: string;
   s3Key: string;
-  documentType: 'APPLICATION_FORM' | 'SELECTION_CRITERIA' | 'GOOD_EXAMPLES';
+  documentType: 'APPLICATION_FORM' | 'SELECTION_CRITERIA' | 'GOOD_EXAMPLES' | 'OUTPUT_TEMPLATES';
   filename: string;
   mimeType: string;
 }
@@ -47,7 +47,7 @@ export class SQSService {
   async queueDocumentProcessing(fundId: string, documents: Array<{
     id: string;
     s3Key: string;
-    documentType: 'APPLICATION_FORM' | 'SELECTION_CRITERIA' | 'GOOD_EXAMPLES';
+    documentType: 'APPLICATION_FORM' | 'SELECTION_CRITERIA' | 'GOOD_EXAMPLES' | 'OUTPUT_TEMPLATES';
     filename: string;
     mimeType: string;
   }>) {
@@ -78,8 +78,9 @@ export class SQSService {
         filename: doc.filename,
         mimeType: doc.mimeType,
       } as DocumentProcessingMessage),
-      MessageGroupId: fundId, // Ensures processing order within fund
-      MessageDeduplicationId: `${job.id}-${doc.id}`, // Prevents duplicate processing
+      // Remove FIFO-specific parameters for standard queue
+      // MessageGroupId: fundId, // Only for FIFO queues
+      // MessageDeduplicationId: `${job.id}-${doc.id}`, // Only for FIFO queues
     }));
 
     // Send in batches of up to 10 (SQS limit)
@@ -109,50 +110,61 @@ export class SQSService {
    * Queue brain assembly after document processing completes
    */
   async queueBrainAssembly(fundId: string, triggerType: 'DOCUMENT_COMPLETE' | 'MANUAL_TRIGGER' = 'DOCUMENT_COMPLETE') {
-    // Check if there's already a pending brain assembly job
-    const existingJob = await prisma.backgroundJob.findFirst({
-      where: {
-        fundId,
-        type: JobType.RAG_PROCESSING,
-        status: {
-          in: [JobStatus.PENDING, JobStatus.PROCESSING],
+    // Use a transaction to prevent race conditions
+    return await prisma.$transaction(async (tx) => {
+      // Check if there's already a brain assembly job (any status)
+      const existingJob = await tx.backgroundJob.findFirst({
+        where: {
+          fundId,
+          type: JobType.RAG_PROCESSING,
+          status: {
+            in: [JobStatus.PENDING, JobStatus.PROCESSING, JobStatus.COMPLETED],
+          },
         },
-      },
-    });
+      });
 
-    if (existingJob) {
-      console.log(`Brain assembly already queued for fund ${fundId}, job ${existingJob.id}`);
-      return existingJob;
-    }
+      if (existingJob) {
+        console.log(`Brain assembly already exists for fund ${fundId}, job ${existingJob.id} (status: ${existingJob.status})`);
+        return existingJob;
+      }
 
-    // Create brain assembly job
-    const job = await prisma.backgroundJob.create({
-      data: {
-        fundId,
-        type: JobType.RAG_PROCESSING,
-        status: JobStatus.PENDING,
-        totalDocuments: 1, // Brain assembly is a single operation
-        processedDocuments: 0,
-        metadata: {
-          triggerType,
-          queuedAt: new Date().toISOString(),
+      // Create brain assembly job
+      const job = await tx.backgroundJob.create({
+        data: {
+          fundId,
+          type: JobType.RAG_PROCESSING,
+          status: JobStatus.PENDING,
+          totalDocuments: 1, // Brain assembly is a single operation
+          processedDocuments: 0,
+          metadata: {
+            triggerType,
+            queuedAt: new Date().toISOString(),
+          },
         },
-      },
+      });
+
+      console.log(`Created RAG_PROCESSING job ${job.id} for fund ${fundId}`);
+
+      // Send message to brain assembly queue (use same queue for now)
+      try {
+        await sqsClient.send(new SendMessageCommand({
+          QueueUrl: DOCUMENT_PROCESSING_QUEUE, // Use same queue for brain assembly
+          MessageBody: JSON.stringify({
+            jobId: job.id,
+            fundId,
+            triggerType,
+          } as BrainAssemblyMessage),
+          // Remove FIFO-specific parameters for standard queue
+          // MessageGroupId: fundId, // Only for FIFO queues
+          // MessageDeduplicationId: `brain-${job.id}`, // Only for FIFO queues
+        }));
+      } catch (sqsError) {
+        console.error(`Failed to send SQS message for job ${job.id}:`, sqsError);
+        // Don't fail the transaction - the background processor can pick up pending jobs
+      }
+
+      return job;
     });
-
-    // Send message to brain assembly queue
-    await sqsClient.send(new SendMessageCommand({
-      QueueUrl: BRAIN_ASSEMBLY_QUEUE,
-      MessageBody: JSON.stringify({
-        jobId: job.id,
-        fundId,
-        triggerType,
-      } as BrainAssemblyMessage),
-      MessageGroupId: fundId,
-      MessageDeduplicationId: `brain-${job.id}`,
-    }));
-
-    return job;
   }
 
   /**
@@ -193,6 +205,8 @@ export class SQSService {
    * Mark job as failed
    */
   async markJobFailed(jobId: string, errorMessage: string) {
+    console.error(`❌ Marking job ${jobId} as failed: ${errorMessage}`);
+
     await prisma.backgroundJob.update({
       where: { id: jobId },
       data: {
@@ -201,6 +215,9 @@ export class SQSService {
         completedAt: new Date(),
       },
     });
+
+    // Log failure for monitoring
+    console.error(`🚨 Job ${jobId} failed and requires manual intervention`);
   }
 
   /**
@@ -228,6 +245,38 @@ export class SQSService {
       where: { fundId },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  /**
+   * Retry a failed job by resetting it to PENDING status
+   */
+  async retryFailedJob(jobId: string) {
+    const job = await prisma.backgroundJob.findUnique({
+      where: { id: jobId },
+    });
+
+    if (!job) {
+      throw new Error(`Job ${jobId} not found`);
+    }
+
+    if (job.status !== JobStatus.FAILED) {
+      throw new Error(`Job ${jobId} is not in FAILED status (current: ${job.status})`);
+    }
+
+    // Reset job to PENDING status
+    await prisma.backgroundJob.update({
+      where: { id: jobId },
+      data: {
+        status: JobStatus.PENDING,
+        errorMessage: null,
+        completedAt: null,
+        processedDocuments: 0,
+        progress: 0,
+      },
+    });
+
+    console.log(`🔄 Job ${jobId} reset to PENDING for retry`);
+    return job;
   }
 }
 

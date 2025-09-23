@@ -4,97 +4,81 @@ import { useState, useEffect } from "react";
 import { CheckCircle, Clock, File02, TrendUp02, User, AlertCircle } from "@untitledui/icons";
 import { ProgressBar } from "@/components/base/progress-indicators/progress-indicators";
 import { cx } from "@/utils/cx";
+import {
+    UIAssessmentResult,
+    TemplateAssessmentResponse,
+    convertToUIResult
+} from "../types/assessment";
 
-// Function to assess a file against fund criteria
-async function assessFileAgainstFund(file: File, fund: any): Promise<AssessmentResult> {
-    // In a real implementation, this would:
-    // 1. Extract text from the uploaded document
-    // 2. Use AI/RAG to compare against fund's selectionCriteriaAnalysis
-    // 3. Reference fund's goodExamplesAnalysis for benchmarking
-    // 4. Generate scores based on fund's specific criteria
-    
-    // For now, we'll generate results that reference the actual fund
-    const fundName = fund?.name || "Selected Fund";
-    const baseScore = Math.floor(Math.random() * 40) + 60; // 60-100 range
-    
-    return {
-        fileName: file.name,
-        rating: baseScore,
-        categories: [fundName, "Innovation", "Feasibility"],
-        summary: `Application assessed against "${fundName}" criteria. ${
-            baseScore >= 80 
-                ? 'Strong alignment with fund objectives and demonstrates excellent potential for success.' 
-                : baseScore >= 70 
-                    ? 'Good alignment with fund criteria with some areas for improvement identified.'
-                    : 'Moderate alignment with fund requirements. Several areas need strengthening.'
-        }`,
-        details: {
-            eligibility: {
-                score: Math.floor(Math.random() * 20) + 80,
-                notes: `Meets eligibility requirements for "${fundName}". Application demonstrates understanding of fund objectives.`
+// Function to assess a file against fund criteria using real AI assessment
+async function assessFileAgainstFund(file: File, fund: any): Promise<UIAssessmentResult> {
+    if (!fund?.id) {
+        throw new Error('Fund ID is required for assessment');
+    }
+
+    try {
+        // Create FormData with the file
+        const formData = new FormData();
+        formData.append('application', file);
+
+        // Call the real assessment API
+        const response = await fetch(`/api/assess/${fund.id}`, {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `Assessment failed with status ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (!data.success || !data.assessment) {
+            throw new Error('Invalid assessment response');
+        }
+
+        const assessment: TemplateAssessmentResponse = data.assessment;
+
+        // Use the new converter function that handles templates
+        return convertToUIResult(file, assessment, fund);
+
+    } catch (error) {
+        console.error('Assessment error:', error);
+
+        // Return error result
+        return {
+            fileName: file.name,
+            rating: 0,
+            categories: [fund?.name || 'Unknown Fund'],
+            summary: `Assessment failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            isTemplateFormatted: false,
+            details: {
+                eligibility: { score: 0, notes: 'Assessment could not be completed' },
+                impact: { score: 0, notes: 'Assessment could not be completed' },
+                feasibility: { score: 0, notes: 'Assessment could not be completed' },
+                innovation: { score: 0, notes: 'Assessment could not be completed' }
             },
-            impact: {
-                score: Math.floor(Math.random() * 25) + 70,
-                notes: `Impact potential assessed against "${fundName}" success criteria. ${
-                    fund?.description ? 'Alignment with fund focus area identified.' : 'Good potential for meaningful impact.'
-                }`
-            },
-            feasibility: {
-                score: Math.floor(Math.random() * 20) + 75,
-                notes: `Technical and commercial feasibility evaluated using "${fundName}" assessment framework.`
-            },
-            innovation: {
-                score: Math.floor(Math.random() * 25) + 65,
-                notes: `Innovation level assessed against "${fundName}" portfolio standards and good examples.`
-            }
-        },
-        recommendations: [
-            `Consider strengthening alignment with "${fundName}" specific priorities`,
-            `Review "${fundName}" successful applications for benchmarking`,
-            `Enhance sections that address "${fundName}" key evaluation criteria`
-        ],
-        status: 'completed'
-    };
+            recommendations: ['Please try uploading the document again', 'Contact support if the issue persists'],
+            status: 'error'
+        };
+    }
 }
 
 interface AssessmentProcessorProps {
     files: File[];
     selectedFund: any; // Fund from useFunds hook
-    onAssessmentComplete: (results: AssessmentResult[]) => void;
+    onAssessmentComplete: (results: UIAssessmentResult[]) => void;
 }
 
-export interface AssessmentResult {
-    fileName: string;
-    rating: number;
-    categories: string[];
-    summary: string;
-    details: {
-        eligibility: {
-            score: number;
-            notes: string;
-        };
-        impact: {
-            score: number;
-            notes: string;
-        };
-        feasibility: {
-            score: number;
-            notes: string;
-        };
-        innovation: {
-            score: number;
-            notes: string;
-        };
-    };
-    recommendations: string[];
-    status: 'processing' | 'completed' | 'error';
-}
+// Export the UIAssessmentResult type for components that need it
+export type { UIAssessmentResult } from "../types/assessment";
 
 export const AssessmentProcessor = ({ files, selectedFund, onAssessmentComplete }: AssessmentProcessorProps) => {
     const [currentProgress, setCurrentProgress] = useState(0);
     const [currentFile, setCurrentFile] = useState(0);
     const [assessmentPhase, setAssessmentPhase] = useState<'analyzing' | 'scoring' | 'finalizing' | 'complete'>('analyzing');
-    const [results, setResults] = useState<AssessmentResult[]>([]);
+    const [results, setResults] = useState<UIAssessmentResult[]>([]);
 
     const phases = [
         { key: 'analyzing', label: 'Analyzing Documents', icon: File02, description: 'Extracting and validating content' },
@@ -105,19 +89,20 @@ export const AssessmentProcessor = ({ files, selectedFund, onAssessmentComplete 
     const currentPhase = phases.find(p => p.key === assessmentPhase);
 
     useEffect(() => {
-        // Simulate RAG assessment process
+        // Real assessment process using the actual API
         const processAssessment = async () => {
             const totalPhases = phases.length;
             const totalFiles = files.length;
-            
+            const assessmentResults: UIAssessmentResult[] = [];
+
             for (let fileIndex = 0; fileIndex < totalFiles; fileIndex++) {
                 setCurrentFile(fileIndex);
                 const file = files[fileIndex];
-                
+
                 // Process each phase for this file
                 for (let phaseIndex = 0; phaseIndex < totalPhases; phaseIndex++) {
                     setAssessmentPhase(phases[phaseIndex].key as any);
-                    
+
                     // Simulate phase progress
                     const phaseSteps = 20;
                     for (let step = 0; step <= phaseSteps; step++) {
@@ -125,29 +110,30 @@ export const AssessmentProcessor = ({ files, selectedFund, onAssessmentComplete 
                         const phaseProgress = (phaseIndex / totalPhases) * (100 / totalFiles);
                         const stepProgress = (step / phaseSteps) * (100 / totalFiles / totalPhases);
                         const totalProgress = fileProgress + phaseProgress + stepProgress;
-                        
+
                         setCurrentProgress(Math.min(totalProgress, 100));
                         await new Promise(resolve => setTimeout(resolve, 50));
                     }
                 }
-                
-                // Generate assessment result based on selected fund criteria
-                const assessmentResult: AssessmentResult = await assessFileAgainstFund(file, selectedFund);
-                
+
+                // Generate assessment result using real API
+                const assessmentResult: UIAssessmentResult = await assessFileAgainstFund(file, selectedFund);
+
+                assessmentResults.push(assessmentResult);
                 setResults(prev => [...prev, assessmentResult]);
             }
-            
+
             setAssessmentPhase('complete');
             setCurrentProgress(100);
-            
-            // Wait a moment then call completion callback with all results
+
+            // Wait a moment then call completion callback with all collected results
             setTimeout(() => {
-                onAssessmentComplete(results);
+                onAssessmentComplete(assessmentResults);
             }, 1000);
         };
 
         processAssessment();
-    }, [files]);
+    }, [files, selectedFund, onAssessmentComplete]);
 
     return (
         <div className="bg-white rounded-xl border border-gray-200 p-8">

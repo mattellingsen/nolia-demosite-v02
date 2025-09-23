@@ -5,6 +5,8 @@ import { Theme } from "@/providers/theme";
 import { QueryProvider } from "@/providers/query-provider";
 import { cx } from "@/utils/cx";
 import "@/styles/globals.css";
+// Initialize background services automatically
+import "@/lib/startup";
 
 const inter = Inter({
     subsets: ["latin"],

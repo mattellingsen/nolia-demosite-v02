@@ -58,8 +58,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Perform real criteria analysis using server-side libraries
+    // Use pattern matching for immediate feedback (fast response)
+    console.log('📋 Using pattern matching analysis for selection criteria (immediate feedback)');
     const analysis = await analyzeSelectionCriteria(files);
+    analysis.analysisMode = 'PATTERN_MATCHING';
+    console.log('✅ Pattern matching analysis complete for selection criteria');
 
     return NextResponse.json({
       success: true,

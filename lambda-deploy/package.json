@@ -1,0 +1,10 @@
+{
+  "name": "nolia-document-processor",
+  "version": "1.0.0",
+  "description": "Lambda function to process documents for Nolia funding system",
+  "main": "index.js",
+  "dependencies": {
+    "@prisma/client": "^6.15.0",
+    "prisma": "^5.7.1"
+  }
+}

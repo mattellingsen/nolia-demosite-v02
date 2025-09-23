@@ -86,8 +86,31 @@ export async function assessApplicationWithBedrock(
     return parseClaudeResponse(claudeResponse, request.assessmentType);
     
   } catch (error) {
-    console.error('Bedrock assessment error:', error);
-    throw new Error(`Failed to assess application: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    console.error('Bedrock assessment error:', {
+      error: errorMessage,
+      stack: error instanceof Error ? error.stack : undefined,
+      errorType: error?.constructor?.name || 'Unknown',
+      timestamp: new Date().toISOString()
+    });
+
+    // Provide specific error messages for different failure types
+    if (errorMessage.includes('credentials') || errorMessage.includes('authentication')) {
+      throw new Error(`AWS authentication failed: ${errorMessage}`);
+    } else if (errorMessage.includes('AccessDeniedException') || errorMessage.includes('Forbidden')) {
+      throw new Error(`AWS Bedrock access denied: ${errorMessage}. Check IAM permissions for Bedrock service.`);
+    } else if (errorMessage.includes('ThrottlingException') || errorMessage.includes('throttle')) {
+      throw new Error(`AWS Bedrock throttling: ${errorMessage}. Too many requests, please retry.`);
+    } else if (errorMessage.includes('ValidationException')) {
+      throw new Error(`AWS Bedrock validation error: ${errorMessage}. Check request format.`);
+    } else if (errorMessage.includes('ResourceNotFoundException')) {
+      throw new Error(`AWS Bedrock model not found: ${errorMessage}. Check model ID: ${CLAUDE_MODEL_ID}`);
+    } else if (errorMessage.includes('timeout') || errorMessage.includes('ETIMEDOUT')) {
+      throw new Error(`AWS Bedrock timeout: ${errorMessage}. Service is busy, please retry.`);
+    } else {
+      throw new Error(`Bedrock assessment failed: ${errorMessage}`);
+    }
   }
 }
 
