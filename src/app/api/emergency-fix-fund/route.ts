@@ -30,12 +30,17 @@ export async function POST(request: NextRequest) {
 
         console.log('📋 Found fund:', fund.name, 'with', fund.documents.length, 'documents');
 
-        // Check if fund is stuck in processing
-        if (fund.status !== 'PROCESSING') {
+        // Check if fund needs processing (either PROCESSING or ACTIVE with no knowledge base)
+        const needsProcessing = fund.status === 'PROCESSING' ||
+                               (fund.status === 'ACTIVE' && (!fund.knowledgeBaseAnalysis ||
+                                fund.knowledgeBaseAnalysis?.processedSuccessfully === 0));
+
+        if (!needsProcessing) {
             return NextResponse.json(
                 {
-                    error: 'Fund is not in PROCESSING status',
-                    currentStatus: fund.status
+                    error: 'Fund does not need emergency processing',
+                    currentStatus: fund.status,
+                    knowledgeBase: fund.knowledgeBaseAnalysis
                 },
                 { status: 400 }
             );
@@ -100,13 +105,13 @@ export async function POST(request: NextRequest) {
             readyForAssessment: successfulDocs.length > 0
         };
 
-        // Step 3: Update fund status to ACTIVE
-        console.log('🔄 Updating fund status to ACTIVE...');
+        // Step 3: Update fund with knowledge base analysis
+        console.log('🔄 Updating fund with knowledge base analysis...');
 
         const updatedFund = await prisma.fund.update({
             where: { id: fundId },
             data: {
-                status: 'ACTIVE',
+                status: fund.status === 'PROCESSING' ? 'ACTIVE' : fund.status, // Keep ACTIVE if already ACTIVE
                 knowledgeBaseAnalysis: knowledgeBaseAnalysis,
                 processedAt: new Date(),
                 updatedAt: new Date()
