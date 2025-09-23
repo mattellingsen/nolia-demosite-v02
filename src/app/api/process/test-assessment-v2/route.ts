@@ -180,15 +180,15 @@ async function handleFundBasedAssessment(file: File, fundId: string) {
                 ...assessmentData,
                 formattedOutput: formattedOutput.formattedOutput,
                 templateApplied: formattedOutput.success,
-                templateName: formattedOutput.metadata?.template_used || 'Deterministic Template',
-                templateError: formattedOutput.error,
+                templateName: 'Resilient Assessment Template',
+                templateError: null,
                 strategyUsed: assessmentResult.strategyUsed,
                 transparencyInfo: assessmentResult.transparencyInfo
             },
             score: assessmentData.extractedFields?.overallScore || 75,
             feedback: assessmentResult.transparencyInfo.userMessage,
             analysisMode: 'RESILIENT_FUND_ASSESSMENT',
-            templateMetadata: formattedOutput.metadata
+            templateMetadata: null
         });
 
     } catch (error) {
