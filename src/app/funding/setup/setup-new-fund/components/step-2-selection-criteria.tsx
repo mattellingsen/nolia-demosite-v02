@@ -2,12 +2,9 @@
 
 import { useState, useCallback } from "react";
 import { UploadCloud01, FileCheck02, ArrowRight, ArrowLeft, CheckCircle, AlertCircle, Trash01, Plus, File02 } from "@untitledui/icons";
-import { analyzeCriteriaViaAPI } from "@/lib/api-client";
-import { type CriteriaAnalysis } from "@/utils/browser-document-analyzer";
 import { Button } from "@/components/base/buttons/button";
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
 import { FileUpload } from "@/components/application/file-upload/file-upload-base";
-import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
 
 interface Step2Props {
     formData: any;
@@ -16,19 +13,6 @@ interface Step2Props {
     onPrevious: () => void;
 }
 
-interface CriteriaAnalysis {
-    criteriaFound: number;
-    weightings: { name: string; weight: number }[];
-    categories: string[];
-    scoringMethod: 'Points' | 'Percentage' | 'Pass/Fail';
-    assessmentCategories?: {
-        categoryName: string;
-        keyQuestions: string[];
-        focus: string;
-        requirements: string[];
-        details: string;
-    }[];
-}
 
 export const Step2SelectionCriteria: React.FC<Step2Props> = ({ 
     formData, 
@@ -37,32 +21,13 @@ export const Step2SelectionCriteria: React.FC<Step2Props> = ({
     onPrevious
 }) => {
     const [isDragActive, setIsDragActive] = useState(false);
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [analysis, setAnalysis] = useState<CriteriaAnalysis | null>(null);
     const [uploadError, setUploadError] = useState<string>('');
 
-    const analyzeCriteria = async (files: File[]) => {
-        setIsAnalyzing(true);
-        setUploadError('');
-        
-        try {
-            // Re-enabled: Criteria analysis for user feedback (analysis data won't be uploaded)
-            const realAnalysis = await analyzeCriteriaViaAPI(files);
-            
-            setAnalysis(realAnalysis);
-            
-            // Update form data with analysis (will be stripped before upload)
-            updateFormData({ 
-                selectionCriteria: files,
-                selectionCriteriaAnalysis: realAnalysis
-            });
-            
-        } catch (error) {
-            console.error('Criteria analysis error:', error);
-            setUploadError(error instanceof Error ? error.message : 'Failed to analyze selection criteria. Please try again.');
-        } finally {
-            setIsAnalyzing(false);
-        }
+    // Simplified: Just store files without analysis
+    const handleCriteriaUpload = (files: File[]) => {
+        updateFormData({ 
+            selectionCriteria: files
+        });
     };
 
     const handleFileUpload = useCallback(async (files: FileList) => {
@@ -93,19 +58,12 @@ export const Step2SelectionCriteria: React.FC<Step2Props> = ({
 
         const existingFiles = formData.selectionCriteria || [];
         const updatedFiles = [...existingFiles, ...fileArray];
-        updateFormData({ selectionCriteria: updatedFiles });
-        await analyzeCriteria(updatedFiles);
+        handleCriteriaUpload(updatedFiles);
     }, [formData.selectionCriteria, updateFormData]);
 
     const removeFile = (index: number) => {
         const updatedFiles = formData.selectionCriteria.filter((_: any, i: number) => i !== index);
-        updateFormData({ selectionCriteria: updatedFiles });
-        
-        if (updatedFiles.length === 0) {
-            setAnalysis(null);
-        } else {
-            analyzeCriteria(updatedFiles);
-        }
+        handleCriteriaUpload(updatedFiles);
     };
 
     const handleDragEnter = useCallback((e: React.DragEvent) => {
@@ -188,58 +146,19 @@ export const Step2SelectionCriteria: React.FC<Step2Props> = ({
                 </div>
             )}
 
-            {/* Analysis Results - Enhanced */}
-            {analysis && hasFiles && (
-                <div className="bg-gray-50 rounded-lg p-6">
-                    <div className="flex items-center gap-3 mb-6">
+            {/* Documents uploaded message */}
+            {hasFiles && (
+                <div className="bg-success-50 rounded-lg p-4 border border-success-200">
+                    <div className="flex items-center gap-3">
                         <FeaturedIcon size="md" color="brand" theme="light" icon={CheckCircle} />
                         <div>
-                            <h3 className="text-lg font-semibold text-primary">Criteria Analysis Complete</h3>
-                            <p className="text-sm text-secondary">
-                                {analysis.analysisMode === 'CLAUDE_AI_REASONING' ? 'Enhanced AI analysis' : 'Basic pattern analysis'}
+                            <h3 className="text-lg font-semibold text-success-800">Selection Criteria Uploaded</h3>
+                            <p className="text-sm text-success-600">
+                                {formData.selectionCriteria.length} document{formData.selectionCriteria.length !== 1 ? 's' : ''} uploaded successfully. 
+                                These will be processed when your fund is created.
                             </p>
                         </div>
                     </div>
-                    
-                    {/* Basic Analysis Summary */}
-                    <div className="grid grid-cols-2 gap-4 mb-6">
-                        <div className="bg-white p-4 rounded-lg border border-gray-200 text-center">
-                            <p className="text-2xl font-bold text-brand-secondary">{analysis.criteriaFound || 0}</p>
-                            <p className="text-xs text-secondary">Criteria Found</p>
-                        </div>
-                        <div className="bg-white p-4 rounded-lg border border-gray-200 text-center">
-                            <p className="text-sm font-semibold text-brand-secondary">{analysis.scoringMethod || 'Unknown'}</p>
-                            <p className="text-xs text-secondary">Scoring Method</p>
-                        </div>
-                    </div>
-                    
-                    {/* Comprehensive Analysis Summary */}
-                    {analysis.comprehensiveAnalysis && (
-                        <div className="mb-6">
-                            <p className="text-sm font-medium text-primary mb-4">Analysis Summary:</p>
-                            <div className="bg-white p-4 rounded-lg border border-gray-200">
-                                <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-line">
-                                    {analysis.comprehensiveAnalysis}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                    
-                    {/* Show detected criteria - always show if available */}
-                    {analysis.detectedCriteria && analysis.detectedCriteria.length > 0 && (
-                        <div>
-                            <p className="text-sm font-medium text-primary mb-4">Detected Criteria:</p>
-                            <div className="bg-white p-4 rounded-lg border border-gray-200">
-                                <div className="flex flex-wrap gap-2">
-                                    {analysis.detectedCriteria.map((criteria, index) => (
-                                        <span key={index} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-brand-secondary-50 text-brand-secondary-700">
-                                            {criteria}
-                                        </span>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    )}
                 </div>
             )}
 
@@ -270,15 +189,6 @@ export const Step2SelectionCriteria: React.FC<Step2Props> = ({
                             className="!bg-white !border !border-brand-secondary-600 min-h-64 py-12 !flex !items-center !justify-center !rounded-lg upload-dropzone-custom"
                         />
                         
-                        {isAnalyzing && (
-                            <div className="flex justify-center py-6">
-                                <LoadingIndicator 
-                                    type="dot-circle" 
-                                    size="md" 
-                                    label="Analyzing criteria documents..." 
-                                />
-                            </div>
-                        )}
                     </FileUpload.Root>
                     <style jsx global>{`
                         .upload-dropzone-custom {
@@ -336,7 +246,7 @@ export const Step2SelectionCriteria: React.FC<Step2Props> = ({
                         Previous
                     </Button>
                     <div className="text-sm text-secondary">
-                        Step 2 of 5
+                        Step 2 of 4
                     </div>
                 </div>
                 
@@ -345,9 +255,9 @@ export const Step2SelectionCriteria: React.FC<Step2Props> = ({
                     color="primary"
                     iconTrailing={ArrowRight}
                     onClick={onNext}
-                    isDisabled={!hasFiles || isAnalyzing || !analysis}
+                    isDisabled={!hasFiles}
                 >
-                    Continue to Output Templates
+                    Continue to Good Examples
                 </Button>
             </div>
 
