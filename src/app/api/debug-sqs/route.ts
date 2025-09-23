@@ -9,8 +9,8 @@ export async function GET(request: NextRequest) {
         const sqsQueueUrl = process.env.SQS_QUEUE_URL;
         const sqsDocumentProcessingQueue = process.env.SQS_DOCUMENT_PROCESSING_QUEUE;
         const awsRegion = process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2';
-        const awsAccessKeyId = process.env.NOLIA_AWS_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID;
-        const awsSecretAccessKey = process.env.NOLIA_AWS_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY;
+        const awsAccessKeyId = process.env.AWS_ACCESS_KEY_ID;
+        const awsSecretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
 
         console.log('🔧 Environment variables check:', {
             SQS_QUEUE_URL: sqsQueueUrl ? 'SET' : 'NOT_SET',
@@ -27,10 +27,8 @@ export async function GET(request: NextRequest) {
         // Create SQS client
         const sqsClient = new SQSClient({
             region: awsRegion,
-            credentials: awsAccessKeyId && awsSecretAccessKey ? {
-                accessKeyId: awsAccessKeyId,
-                secretAccessKey: awsSecretAccessKey,
-            } : undefined,
+            // Use IAM roles for authentication in production
+            credentials: undefined,
         });
 
         // Test 1: List all queues
