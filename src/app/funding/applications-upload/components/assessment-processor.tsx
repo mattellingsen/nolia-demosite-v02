@@ -46,16 +46,30 @@ async function assessFileAgainstFund(file: File, fund: any): Promise<UIAssessmen
                 hasFormattedOutput: !!assessment.formattedOutput,
                 templateApplied: assessment.templateApplied,
                 templateName: assessment.templateName,
-                formattedOutput: assessment.formattedOutput
+                formattedOutput: typeof assessment.formattedOutput === 'string' ?
+                    assessment.formattedOutput.substring(0, 200) + '...' : assessment.formattedOutput,
+                score: data.score,
+                assessmentScore: assessment.extractedFields?.overallScore
             });
 
-            const result = convertToUIResult(file, assessment, fund);
+            // Merge API-level score into assessment object for proper extraction
+            const enhancedAssessment = {
+                ...assessment,
+                score: data.score, // Ensure score is at the top level
+                overallScore: data.score || assessment.extractedFields?.overallScore
+            };
+
+            const result = convertToUIResult(file, enhancedAssessment as any, fund);
 
             // V2 Template Enhancement: Check if we have formatted output from deterministic engine
-            if (assessment.formattedOutput && typeof assessment.formattedOutput === 'string') {
-                result.isFilledTemplate = true;
-                result.filledTemplate = assessment.formattedOutput;
-                result.isTemplateFormatted = true;
+            if (assessment.formattedOutput) {
+                if (typeof assessment.formattedOutput === 'string') {
+                    result.isFilledTemplate = true;
+                    result.filledTemplate = assessment.formattedOutput;
+                    result.isTemplateFormatted = true;
+                } else if (assessment.templateApplied) {
+                    result.isTemplateFormatted = true;
+                }
             }
 
             // Add transparency information if available

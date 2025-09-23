@@ -122,24 +122,39 @@ export function convertToUIResult(
 ): UIAssessmentResult {
   const isTemplateFormatted = hasTemplateFormatting(apiResponse);
 
-  // NEW: Check if this is a filled template format
-  const isFilledTemplate = apiResponse.formattedOutput?.templateFormat === 'raw_filled';
+  // NEW: Check if this is a filled template format - support string template output
+  const isFilledTemplate = (typeof apiResponse.formattedOutput === 'string') ||
+                           apiResponse.formattedOutput?.templateFormat === 'raw_filled';
+
+  // Fix score extraction - check multiple possible locations for the score
+  const extractedScore = (apiResponse as any).score ||
+                        apiResponse.overallScore ||
+                        apiResponse.extractedFields?.overallScore ||
+                        0;
 
   return {
     fileName: file.name,
-    rating: apiResponse.overallScore || 0,
+    rating: extractedScore,
     categories: [fund.name || 'Unknown Fund', "Completeness", "Alignment", "Innovation", "Feasibility"],
     summary: generateSummaryFromFeedback(apiResponse, fund),
     status: 'completed',
     isTemplateFormatted,
     templateSections: isTemplateFormatted && !isFilledTemplate ? parseTemplateSections(apiResponse.formattedOutput) : undefined,
 
-    // NEW: Universal filled template content
-    filledTemplate: isFilledTemplate ? apiResponse.formattedOutput?.filledTemplate : undefined,
+    // NEW: Universal filled template content - handle string output
+    filledTemplate: isFilledTemplate ?
+      (typeof apiResponse.formattedOutput === 'string' ?
+        apiResponse.formattedOutput :
+        apiResponse.formattedOutput?.filledTemplate) :
+      undefined,
     isFilledTemplate,
 
     details: !isTemplateFormatted ? createLegacyDetails(apiResponse) : undefined,
     recommendations: apiResponse.feedback?.suggestions || [],
+
+    // Add transparency info if available
+    transparencyInfo: apiResponse.transparencyInfo,
+    strategyUsed: apiResponse.strategyUsed,
   };
 }
 
@@ -201,21 +216,27 @@ function formatSectionName(key: string): string {
 
 // Create legacy assessment details (backwards compatibility)
 function createLegacyDetails(assessment: BaseAssessmentResult): LegacyAssessmentDetails {
+  // Fix score extraction - check multiple possible locations
+  const baseScore = (assessment as any).score ||
+                   assessment.overallScore ||
+                   assessment.extractedFields?.overallScore ||
+                   0;
+
   return {
     eligibility: {
-      score: assessment.assessmentDetails?.completeness || assessment.overallScore || 0,
+      score: assessment.assessmentDetails?.completeness || baseScore,
       notes: assessment.feedback?.strengths?.[0] || 'Assessment completed successfully'
     },
     impact: {
-      score: assessment.assessmentDetails?.alignment || assessment.overallScore || 0,
+      score: assessment.assessmentDetails?.alignment || baseScore,
       notes: assessment.feedback?.strengths?.[1] || 'Impact evaluation completed'
     },
     feasibility: {
-      score: assessment.assessmentDetails?.feasibility || assessment.overallScore || 0,
+      score: assessment.assessmentDetails?.feasibility || baseScore,
       notes: assessment.feedback?.weaknesses?.[0] || 'Feasibility assessment completed'
     },
     innovation: {
-      score: assessment.assessmentDetails?.innovation || assessment.overallScore || 0,
+      score: assessment.assessmentDetails?.innovation || baseScore,
       notes: assessment.feedback?.suggestions?.[0] || 'Innovation potential evaluated'
     }
   };
@@ -223,7 +244,11 @@ function createLegacyDetails(assessment: BaseAssessmentResult): LegacyAssessment
 
 // Generate summary from assessment feedback
 function generateSummaryFromFeedback(assessment: BaseAssessmentResult, fund: any): string {
-  const score = assessment.overallScore || 0;
+  // Fix score extraction - check multiple possible locations
+  const score = (assessment as any).score ||
+                assessment.overallScore ||
+                assessment.extractedFields?.overallScore ||
+                0;
   const fundName = assessment.fundName || fund?.name || 'the fund';
 
   if (score >= 80) {
