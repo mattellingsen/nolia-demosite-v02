@@ -105,7 +105,7 @@ export function convertToUIResult(
   return {
     fileName: file.name,
     rating: apiResponse.overallScore || 0,
-    categories: [fund.name || 'Unknown Fund', "Completeness", "Alignment", "Innovation", "Feasibility"],
+    categories: [fund.name || 'Unknown Fund'],
     summary: generateSummaryFromFeedback(apiResponse, fund),
     status: 'completed',
     isTemplateFormatted,
