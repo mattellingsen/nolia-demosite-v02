@@ -127,15 +127,16 @@ export function convertToUIResult(
                            apiResponse.formattedOutput?.templateFormat === 'raw_filled';
 
   // Fix score extraction - check multiple possible locations for the score
-  const extractedScore = (apiResponse as any).score ||
-                        apiResponse.overallScore ||
+  const extractedScore = apiResponse.overallScore ||
+                        (apiResponse as any).score ||
                         apiResponse.extractedFields?.overallScore ||
+                        (apiResponse as any).assessment?.overallScore ||
                         0;
 
   return {
     fileName: file.name,
     rating: extractedScore,
-    categories: [fund.name || 'Unknown Fund', "Completeness", "Alignment", "Innovation", "Feasibility"],
+    categories: [fund.name || 'Unknown Fund'],
     summary: generateSummaryFromFeedback(apiResponse, fund),
     status: 'completed',
     isTemplateFormatted,
@@ -216,10 +217,11 @@ function formatSectionName(key: string): string {
 
 // Create legacy assessment details (backwards compatibility)
 function createLegacyDetails(assessment: BaseAssessmentResult): LegacyAssessmentDetails {
-  // Fix score extraction - check multiple possible locations
-  const baseScore = (assessment as any).score ||
-                   assessment.overallScore ||
+  // Fix score extraction - use consistent logic with convertToUIResult
+  const baseScore = assessment.overallScore ||
+                   (assessment as any).score ||
                    assessment.extractedFields?.overallScore ||
+                   (assessment as any).assessment?.overallScore ||
                    0;
 
   return {
@@ -244,20 +246,33 @@ function createLegacyDetails(assessment: BaseAssessmentResult): LegacyAssessment
 
 // Generate summary from assessment feedback
 function generateSummaryFromFeedback(assessment: BaseAssessmentResult, fund: any): string {
-  // Fix score extraction - check multiple possible locations
-  const score = (assessment as any).score ||
-                assessment.overallScore ||
+  // Fix score extraction - use consistent logic with convertToUIResult
+  const score = assessment.overallScore ||
+                (assessment as any).score ||
                 assessment.extractedFields?.overallScore ||
+                (assessment as any).assessment?.overallScore ||
                 0;
   const fundName = assessment.fundName || fund?.name || 'the fund';
 
+  // Use actual feedback if available, otherwise generate based on score
+  if (assessment.feedback?.strengths?.length > 0) {
+    return `Assessment complete for ${fundName}. ${assessment.feedback.strengths[0]}`;
+  }
+
+  if (assessment.feedback?.weaknesses?.length > 0 && score < 70) {
+    return `Assessment identifies areas for improvement in ${fundName} application. ${assessment.feedback.weaknesses[0]}`;
+  }
+
+  // Fallback to score-based assessment with improved messaging
   if (score >= 80) {
-    return `Excellent application with strong alignment to ${fundName} objectives. ${assessment.feedback?.strengths?.[0] || 'Demonstrates high potential for success.'}`;
+    return `Strong application that aligns well with ${fundName} objectives. Score: ${score}/100.`;
   } else if (score >= 70) {
-    return `Good application that meets ${fundName} requirements with some areas for improvement. ${assessment.feedback?.strengths?.[0] || 'Shows solid potential.'}`;
+    return `Good application that meets ${fundName} requirements. Score: ${score}/100.`;
   } else if (score >= 60) {
-    return `Moderate application that partially aligns with ${fundName} criteria. ${assessment.feedback?.weaknesses?.[0] || 'Several areas need strengthening.'}`;
+    return `Application shows potential but has areas for improvement. Score: ${score}/100.`;
+  } else if (score > 0) {
+    return `Application assessed with score of ${score}/100. Review recommendations for improvement.`;
   } else {
-    return `Application needs significant improvement to meet ${fundName} standards. ${assessment.feedback?.weaknesses?.[0] || 'Major revisions recommended.'}`;
+    return `Assessment completed for ${fundName} application. Review detailed results below.`;
   }
 }
