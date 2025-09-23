@@ -213,18 +213,59 @@ async function handleFundBasedAssessment(file: File, fundId: string) {
         });
 
     } catch (error) {
+        // Enhanced error handling and diagnosis
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : undefined;
+
         console.error('❌ Fund-based assessment error:', {
-            error: error instanceof Error ? error.message : String(error),
-            stack: error instanceof Error ? error.stack : undefined,
+            error: errorMessage,
+            stack: errorStack,
             fundId,
-            fileName: file.name
+            fileName: file.name,
+            errorType: error?.constructor?.name || 'Unknown',
+            timestamp: new Date().toISOString()
         });
+
+        // Detailed error classification for better debugging
+        let specificErrorMessage = 'Failed to assess application using fund template';
+        let errorCategory = 'UNKNOWN_ERROR';
+
+        if (errorMessage.includes('credentials') || errorMessage.includes('authentication') || errorMessage.includes('Forbidden') || errorMessage.includes('Access Denied')) {
+            specificErrorMessage = 'AWS authentication failed - Please check AWS credentials and permissions';
+            errorCategory = 'AWS_AUTH_ERROR';
+        } else if (errorMessage.includes('Bedrock') || errorMessage.includes('bedrock')) {
+            specificErrorMessage = 'AWS Bedrock service error - Please check service availability and model access';
+            errorCategory = 'BEDROCK_ERROR';
+        } else if (errorMessage.includes('mammoth') || errorMessage.includes('PDF') || errorMessage.includes('document')) {
+            specificErrorMessage = 'Document processing error - Please check file format and content';
+            errorCategory = 'DOCUMENT_ERROR';
+        } else if (errorMessage.includes('template') || errorMessage.includes('Template')) {
+            specificErrorMessage = 'Template processing error - Please check template configuration';
+            errorCategory = 'TEMPLATE_ERROR';
+        } else if (errorMessage.includes('prisma') || errorMessage.includes('database')) {
+            specificErrorMessage = 'Database error - Please check database connectivity';
+            errorCategory = 'DATABASE_ERROR';
+        } else if (errorMessage.includes('timeout') || errorMessage.includes('ETIMEDOUT')) {
+            specificErrorMessage = 'Service timeout - Please try again or contact support';
+            errorCategory = 'TIMEOUT_ERROR';
+        }
 
         return NextResponse.json(
             {
-                error: 'Failed to assess application using fund template',
-                details: error instanceof Error ? error.message : 'Unknown error',
-                fundId
+                error: specificErrorMessage,
+                details: errorMessage,
+                errorCategory,
+                fundId,
+                fileName: file.name,
+                timestamp: new Date().toISOString(),
+                troubleshooting: {
+                    AWS_AUTH_ERROR: 'Run: aws sso login --profile springload-dev',
+                    BEDROCK_ERROR: 'Check AWS Bedrock service status and model permissions',
+                    DOCUMENT_ERROR: 'Ensure document is a valid Word (.docx) file with text content',
+                    TEMPLATE_ERROR: 'Verify fund has proper output template configuration',
+                    DATABASE_ERROR: 'Check database connectivity and fund data',
+                    TIMEOUT_ERROR: 'Service is busy, please retry in a few moments'
+                }[errorCategory] || 'Contact technical support with error details'
             },
             { status: 500 }
         );
