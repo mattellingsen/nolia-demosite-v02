@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database-s3';
 
+// Static imports as fallbacks for the dynamic imports
+import { extractTextFromFile } from '@/utils/server-document-analyzer';
+import { assessApplicationWithBedrock } from '@/lib/aws-bedrock';
+import { deterministicTemplateEngine } from '@/lib/deterministic-template-engine';
+
 
 export async function POST(request: NextRequest) {
     try {
@@ -33,7 +38,11 @@ export async function POST(request: NextRequest) {
     } catch (error) {
         console.error('Error in test assessment:', error);
         return NextResponse.json(
-            { error: 'Failed to assess application' },
+            {
+                error: 'Failed to assess application',
+                details: error instanceof Error ? error.message : 'Unknown error',
+                stack: error instanceof Error ? error.stack : undefined
+            },
             { status: 500 }
         );
     }
@@ -60,8 +69,7 @@ async function handleFundBasedAssessment(file: File, fundId: string) {
             );
         }
 
-        // Get application content
-        const { extractTextFromFile } = await import('@/utils/server-document-analyzer');
+        // Get application content (using static import)
         const applicationContent = await extractTextFromFile(file);
 
         // Get complete fund brain with all 4 document types
@@ -107,9 +115,6 @@ async function handleFundBasedAssessment(file: File, fundId: string) {
         };
 
         console.log('🔍 Using direct AWS Bedrock assessment with enhanced field extraction...');
-
-        // Use direct AWS Bedrock assessment with enhanced field extraction
-        const { assessApplicationWithBedrock } = await import('@/lib/aws-bedrock');
 
         // Build RAG context from fund brain
         const ragContext = {
@@ -163,8 +168,7 @@ async function handleFundBasedAssessment(file: File, fundId: string) {
             assessmentData
         };
 
-        // Apply deterministic template formatting
-        const { deterministicTemplateEngine } = await import('@/lib/deterministic-template-engine');
+        // Apply deterministic template formatting (using static import)
 
         console.log('🎨 Applying template using deterministic template engine');
 
