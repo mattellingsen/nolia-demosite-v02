@@ -569,7 +569,7 @@ export class BackgroundJobService {
             }
           `
         ),
-        maxTokens: 2000,
+        maxTokens: 16000,
         temperature: 0.3,
       });
 
@@ -620,7 +620,7 @@ export class BackgroundJobService {
             }
           `
         ),
-        maxTokens: 2000,
+        maxTokens: 16000,
         temperature: 0.3,
       });
 
@@ -673,7 +673,7 @@ export class BackgroundJobService {
             }
           `
         ),
-        maxTokens: 2000,
+        maxTokens: 16000,
         temperature: 0.3,
       });
 
@@ -721,7 +721,7 @@ export class BackgroundJobService {
             }
           `
         ),
-        maxTokens: 2000,
+        maxTokens: 16000,
         temperature: 0.1,
       });
 
