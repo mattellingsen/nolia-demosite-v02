@@ -124,7 +124,9 @@ export function convertToUIResult(
 
   // NEW: Check if this is a filled template format - support string template output
   const isFilledTemplate = (typeof apiResponse.formattedOutput === 'string') ||
-                           apiResponse.formattedOutput?.templateFormat === 'raw_filled';
+                           apiResponse.formattedOutput?.templateFormat === 'raw_filled' ||
+                           apiResponse.filledTemplate ||
+                           apiResponse.templateFormat === 'filled_template';
 
   // Fix score extraction - check multiple possible locations for the score
   const extractedScore = apiResponse.overallScore ||
@@ -142,10 +144,11 @@ export function convertToUIResult(
     isTemplateFormatted,
     templateSections: isTemplateFormatted && !isFilledTemplate ? parseTemplateSections(apiResponse.formattedOutput) : undefined,
 
-    // NEW: Universal filled template content - handle string output
+    // NEW: Universal filled template content - handle string output and new reasoning format
     filledTemplate: isFilledTemplate ?
       (typeof apiResponse.formattedOutput === 'string' ?
         apiResponse.formattedOutput :
+        apiResponse.filledTemplate ||
         apiResponse.formattedOutput?.filledTemplate) :
       undefined,
     isFilledTemplate,

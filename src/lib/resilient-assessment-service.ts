@@ -141,21 +141,21 @@ export class ResilientAssessmentService {
   }
 
   /**
-   * Stage 1: Get Claude's natural assessment (never ask for JSON directly)
+   * New Single-Stage: Direct template reasoning (replaces 2-stage approach)
    */
   private async executeClaudeAssessment(
     applicationContent: string,
     fundBrain: any,
     fileName: string
   ): Promise<any> {
-    console.log('🧠 Using focused Claude prompts for assessment');
+    console.log('🧠 Using intelligent template reasoning for assessment');
 
-    // Build comprehensive assessment prompt using full fund brain
-    const assessmentPrompt = this.buildComprehensivePrompt(applicationContent, fundBrain);
+    // Build template-based reasoning prompt
+    const templateReasoningPrompt = this.buildTemplateReasoningPrompt(applicationContent, fundBrain, fileName);
 
     const claudeResponse = await claudeService.executeTask({
-      task: 'assess_application',
-      prompt: assessmentPrompt,
+      task: 'assess_application_with_template',
+      prompt: templateReasoningPrompt,
       maxTokens: 32000,
       temperature: 0.1
     });
@@ -164,68 +164,42 @@ export class ResilientAssessmentService {
       throw new Error('Claude API call failed');
     }
 
-    // Stage 2: Extract structured data through focused queries
-    return this.extractStructuredData(claudeResponse.content, fundBrain);
+    // Parse the filled template response
+    return this.parseTemplateResponse(claudeResponse.content, fundBrain, fileName);
   }
 
   /**
-   * Stage 2: Extract structured data through multiple focused queries
+   * Parse filled template response and extract assessment data
    */
-  private async extractStructuredData(rawAssessment: string, fundBrain: any): Promise<any> {
-    console.log('📊 Extracting structured data from Claude response');
+  private parseTemplateResponse(claudeResponse: string, fundBrain: any, fileName: string): any {
+    console.log('📊 Parsing template-based assessment response');
 
-    // Get template requirements for targeted field extraction
-    const templateAnalysis = fundBrain.outputTemplatesAnalysis;
+    try {
+      // Extract the filled template and assessment data from Claude's response
+      const responseData = this.extractAssessmentFromResponse(claudeResponse);
 
-    const extractionTasks = [
-      // Basic assessment fields
-      {
-        field: 'overallScore',
-        prompt: `From this assessment, extract ONLY the overall score as a number between 0-100:\n\n${rawAssessment}`
-      },
-      {
-        field: 'strengths',
-        prompt: `From this assessment, list ONLY the main strengths mentioned (max 3):\n\n${rawAssessment}`
-      },
-      {
-        field: 'weaknesses',
-        prompt: `From this assessment, list ONLY the main weaknesses mentioned (max 3):\n\n${rawAssessment}`
-      },
-      {
-        field: 'recommendation',
-        prompt: `From this assessment, state ONLY the final recommendation (Approve/Decline/Conditional):\n\n${rawAssessment}`
+      if (responseData.filledTemplate && responseData.assessment) {
+        return {
+          rawAssessment: claudeResponse,
+          filledTemplate: responseData.filledTemplate,
+          extractedFields: {
+            overallScore: responseData.assessment.overallScore || 75,
+            strengths: responseData.assessment.strengths || [],
+            weaknesses: responseData.assessment.weaknesses || [],
+            recommendation: responseData.assessment.recommendation || 'Review Required'
+          },
+          assessmentData: responseData.assessment,
+          templateFormat: 'filled_template' // Indicates this is a filled template
+        };
+      } else {
+        throw new Error('Could not parse filled template from Claude response');
       }
-    ];
+    } catch (error) {
+      console.warn('Template parsing failed, extracting basic assessment data:', error);
 
-    // Add template-specific field extractions if we have template analysis
-    if (templateAnalysis?.placeholders) {
-      extractionTasks.push(...this.generateTemplateExtractionTasks(templateAnalysis.placeholders));
+      // Fallback: Extract basic assessment data from raw response
+      return this.extractBasicAssessmentFromResponse(claudeResponse, fileName);
     }
-
-    const extractedData: any = {
-      rawAssessment,
-      extractedFields: {}
-    };
-
-    // Execute focused extractions
-    for (const task of extractionTasks) {
-      try {
-        const response = await claudeService.executeTask({
-          task: `extract_${task.field}`,
-          prompt: task.prompt,
-          maxTokens: 200,
-          temperature: 0.0
-        });
-
-        if (response.success) {
-          extractedData.extractedFields[task.field] = this.parseExtractedField(task.field, response.content);
-        }
-      } catch (error) {
-        console.warn(`Failed to extract ${task.field}:`, error);
-      }
-    }
-
-    return extractedData;
   }
 
   private parseExtractedField(fieldName: string, content: string): any {
@@ -504,6 +478,126 @@ Be specific and reference actual content from the application. Use the fund's ac
    * Store original application content for template field extraction
    */
   private originalApplicationContent: string = '';
+
+  /**
+   * Build template-based reasoning prompt for single-stage assessment
+   */
+  private buildTemplateReasoningPrompt(applicationContent: string, fundBrain: any, fileName: string): string {
+    console.log('🧠 Building template reasoning prompt with fund intelligence');
+
+    // Get the output template structure
+    const templateContent = fundBrain.outputTemplatesAnalysis?.rawTemplateContent || '';
+    const fundName = fundBrain.fundName || 'Unknown Fund';
+
+    let prompt = `You are an expert application assessor for ${fundName}. Your task is to fill a specific assessment template using intelligent reasoning about the application content.
+
+FUND INTELLIGENCE CONTEXT:
+`;
+
+    // Add fund brain context
+    if (fundBrain.criteria?.length > 0) {
+      prompt += `\nSELECTION CRITERIA:\n`;
+      fundBrain.criteria.forEach((criterion: any, index: number) => {
+        prompt += `${index + 1}. ${criterion.name || criterion.category}: ${criterion.description || criterion.requirements}\n`;
+      });
+    }
+
+    if (fundBrain.successPatterns) {
+      prompt += `\nSUCCESSFUL APPLICATION PATTERNS:\n- Average score: ${fundBrain.successPatterns.averageScore || 85}/100\n- Common strengths: ${fundBrain.successPatterns.commonStrengths?.join(', ') || 'Clear objectives, strong evidence'}\n- Key indicators: ${fundBrain.successPatterns.keyIndicators?.join(', ') || 'Innovation, feasibility, impact'}\n`;
+    }
+
+    // Application content with reasonable limit
+    const contentLimit = 8000; // Larger limit for full context
+    const applicationText = applicationContent.length > contentLimit
+      ? applicationContent.substring(0, contentLimit) + '\n[Content truncated for length...]'
+      : applicationContent;
+
+    prompt += `\nAPPLICATION TO ASSESS (File: ${fileName}):\n${applicationText}\n\nTEMPLATE TO FILL:\n${templateContent}\n\nINSTRUCTIONS:\n1. Use INTELLIGENT REASONING to fill each field in the template\n2. For each placeholder or field, consider:\n   - What information from the application best fulfills this requirement?\n   - How does this align with the fund's selection criteria?\n   - What would an expert assessor put here based on the evidence?\n\n3. SPECIFIC FIELD REASONING:\n   - Organisation Name: Use the actual organization/company name\n   - Application Title: Use the project name/title (NOT the company name)\n   - Assessment Date: Use today's date (${new Date().toLocaleDateString()})\n   - Numbers: Extract actual figures from the application\n   - Yes/No fields: Assess based on evidence in the application\n   - Comments: Provide specific reasoning based on the application content\n\n4. PRESERVE THE EXACT TEMPLATE STRUCTURE but fill it with intelligent content\n\n5. After the filled template, provide a JSON summary:\n{\n  "overallScore": <number 0-100>,\n  "recommendation": "<Approve/Decline/Conditional>",\n  "strengths": ["<strength1>", "<strength2>", "<strength3>"],\n  "weaknesses": ["<weakness1>", "<weakness2>", "<weakness3>"]\n}\n\nFILLED TEMPLATE:\n`;
+
+    return prompt;
+  }
+
+  /**
+   * Extract assessment data from Claude's template response
+   */
+  private extractAssessmentFromResponse(claudeResponse: string): any {
+    try {
+      // Look for the JSON summary at the end of the response
+      const jsonMatch = claudeResponse.match(/\{[\s\S]*"overallScore"[\s\S]*\}/g);
+
+      let assessment = null;
+      if (jsonMatch) {
+        try {
+          assessment = JSON.parse(jsonMatch[jsonMatch.length - 1]);
+        } catch {
+          // Fallback: extract from text
+          assessment = this.extractAssessmentFromText(claudeResponse);
+        }
+      } else {
+        assessment = this.extractAssessmentFromText(claudeResponse);
+      }
+
+      // Extract the filled template (everything before the JSON summary)
+      const filledTemplate = jsonMatch
+        ? claudeResponse.replace(jsonMatch[jsonMatch.length - 1], '').trim()
+        : claudeResponse;
+
+      return {
+        filledTemplate: filledTemplate,
+        assessment: assessment
+      };
+    } catch (error) {
+      console.warn('Failed to extract assessment from response:', error);
+      return {
+        filledTemplate: claudeResponse,
+        assessment: this.extractAssessmentFromText(claudeResponse)
+      };
+    }
+  }
+
+  /**
+   * Extract basic assessment data from text response
+   */
+  private extractAssessmentFromText(text: string): any {
+    const scoreMatch = text.match(/(?:score|rating)[\:\s]*([0-9]+)/i);
+    const score = scoreMatch ? Math.min(100, Math.max(0, parseInt(scoreMatch[1]))) : 75;
+
+    // Extract recommendation
+    let recommendation = 'Review Required';
+    if (text.toLowerCase().includes('approve') && !text.toLowerCase().includes('decline')) {
+      recommendation = 'Approve';
+    } else if (text.toLowerCase().includes('decline') || text.toLowerCase().includes('reject')) {
+      recommendation = 'Decline';
+    } else if (text.toLowerCase().includes('conditional')) {
+      recommendation = 'Conditional';
+    }
+
+    return {
+      overallScore: score,
+      recommendation: recommendation,
+      strengths: ['Assessment completed with template reasoning'],
+      weaknesses: []
+    };
+  }
+
+  /**
+   * Fallback method for basic assessment extraction
+   */
+  private extractBasicAssessmentFromResponse(claudeResponse: string, fileName: string): any {
+    const assessment = this.extractAssessmentFromText(claudeResponse);
+
+    return {
+      rawAssessment: claudeResponse,
+      extractedFields: {
+        overallScore: assessment.overallScore,
+        strengths: assessment.strengths,
+        weaknesses: assessment.weaknesses,
+        recommendation: assessment.recommendation
+      },
+      assessmentData: assessment,
+      templateFormat: 'basic_assessment'
+    };
+  }
 
   /**
    * Get circuit breaker status for monitoring
