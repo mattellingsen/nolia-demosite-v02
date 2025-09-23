@@ -8,7 +8,7 @@ import { FileUpload } from "@/components/application/file-upload/file-upload-bas
 import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
 import { analyzeGoodExamplesViaAPI } from "@/lib/api-client";
 
-interface Step4Props {
+interface Step3Props {
     formData: any;
     updateFormData: (updates: any) => void;
     onNext: () => void;
@@ -27,7 +27,7 @@ interface ExampleAnalysis {
     commonStrengths: string[];
 }
 
-export const Step4GoodExamples: React.FC<Step4Props> = ({ 
+export const Step3GoodExamples: React.FC<Step3Props> = ({ 
     formData, 
     updateFormData, 
     onNext,
@@ -189,9 +189,50 @@ export const Step4GoodExamples: React.FC<Step4Props> = ({
             {/* Analysis Results */}
             {analysis && hasFiles && (
                 <div className="bg-gray-50 rounded-lg p-6 space-y-6">
+                    {/* Show warning if fallback analysis was used */}
+                    {(analysis as any).analysisMode === 'BASIC_FALLBACK' && (
+                        <div className="bg-warning-50 rounded-lg p-4 border border-warning-300 mb-6">
+                            <div className="flex items-start gap-3">
+                                <AlertCircle className="w-5 h-5 text-warning-600 mt-0.5 flex-shrink-0" />
+                                <div className="space-y-2">
+                                    <p className="text-sm font-semibold text-warning-800">
+                                        ⚠️ Limited AI Analysis - Quality May Be Reduced
+                                    </p>
+                                    <p className="text-sm text-warning-700">
+                                        {(analysis as any).analysisWarning || 'The AI analysis encountered an issue and used basic fallback processing. Your fund will still work, but the assessment quality may be reduced.'}
+                                    </p>
+                                    <p className="text-sm text-warning-700">
+                                        <strong>Recommendation:</strong> Consider re-uploading your good examples or trying different files to get full AI analysis.
+                                    </p>
+                                    <Button
+                                        size="sm"
+                                        color="warning"
+                                        onClick={() => {
+                                            // Clear analysis and re-analyze
+                                            setAnalysis(null);
+                                            if (formData.goodExamples) {
+                                                analyzeExamples(formData.goodExamples);
+                                            }
+                                        }}
+                                        className="mt-3"
+                                    >
+                                        Retry AI Analysis
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="flex items-center gap-3">
-                        <FeaturedIcon size="md" color="success" theme="light" icon={CheckCircle} />
-                        <h3 className="text-lg font-semibold text-primary">Example Analysis Complete</h3>
+                        <FeaturedIcon
+                            size="md"
+                            color={(analysis as any).analysisMode === 'BASIC_FALLBACK' ? "warning" : "success"}
+                            theme="light"
+                            icon={(analysis as any).analysisMode === 'BASIC_FALLBACK' ? AlertCircle : CheckCircle}
+                        />
+                        <h3 className="text-lg font-semibold text-primary">
+                            Example Analysis {(analysis as any).analysisMode === 'BASIC_FALLBACK' ? 'Complete (With Warnings)' : 'Complete'}
+                        </h3>
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -330,10 +371,10 @@ export const Step4GoodExamples: React.FC<Step4Props> = ({
                         iconLeading={ArrowLeft}
                         onClick={onPrevious}
                     >
-                        Back to Output Templates
+                        Back to Selection Criteria
                     </Button>
                     <div className="text-sm text-secondary">
-                        Step 4 of 5
+                        Step 3 of 4
                     </div>
                 </div>
                 
@@ -344,7 +385,7 @@ export const Step4GoodExamples: React.FC<Step4Props> = ({
                     onClick={onNext}
                     isDisabled={!hasFiles || isAnalyzing || !analysis}
                 >
-                    Continue to Test Assessment
+                    Continue to Output Templates
                 </Button>
             </div>
 

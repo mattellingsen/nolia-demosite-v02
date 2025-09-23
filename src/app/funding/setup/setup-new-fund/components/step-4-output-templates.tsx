@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { UploadCloud01, File02, ArrowRight, ArrowLeft, CheckCircle, AlertCircle, Trash01, Plus, FileHeart03 } from "@untitledui/icons";
 import { Button } from "@/components/base/buttons/button";
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
@@ -9,7 +10,7 @@ import { LoadingIndicator } from "@/components/application/loading-indicator/loa
 import { extractTextFromFile } from "@/utils/browser-document-analyzer";
 import { analyzeDocumentViaAPI } from "@/lib/api-client";
 
-interface Step3Props {
+interface Step4Props {
     formData: any;
     updateFormData: (updates: any) => void;
     onNext: () => void;
@@ -26,16 +27,27 @@ interface TemplateAnalysis {
     }[];
 }
 
-export const Step3OutputTemplates: React.FC<Step3Props> = ({ 
+export const Step4OutputTemplates: React.FC<Step4Props> = ({ 
     formData, 
     updateFormData, 
     onNext,
     onPrevious
 }) => {
+    const router = useRouter();
     const [isDragActive, setIsDragActive] = useState(false);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [analysis, setAnalysis] = useState<TemplateAnalysis | null>(null);
     const [uploadError, setUploadError] = useState<string>('');
+    
+    // Upload progress modal state
+    const [showUploadModal, setShowUploadModal] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
+    const [uploadStage, setUploadStage] = useState<'preparing' | 'uploading' | 'complete'>('preparing');
+    
+    // Debug state changes
+    useEffect(() => {
+        console.log('🔄 Modal state changed - showUploadModal:', showUploadModal);
+    }, [showUploadModal]);
 
     const analyzeTemplates = async (files: File[]) => {
         setIsAnalyzing(true);
@@ -127,6 +139,139 @@ export const Step3OutputTemplates: React.FC<Step3Props> = ({
     };
 
     const canProceed = formData.outputTemplates && formData.outputTemplates.length > 0 && !isAnalyzing && analysis;
+
+    // Handle Create Fund with modal
+    const handleCreateFund = async () => {
+        console.log('🔘 Create Fund button clicked!');
+        console.log('Current state - showUploadModal:', showUploadModal);
+        
+        try {
+            // Show upload modal immediately
+            setShowUploadModal(true);
+            setUploadStage('preparing');
+            setUploadProgress(0);
+            
+            console.log('✅ Modal state updated - showUploadModal should now be true');
+            
+            // Simulate initial preparation
+            await new Promise(resolve => setTimeout(resolve, 500));
+            setUploadProgress(10);
+            
+            // Convert files to base64 for API
+            const fileToBase64 = (file: File): Promise<string> => {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.readAsDataURL(file);
+                    reader.onload = () => {
+                        const result = reader.result as string;
+                        // Remove data:mime/type;base64, prefix
+                        const base64 = result.split(',')[1];
+                        resolve(base64);
+                    };
+                    reader.onerror = reject;
+                });
+            };
+            
+            setUploadStage('uploading');
+            setUploadProgress(20);
+            
+            // Prepare fund data
+            const fundData: any = {
+                name: formData.fundName || 'Untitled Fund',
+                description: 'AI-powered fund created through setup wizard'
+            };
+            
+            setUploadProgress(30);
+            
+            // Add application form if available
+            if (formData.applicationForm) {
+                const content = await fileToBase64(formData.applicationForm);
+                fundData.applicationFormFile = {
+                    filename: formData.applicationForm.name,
+                    mimeType: formData.applicationForm.type,
+                    fileSize: formData.applicationForm.size,
+                    content
+                };
+            }
+            
+            setUploadProgress(40);
+            
+            // Add selection criteria files
+            if (formData.selectionCriteria?.length > 0) {
+                fundData.selectionCriteriaFiles = await Promise.all(
+                    formData.selectionCriteria.map(async (file: File) => ({
+                        filename: file.name,
+                        mimeType: file.type,
+                        fileSize: file.size,
+                        content: await fileToBase64(file)
+                    }))
+                );
+            }
+            
+            setUploadProgress(60);
+            
+            // Add good examples files
+            if (formData.goodExamples?.length > 0) {
+                fundData.goodExamplesFiles = await Promise.all(
+                    formData.goodExamples.map(async (file: File) => ({
+                        filename: file.name,
+                        mimeType: file.type,
+                        fileSize: file.size,
+                        content: await fileToBase64(file)
+                    }))
+                );
+            }
+            
+            setUploadProgress(80);
+            
+            // Add output templates files
+            if (formData.outputTemplates?.length > 0) {
+                fundData.outputTemplatesFiles = await Promise.all(
+                    formData.outputTemplates.map(async (file: File) => ({
+                        filename: file.name,
+                        mimeType: file.type,
+                        fileSize: file.size,
+                        content: await fileToBase64(file)
+                    }))
+                );
+            }
+            
+            setUploadProgress(90);
+            
+            // Call async fund creation API
+            const response = await fetch('/api/funds/create-async', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(fundData),
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                console.error('Fund creation API error:', errorData);
+                throw new Error(errorData.error || 'Failed to create fund');
+            }
+
+            const result = await response.json();
+            
+            // Complete upload
+            setUploadProgress(100);
+            setUploadStage('complete');
+            
+            // Wait a moment to show completion
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            setShowUploadModal(false);
+            
+            // Navigate to fund completion page
+            router.push(`/funding/fund-created?fundId=${result.fund.id}`);
+            
+        } catch (error) {
+            console.error('Error creating fund:', error);
+            setShowUploadModal(false);
+            alert('Failed to create fund. Please try again.');
+        }
+    };
 
     /**
      * Helper functions for template analysis
@@ -537,23 +682,89 @@ export const Step3OutputTemplates: React.FC<Step3Props> = ({
                     iconLeading={ArrowLeft}
                     onClick={onPrevious}
                 >
-                    Back to Selection Criteria
+                    Back to Good Examples
                 </Button>
                 
                 <div className="text-sm text-secondary">
-                    Step 3 of 5
+                    Step 4 of 4
                 </div>
                 
                 <Button
                     size="lg"
                     color="primary"
                     iconTrailing={ArrowRight}
-                    onClick={onNext}
+                    onClick={handleCreateFund}
                     isDisabled={!canProceed}
                 >
-                    Continue to Good Examples
+                    Create Fund
                 </Button>
             </div>
+
+            {/* Upload Progress Modal */}
+            {(() => {
+                console.log('🔍 Modal render check - showUploadModal:', showUploadModal);
+                return null;
+            })()}
+            {showUploadModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-8 max-w-md mx-auto shadow-xl">
+                        <div className="text-center space-y-6">
+                            {/* Icon */}
+                            <div className="mx-auto">
+                                {uploadStage === 'preparing' && (
+                                    <FeaturedIcon size="xl" color="brand" theme="light" icon={UploadCloud01} />
+                                )}
+                                {uploadStage === 'uploading' && (
+                                    <FeaturedIcon size="xl" color="warning" theme="light" icon={File02} />
+                                )}
+                                {uploadStage === 'complete' && (
+                                    <FeaturedIcon size="xl" color="success" theme="light" icon={CheckCircle} />
+                                )}
+                            </div>
+
+                            {/* Title and Description */}
+                            <div>
+                                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                                    {uploadStage === 'preparing' && 'Preparing Files'}
+                                    {uploadStage === 'uploading' && 'Creating Fund'}
+                                    {uploadStage === 'complete' && 'Fund Created Successfully!'}
+                                </h3>
+                                <p className="text-sm text-gray-600">
+                                    {uploadStage === 'preparing' && 'Getting your files ready for upload...'}
+                                    {uploadStage === 'uploading' && 'Processing your documents and setting up your AI-powered fund...'}
+                                    {uploadStage === 'complete' && 'Your fund has been created and is ready for applications!'}
+                                </p>
+                            </div>
+
+                            {/* Progress Bar */}
+                            <div className="w-full">
+                                <div className="flex justify-between text-sm text-gray-600 mb-2">
+                                    <span>Progress</span>
+                                    <span>{uploadProgress}%</span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-2">
+                                    <div 
+                                        className={`h-2 rounded-full transition-all duration-500 ${
+                                            uploadStage === 'complete' ? 'bg-green-500' : 'bg-blue-500'
+                                        }`}
+                                        style={{ width: `${uploadProgress}%` }}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Loading indicator for active stages */}
+                            {uploadStage !== 'complete' && (
+                                <div className="flex items-center justify-center">
+                                    <LoadingIndicator size="sm" />
+                                    <span className="ml-2 text-sm text-gray-600">
+                                        {uploadStage === 'preparing' ? 'Preparing...' : 'Creating fund...'}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
