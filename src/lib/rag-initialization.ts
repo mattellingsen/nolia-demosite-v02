@@ -49,10 +49,6 @@ export async function initializeRAGSystem(): Promise<{
   try {
     const bedrockClient = new BedrockRuntimeClient({
       region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',
-      credentials: {
-        accessKeyId: process.env.NOLIA_AWS_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID!,
-        secretAccessKey: process.env.NOLIA_AWS_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY!,
-      },
     });
 
     // Simple connectivity test (list models is not available, so we'll test with a minimal invoke)
@@ -119,10 +115,6 @@ export async function ragHealthCheck(): Promise<{
   try {
     const bedrockClient = new BedrockRuntimeClient({
       region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',
-      credentials: {
-        accessKeyId: process.env.NOLIA_AWS_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID!,
-        secretAccessKey: process.env.NOLIA_AWS_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY!,
-      },
     });
     services.bedrock = 'up'; // If client creation succeeds, consider it up
   } catch (error) {
@@ -178,7 +170,7 @@ export function getRAGConfig(): {
   return {
     enabled: Boolean(
       process.env.OPENSEARCH_ENDPOINT &&
-      (process.env.NOLIA_AWS_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID) &&
+      process.env.AWS_ACCESS_KEY_ID &&
       process.env.AWS_SECRET_ACCESS_KEY
     ),
     services: {
