@@ -137,7 +137,7 @@ async function extractTextFromS3Document(s3Key: string): Promise<string> {
     // Download from S3
     const { S3Client, GetObjectCommand } = await import('@aws-sdk/client-s3');
     const s3Client = new S3Client({
-      region: process.env.AWS_REGION || 'us-east-1',
+      region: process.env.AWS_REGION || 'ap-southeast-2',
       // Use explicit credentials if available (local dev), otherwise use IAM Role (production)
       ...(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY ? {
         credentials: {

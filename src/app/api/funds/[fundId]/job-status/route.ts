@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BackgroundJobService } from '@/lib/background-job-service';
+import { prisma } from '@/lib/database-s3';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { fundId: string } }
+  { params }: { params: Promise<{ fundId: string }> }
 ) {
   try {
-    const { fundId } = params;
+    const { fundId } = await params;
     
     if (!fundId) {
       return NextResponse.json(
@@ -18,6 +19,23 @@ export async function GET(
     // Get all jobs for this fund
     const jobs = await BackgroundJobService.getFundJobs(fundId);
     
+    // Get actual document counts by type from database
+    const documentCounts = await prisma.fundDocument.groupBy({
+      by: ['documentType'],
+      where: { fundId },
+      _count: {
+        id: true
+      }
+    });
+    
+    // Convert to a more usable format
+    const documentsUploaded = {
+      applicationForm: documentCounts.find(d => d.documentType === 'APPLICATION_FORM')?._count.id > 0 || false,
+      selectionCriteria: documentCounts.find(d => d.documentType === 'SELECTION_CRITERIA')?._count.id || 0,
+      goodExamples: documentCounts.find(d => d.documentType === 'GOOD_EXAMPLES')?._count.id || 0,
+      outputTemplates: documentCounts.find(d => d.documentType === 'OUTPUT_TEMPLATES')?._count.id || 0,
+    };
+    
     // Get overall status
     const ragJob = jobs.find(job => job.type === 'RAG_PROCESSING');
     const overallStatus = getOverallStatus(jobs);
@@ -25,6 +43,7 @@ export async function GET(
     return NextResponse.json({
       success: true,
       fundId,
+      documentsUploaded,
       jobs: jobs.map(job => ({
         id: job.id,
         type: job.type,

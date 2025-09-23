@@ -8,10 +8,27 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
+// Configure database URL with connection pooling parameters
+const getDatabaseUrl = () => {
+  const baseUrl = process.env.DATABASE_URL;
+  if (!baseUrl) throw new Error('DATABASE_URL is required');
+
+  // Add connection pooling parameters for better performance during document processing
+  const url = new URL(baseUrl);
+  url.searchParams.set('connection_limit', '50');
+  url.searchParams.set('pool_timeout', '20');
+  return url.toString();
+};
+
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+    datasources: {
+      db: {
+        url: getDatabaseUrl(),
+      },
+    },
   });
 
 // Prevent multiple instances in development
@@ -19,7 +36,7 @@ if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
 // S3 client configuration - force IAM Role in production, explicit credentials in development
 const s3Client = new S3Client({
-  region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'us-east-1',
+  region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',
   // Only use explicit credentials in development when they are intentionally set
   ...(process.env.NODE_ENV === 'development' && 
       process.env.AWS_ACCESS_KEY_ID && 
@@ -34,7 +51,7 @@ const s3Client = new S3Client({
   }),
 });
 
-const S3_BUCKET = process.env.S3_BUCKET_DOCUMENTS || 'nolia-funding-documents-599065966827';
+const S3_BUCKET = process.env.S3_BUCKET_DOCUMENTS || 'nolia-funding-documents-ap-southeast-2-599065966827';
 
 /**
  * Upload file to S3 and return the key

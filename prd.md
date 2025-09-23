@@ -118,15 +118,16 @@ Maria applies for government grants. She spends 40+ hours monthly on application
 - Cross-domain insights
 - White-label capability
 
-### Technical Approach (Revised for Achievability)
+### Technical Approach (Serverless Architecture)
 
 **MVP Architecture:**
-- **Modular Monolith:** Single deployable unit with clear module boundaries
+- **Serverless Monolith:** Next.js application with API routes and background functions
 - **Database:** PostgreSQL with logical separation between domains
-- **Storage:** S3 for documents with CDN for performance
-- **Authentication:** Auth0 for rapid implementation
+- **Storage:** S3 for documents with CloudFront CDN
+- **AI Processing:** AWS Bedrock with Claude API integration
+- **Background Jobs:** SQS queues with Lambda processing functions
 - **Frontend:** React with Untitled UI components
-- **Deployment:** Docker containers on AWS ECS
+- **Deployment:** AWS Amplify for frontend, serverless functions for API
 
 **Future Architecture (Post-MVP):**
 - Gradual extraction to microservices based on actual bottlenecks
@@ -179,27 +180,32 @@ Maria applies for government grants. She spends 40+ hours monthly on application
 ### MVP Technology Stack
 
 **Frontend:**
-- React 18.2 with TypeScript
+- Next.js 15 with React 18.2 and TypeScript
 - Untitled UI React Components
 - Tailwind CSS
 - React Hook Form
-- Deployed as static site on CloudFront
+- Deployed on AWS Amplify
 
-**Backend:**
-- Node.js with Express
+**Backend (Serverless):**
+- Next.js API Routes (serverless functions)
 - TypeScript
 - Prisma ORM
-- Bull for job queues
-- Deployed on AWS ECS
+- AWS SQS for job queues
+- AWS Lambda for background processing
 
 **Data & Storage:**
 - PostgreSQL on AWS RDS
-- Redis for caching and sessions
 - S3 for document storage
-- CloudFront CDN
+- AWS OpenSearch for RAG/vector search
+- CloudFront CDN via Amplify
+
+**AWS Services:**
+- AWS Bedrock (Claude API) for AI processing
+- AWS SQS for job queuing
+- AWS Lambda for background functions
+- AWS OpenSearch for RAG knowledge base
 
 **Third-Party Services:**
-- Auth0 for authentication
 - Stripe for payments
 - SendGrid for email
 - Sentry for error tracking
@@ -238,7 +244,7 @@ Maria applies for government grants. She spends 40+ hours monthly on application
 
 ### Deployment Strategy
 
-**MVP:** Single-region deployment (US-East)
+**MVP:** Single-region deployment (AP-Southeast-2)
 **Phase 2:** Multi-region with data residency options
 **Disaster Recovery:** 4-hour RTO, 1-hour RPO
 

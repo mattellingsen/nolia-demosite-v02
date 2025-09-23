@@ -1,0 +1,89 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-1.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Fund {
+  id                        String          @id @default(uuid())
+  name                      String
+  description               String?
+  status                    FundStatus      @default(DRAFT)
+  createdAt                 DateTime        @default(now())
+  updatedAt                 DateTime        @updatedAt
+  applicationFormAnalysis   Json?
+  selectionCriteriaAnalysis Json?
+  goodExamplesAnalysis      Json?
+  brainAssembledAt          DateTime?
+  brainVersion              Int             @default(1)
+  fundBrain                 Json?
+  backgroundJobs            BackgroundJob[]
+  documents                 FundDocument[]
+
+  @@map("funds")
+}
+
+model FundDocument {
+  id           String       @id @default(uuid())
+  fundId       String
+  documentType DocumentType
+  filename     String
+  mimeType     String
+  fileSize     Int
+  s3Key        String
+  uploadedAt   DateTime     @default(now())
+  fund         Fund         @relation(fields: [fundId], references: [id], onDelete: Cascade)
+
+  @@map("fund_documents")
+}
+
+model BackgroundJob {
+  id                 String    @id @default(uuid())
+  fundId             String
+  type               JobType
+  status             JobStatus @default(PENDING)
+  progress           Int       @default(0)
+  totalDocuments     Int       @default(0)
+  processedDocuments Int       @default(0)
+  metadata           Json      @default("{}")
+  errorMessage       String?
+  startedAt          DateTime?
+  completedAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  fund               Fund      @relation(fields: [fundId], references: [id], onDelete: Cascade)
+
+  @@index([fundId])
+  @@index([status])
+  @@index([type])
+  @@map("background_jobs")
+}
+
+enum DocumentType {
+  APPLICATION_FORM
+  SELECTION_CRITERIA
+  GOOD_EXAMPLES
+  OUTPUT_TEMPLATES
+}
+
+enum FundStatus {
+  DRAFT
+  ACTIVE
+  CLOSED
+}
+
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum JobType {
+  RAG_PROCESSING
+  DOCUMENT_ANALYSIS
+}

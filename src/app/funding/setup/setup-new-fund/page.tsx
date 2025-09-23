@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowLeft } from "@untitledui/icons";
 import { SidebarNavigationSlim } from "@/components/application/app-navigation/sidebar-navigation/sidebar-slim";
 import { Button } from "@/components/base/buttons/button";
@@ -33,11 +34,10 @@ import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-ic
 
 import { Step1UploadForm } from "./components/step-1-upload-form";
 import { Step2SelectionCriteria } from "./components/step-2-selection-criteria";
-import { Step3OutputTemplates } from "./components/step-3-output-templates";
-import { Step4GoodExamples } from "./components/step-4-good-examples";
-import { Step5TestAssessment } from "./components/step-5-test-assessment";
+import { Step3GoodExamples } from "./components/step-3-good-examples";
+import { Step4OutputTemplates } from "./components/step-4-output-templates";
 
-type FormBuilderStep = 'step1' | 'step2' | 'step3' | 'step4' | 'step5';
+type FormBuilderStep = 'step1' | 'step2' | 'step3' | 'step4';
 
 interface FormBuilderState {
     fundName?: string;
@@ -61,6 +61,7 @@ interface FormBuilderState {
 }
 
 const SetupNewFundPage = () => {
+    const router = useRouter();
     const [currentStep, setCurrentStep] = useState<FormBuilderStep>('step1');
     const [formData, setFormData] = useState<FormBuilderState>({
         selectionCriteria: [],
@@ -86,27 +87,21 @@ const SetupNewFundPage = () => {
             icon: FileCheck02
         },
         {
-            title: 'Output Templates',
-            description: 'Upload output templates',
-            status: getCurrentStepStatus('step3'),
-            icon: File02
-        },
-        {
             title: 'Good Examples',
             description: 'Upload example applications',
-            status: getCurrentStepStatus('step4'),
+            status: getCurrentStepStatus('step3'),
             icon: Target01
         },
         {
-            title: 'Test Assessment',
-            description: 'Test fund assessment',
-            status: getCurrentStepStatus('step5'),
-            icon: Settings01
+            title: 'Output Templates',
+            description: 'Upload output templates',
+            status: getCurrentStepStatus('step4'),
+            icon: File02
         }
     ] as const;
 
     function getCurrentStepStatus(step: string) {
-        const stepOrder = ['step1', 'step2', 'step3', 'step4', 'step5'];
+        const stepOrder = ['step1', 'step2', 'step3', 'step4'];
         const currentIndex = stepOrder.indexOf(currentStep);
         const stepIndex = stepOrder.indexOf(step);
         
@@ -137,7 +132,7 @@ const SetupNewFundPage = () => {
     };
 
     const handleNextStep = () => {
-        const stepOrder: FormBuilderStep[] = ['step1', 'step2', 'step3', 'step4', 'step5'];
+        const stepOrder: FormBuilderStep[] = ['step1', 'step2', 'step3', 'step4'];
         const currentIndex = stepOrder.indexOf(currentStep);
         if (currentIndex < stepOrder.length - 1) {
             setCurrentStep(stepOrder[currentIndex + 1]);
@@ -145,10 +140,104 @@ const SetupNewFundPage = () => {
     };
 
     const handlePreviousStep = () => {
-        const stepOrder: FormBuilderStep[] = ['step1', 'step2', 'step3', 'step4', 'step5'];
+        const stepOrder: FormBuilderStep[] = ['step1', 'step2', 'step3', 'step4'];
         const currentIndex = stepOrder.indexOf(currentStep);
         if (currentIndex > 0) {
             setCurrentStep(stepOrder[currentIndex - 1]);
+        }
+    };
+
+    const handleCreateFund = async () => {
+        try {
+            // Convert files to base64 for API
+            const fileToBase64 = (file: File): Promise<string> => {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.readAsDataURL(file);
+                    reader.onload = () => {
+                        const result = reader.result as string;
+                        // Remove data:mime/type;base64, prefix
+                        const base64 = result.split(',')[1];
+                        resolve(base64);
+                    };
+                    reader.onerror = reject;
+                });
+            };
+
+            // Prepare fund data
+            const fundData: any = {
+                name: formData.fundName || 'Untitled Fund',
+                description: 'AI-powered fund created through setup wizard'
+            };
+
+            // Add application form if available
+            if (formData.applicationForm) {
+                const content = await fileToBase64(formData.applicationForm);
+                fundData.applicationFormFile = {
+                    filename: formData.applicationForm.name,
+                    mimeType: formData.applicationForm.type,
+                    fileSize: formData.applicationForm.size,
+                    content
+                };
+            }
+
+            // Add selection criteria files
+            if (formData.selectionCriteria?.length > 0) {
+                fundData.selectionCriteriaFiles = await Promise.all(
+                    formData.selectionCriteria.map(async (file: File) => ({
+                        filename: file.name,
+                        mimeType: file.type,
+                        fileSize: file.size,
+                        content: await fileToBase64(file)
+                    }))
+                );
+            }
+
+            // Add good examples files
+            if (formData.goodExamples?.length > 0) {
+                fundData.goodExamplesFiles = await Promise.all(
+                    formData.goodExamples.map(async (file: File) => ({
+                        filename: file.name,
+                        mimeType: file.type,
+                        fileSize: file.size,
+                        content: await fileToBase64(file)
+                    }))
+                );
+            }
+
+            // Add output templates files
+            if (formData.outputTemplates?.length > 0) {
+                fundData.outputTemplatesFiles = await Promise.all(
+                    formData.outputTemplates.map(async (file: File) => ({
+                        filename: file.name,
+                        mimeType: file.type,
+                        fileSize: file.size,
+                        content: await fileToBase64(file)
+                    }))
+                );
+            }
+
+            // Call async fund creation API
+            const response = await fetch('/api/funds/create-async', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(fundData),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to create fund');
+            }
+
+            const result = await response.json();
+            
+            // Redirect to fund completion page
+            router.push(`/funding/fund-created?fundId=${result.fund.id}`);
+
+        } catch (error) {
+            console.error('Error creating fund:', error);
+            alert('Failed to create fund. Please try again.');
         }
     };
 
@@ -175,7 +264,7 @@ const SetupNewFundPage = () => {
             
             case 'step3':
                 return (
-                    <Step3OutputTemplates
+                    <Step3GoodExamples
                         formData={formData}
                         updateFormData={updateFormData}
                         onNext={handleNextStep}
@@ -185,20 +274,10 @@ const SetupNewFundPage = () => {
             
             case 'step4':
                 return (
-                    <Step4GoodExamples
+                    <Step4OutputTemplates
                         formData={formData}
                         updateFormData={updateFormData}
-                        onNext={handleNextStep}
-                        onPrevious={handlePreviousStep}
-                    />
-                );
-            
-            case 'step5':
-                return (
-                    <Step5TestAssessment
-                        formData={formData}
-                        updateFormData={updateFormData}
-                        onNext={() => {}} // No next step - this is the final step
+                        onNext={handleCreateFund} // Create fund when completing final step
                         onPrevious={handlePreviousStep}
                     />
                 );

@@ -5,7 +5,7 @@ export async function GET(request: NextRequest) {
     try {
         console.log('🧪 Testing Bedrock access...');
         
-        // Initialize Bedrock client (same as in claude-document-reasoner.ts)
+        // Initialize Bedrock client (same configuration as claude-service)
         const bedrock = new BedrockRuntimeClient({
             region: process.env.AWS_REGION || 'ap-southeast-2'
         });

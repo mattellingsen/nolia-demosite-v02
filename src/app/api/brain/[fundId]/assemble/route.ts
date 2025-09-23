@@ -14,7 +14,7 @@ interface RouteParams {
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const { fundId } = params;
+    const { fundId } = await params;
 
     if (!fundId) {
       return NextResponse.json({
@@ -53,11 +53,26 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       }, { status: 400 });
     }
 
-    // Verify we have the necessary analyses
-    if (!fund.applicationFormAnalysis || !fund.selectionCriteriaAnalysis || !fund.goodExamplesAnalysis) {
+    // Verify we have the necessary analyses (legacy compatibility for outputTemplatesAnalysis)
+    const requiredAnalyses = [
+      { field: fund.applicationFormAnalysis, name: 'applicationForm' },
+      { field: fund.selectionCriteriaAnalysis, name: 'selectionCriteria' },
+      { field: fund.goodExamplesAnalysis, name: 'goodExamples' }
+    ];
+
+    const missing = requiredAnalyses.filter(analysis => !analysis.field).map(analysis => analysis.name);
+    const hasOutputTemplate = fund.outputTemplatesAnalysis !== null && fund.outputTemplatesAnalysis !== undefined;
+
+    if (missing.length > 0) {
       return NextResponse.json({
-        error: 'Missing required document analyses'
+        error: 'Missing required document analyses',
+        missingAnalyses: missing
       }, { status: 400 });
+    }
+
+    // Warn about legacy funds without output templates
+    if (!hasOutputTemplate) {
+      console.log(`⚠️ Fund ${fund.name} is a legacy fund without output templates - brain will use standard formatting`);
     }
 
     // Assemble the brain from all analyses
@@ -65,6 +80,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       applicationFormAnalysis: fund.applicationFormAnalysis,
       selectionCriteriaAnalysis: fund.selectionCriteriaAnalysis,
       goodExamplesAnalysis: fund.goodExamplesAnalysis,
+      outputTemplatesAnalysis: hasOutputTemplate ? fund.outputTemplatesAnalysis : null,
       fundInfo: {
         id: fund.id,
         name: fund.name,
@@ -82,24 +98,64 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       }
     });
 
-    // Create brain assembly job record for tracking
-    const brainJob = await prisma.backgroundJob.create({
-      data: {
+    // Check if there's already a RAG_PROCESSING job for this fund
+    const existingRagJob = await prisma.backgroundJob.findFirst({
+      where: {
         fundId,
         type: 'RAG_PROCESSING',
-        status: 'COMPLETED',
-        progress: 100,
-        totalDocuments: 1,
-        processedDocuments: 1,
-        metadata: {
-          brainVersion: updatedFund.brainVersion,
-          assembledAt: new Date().toISOString(),
-          componentsUsed: ['applicationForm', 'selectionCriteria', 'goodExamples']
-        },
-        startedAt: new Date(),
-        completedAt: new Date(),
+        status: {
+          in: ['PENDING', 'PROCESSING', 'COMPLETED']
+        }
       }
     });
+
+    let brainJob;
+    if (existingRagJob) {
+      // Update existing job to completed
+      brainJob = await prisma.backgroundJob.update({
+        where: { id: existingRagJob.id },
+        data: {
+          status: 'COMPLETED',
+          progress: 100,
+          processedDocuments: 1,
+          metadata: {
+            ...(existingRagJob.metadata as any),
+            brainVersion: updatedFund.brainVersion,
+            assembledAt: new Date().toISOString(),
+            componentsUsed: ['applicationForm', 'selectionCriteria', 'goodExamples']
+          },
+          completedAt: new Date(),
+        }
+      });
+      console.log(`Updated existing RAG_PROCESSING job ${existingRagJob.id} to completed`);
+    } else {
+      // Create new brain assembly job record for tracking
+      brainJob = await prisma.backgroundJob.create({
+        data: {
+          fundId,
+          type: 'RAG_PROCESSING',
+          status: 'COMPLETED',
+          progress: 100,
+          totalDocuments: 1,
+          processedDocuments: 1,
+          metadata: {
+            brainVersion: updatedFund.brainVersion,
+            assembledAt: new Date().toISOString(),
+            componentsUsed: ['applicationForm', 'selectionCriteria', 'goodExamples']
+          },
+          startedAt: new Date(),
+          completedAt: new Date(),
+        }
+      });
+      console.log(`Created new RAG_PROCESSING job ${brainJob.id}`);
+    }
+
+    // Update fund status to ACTIVE when brain assembly is complete
+    await prisma.fund.update({
+      where: { id: fundId },
+      data: { status: 'ACTIVE' }
+    });
+    console.log(`Fund ${fundId} status updated to ACTIVE`);
 
     return NextResponse.json({
       success: true,
@@ -126,7 +182,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const { fundId } = params;
+    const { fundId } = await params;
 
     const fund = await prisma.fund.findUnique({
       where: { id: fundId },
@@ -139,6 +195,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         applicationFormAnalysis: true,
         selectionCriteriaAnalysis: true,
         goodExamplesAnalysis: true,
+        outputTemplatesAnalysis: true,
       }
     });
 
@@ -155,9 +212,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       canAssemble: !!(fund.applicationFormAnalysis && fund.selectionCriteriaAnalysis && fund.goodExamplesAnalysis),
       missingComponents: [
         !fund.applicationFormAnalysis && 'applicationForm',
-        !fund.selectionCriteriaAnalysis && 'selectionCriteria', 
+        !fund.selectionCriteriaAnalysis && 'selectionCriteria',
         !fund.goodExamplesAnalysis && 'goodExamples'
-      ].filter(Boolean)
+      ].filter(Boolean),
+      hasOutputTemplate: !!(fund.outputTemplatesAnalysis)
     };
 
     return NextResponse.json({
@@ -182,9 +240,10 @@ function assembleFundBrain(data: {
   applicationFormAnalysis: any;
   selectionCriteriaAnalysis: any;
   goodExamplesAnalysis: any;
+  outputTemplatesAnalysis: any | null;
   fundInfo: { id: string; name: string; description?: string };
 }) {
-  const { applicationFormAnalysis, selectionCriteriaAnalysis, goodExamplesAnalysis, fundInfo } = data;
+  const { applicationFormAnalysis, selectionCriteriaAnalysis, goodExamplesAnalysis, outputTemplatesAnalysis, fundInfo } = data;
 
   return {
     // Metadata
@@ -223,6 +282,35 @@ function assembleFundBrain(data: {
       keyIndicators: goodExamplesAnalysis.keyIndicators || [],
       successFactors: goodExamplesAnalysis.successFactors || [],
     },
+
+    // Output template configuration for dynamic result formatting (if available)
+    ...(outputTemplatesAnalysis ? {
+      outputTemplate: {
+        templateType: outputTemplatesAnalysis.templateType || 'structured_report',
+        format: outputTemplatesAnalysis.format || 'structured_report',
+        structure: {
+          sections: outputTemplatesAnalysis.sections || outputTemplatesAnalysis.structure?.sections || ["Overview", "Scores", "Feedback", "Recommendations"],
+          fields: outputTemplatesAnalysis.structure?.fields || [],
+          layout: outputTemplatesAnalysis.structure?.layout || "vertical"
+        },
+        mappingInstructions: outputTemplatesAnalysis.mappingInstructions || {
+          overallScore: "Main score section",
+          categoryScores: "Individual scores section",
+          feedback: "Feedback section",
+          recommendations: "Recommendations section",
+          summary: "Executive summary"
+        },
+        formattingRules: outputTemplatesAnalysis.formattingRules || {
+          scoreFormat: "0-100",
+          textStyle: "formal",
+          lengthGuidelines: "detailed"
+        },
+        placeholders: outputTemplatesAnalysis.placeholders || [],
+        templateSample: outputTemplatesAnalysis.templateSample || "",
+        originalContent: outputTemplatesAnalysis.originalContent || "",
+        filename: outputTemplatesAnalysis.filename || "output_template.docx"
+      }
+    } : {}),
 
     // Assessment engine configuration
     assessmentEngine: {

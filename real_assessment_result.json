@@ -1,0 +1,17 @@
+{
+  "success": true,
+  "analysis": {
+    "questionsFound": 7,
+    "fieldTypes": [
+      "Text Input",
+      "Number Input",
+      "Textarea"
+    ],
+    "sections": [],
+    "complexity": "Simple",
+    "textContent": "Application for Student Experience Grant\n\nOrganisation Details:\nCompany Name: TechFlow Solutions Ltd\nContact Email: info@techflow.co.nz\nBusiness Type: Limited Company\n\nProject Information:\nWe are developing an innovative IoT platform for smart agriculture monitoring. Our R&D activities focus on sensor networks and machine learning algorithms for crop optimization.\n\nRecent R&D (Last 12 months):\n- Developed prototype environmental sensors\n- Created initial ML models for weather prediction\n- Tested field monitoring systems with local farms\n\nPlanned R&D (Next 12 months):\n- Scale sensor deployment across multiple farms\n- Enhance predictive algorithms\n- Develop mobile application interface\n\nStudent Requirements:\nNumber of Students: 2\nTotal Funding Requested: $22,240\nProject Duration: 12 months\n\nStudent Exposure:\nStudents will work directly with our engineering team on IoT development, machine learning implementation, and field testing of agricultural monitoring systems.\n\nProfessional Development:\nMentorship from senior engineers, technical training sessions, exposure to full product development lifecycle from prototype to deployment.\n\nBusiness Benefit:\nStudents will accelerate our AI capabilities and provide fresh perspectives on agricultural technology solutions.",
+    "wordCount": 165,
+    "extractedSections": [],
+    "analysisMode": "PATTERN_MATCHING"
+  }
+}

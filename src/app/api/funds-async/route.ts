@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     // Collect files for background processing
     const filesToProcess: Array<{
       file: File;
-      type: 'APPLICATION_FORM' | 'SELECTION_CRITERIA' | 'GOOD_EXAMPLES';
+      type: 'APPLICATION_FORM' | 'SELECTION_CRITERIA' | 'GOOD_EXAMPLES' | 'OUTPUT_TEMPLATES';
     }> = [];
 
     // Application form

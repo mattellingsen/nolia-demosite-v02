@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { analyzeApplicationForm } from '@/utils/server-document-analyzer';
+import { prisma } from '@/lib/database-s3';
 
 interface AssessmentResult {
     score: number;
@@ -15,7 +16,7 @@ interface AssessmentResult {
 export async function POST(request: NextRequest) {
     try {
         const formData = await request.formData();
-        
+
         // Get the test application file
         const file = formData.get('application') as File;
         if (!file) {
@@ -24,10 +25,16 @@ export async function POST(request: NextRequest) {
                 { status: 400 }
             );
         }
-        
-        // Get the selection criteria (passed as context)
+
+        // Check if we have a fund ID (new approach) or criteria (legacy)
+        const fundId = formData.get('fundId') as string;
         const criteriaJson = formData.get('criteria') as string;
         const criteria = criteriaJson ? JSON.parse(criteriaJson) : null;
+
+        // If fundId is provided, use the universal template system
+        if (fundId) {
+            return await handleFundBasedAssessment(file, fundId);
+        }
         
         console.log(`🔍 Assessing application: ${file.name}`);
         
@@ -41,76 +48,10 @@ export async function POST(request: NextRequest) {
             );
         }
         
-        // Try Claude assessment first with timeout protection
-        let assessment;
-        try {
-            const { assessApplicationWithClaude } = await import('@/utils/claude-document-reasoner');
-            const { extractTextFromFile } = await import('@/utils/server-document-analyzer');
-            
-            // Get application content for Claude analysis
-            const applicationContent = await extractTextFromFile(file);
-            
-            // Get good examples data if available
-            const goodExamplesJson = formData.get('goodExamples') as string;
-            const goodExamplesData = goodExamplesJson ? JSON.parse(goodExamplesJson) : null;
-            
-            console.log('🎯 Using Claude AI reasoning for assessment with timeout protection');
-            
-            // Add timeout protection to prevent 504 errors
-            const timeoutPromise = new Promise<never>((_, reject) => {
-                setTimeout(() => reject(new Error('Claude assessment timeout')), 25000);
-            });
-            
-            const assessmentPromise = assessApplicationWithClaude(
-                applicationContent,
-                file.name,
-                criteria,
-                goodExamplesData
-            );
-            
-            const claudeAssessment = await Promise.race([assessmentPromise, timeoutPromise]);
-            
-            // Convert Claude assessment to expected format
-            assessment = {
-                score: claudeAssessment.overallScore,
-                innovation: claudeAssessment.categoryScores.innovation,
-                financial: claudeAssessment.categoryScores.financial,
-                team: claudeAssessment.categoryScores.team,
-                market: claudeAssessment.categoryScores.market,
-                feedback: claudeAssessment.detailedFeedback,
-                strengths: claudeAssessment.strengths,
-                weaknesses: claudeAssessment.weaknesses,
-                analysisMode: 'CLAUDE_AI_REASONING',
-                
-                // Enhanced Claude data
-                criteriaAlignment: claudeAssessment.criteriaAlignment,
-                recommendation: claudeAssessment.recommendation,
-                categoryScores: claudeAssessment.categoryScores
-            };
-            
-            console.log(`✅ Claude assessment complete: ${claudeAssessment.overallScore}% (${claudeAssessment.recommendation.decision})`);
-            
-        } catch (claudeError) {
-            const errorMessage = claudeError instanceof Error ? claudeError.message : String(claudeError);
-            console.log('🤖 Claude assessment failed, using basic evaluation:', {
-                error: errorMessage
-            });
-            
-            // Check if this was a timeout specifically
-            if (errorMessage.includes('Claude assessment timeout')) {
-                // Return timeout error instead of fallback scores
-                return NextResponse.json({
-                    error: 'Claude assessment timed out',
-                    errorType: 'TIMEOUT',
-                    message: 'The AI assessment took too long to complete. This may be due to a complex document or temporary service issues. Please try again or use a different test application.'
-                }, { status: 408 });
-            }
-            
-            // Fallback to basic assessment for other errors
-            console.log('📋 Using basic pattern matching for assessment');
-            assessment = evaluateApplication(analysis, criteria);
-            assessment.analysisMode = 'BASIC_FALLBACK';
-        }
+        // Use basic assessment for testing (simplified approach)
+        console.log('📋 Using basic pattern matching for test assessment');
+        const assessment = evaluateApplication(analysis, criteria);
+        assessment.analysisMode = 'BASIC_FALLBACK';
         
         console.log(`✅ Assessment complete for ${file.name}: Score ${assessment.score}`);
         
@@ -163,11 +104,11 @@ function evaluateApplication(analysis: any, criteria: any): AssessmentResult {
     }
     
     // Check for key sections that indicate quality
-    const sectionNames = analysis.sections.map(s => s.toLowerCase());
+    const sectionNames = analysis.sections.map((s: any) => s.toLowerCase());
     
     // Innovation score (check for innovation-related content)
     let innovationScore = 70;
-    if (sectionNames.some(s => s.includes('innovation') || s.includes('novel') || s.includes('unique'))) {
+    if (sectionNames.some((s: string) => s.includes('innovation') || s.includes('novel') || s.includes('unique'))) {
         innovationScore += 15;
         strengths.push('Clear innovation strategy presented');
     }
@@ -177,7 +118,7 @@ function evaluateApplication(analysis: any, criteria: any): AssessmentResult {
     
     // Financial score (check for budget/financial content)
     let financialScore = 65;
-    if (sectionNames.some(s => s.includes('budget') || s.includes('financial') || s.includes('cost'))) {
+    if (sectionNames.some((s: string) => s.includes('budget') || s.includes('financial') || s.includes('cost'))) {
         financialScore += 20;
         strengths.push('Comprehensive budget and financial planning');
     } else {
@@ -186,21 +127,21 @@ function evaluateApplication(analysis: any, criteria: any): AssessmentResult {
     
     // Team score (check for team/experience content)
     let teamScore = 70;
-    if (sectionNames.some(s => s.includes('team') || s.includes('experience') || s.includes('qualification'))) {
+    if (sectionNames.some((s: string) => s.includes('team') || s.includes('experience') || s.includes('qualification'))) {
         teamScore += 15;
         strengths.push('Strong team credentials and experience');
     }
-    if (sectionNames.some(s => s.includes('partner') || s.includes('collaboration'))) {
+    if (sectionNames.some((s: string) => s.includes('partner') || s.includes('collaboration'))) {
         teamScore += 10;
     }
     
     // Market score (check for market/impact content)
     let marketScore = 68;
-    if (sectionNames.some(s => s.includes('market') || s.includes('impact') || s.includes('outcome'))) {
+    if (sectionNames.some((s: string) => s.includes('market') || s.includes('impact') || s.includes('outcome'))) {
         marketScore += 17;
         strengths.push('Clear market understanding and impact metrics');
     }
-    if (sectionNames.some(s => s.includes('competitor') || s.includes('analysis'))) {
+    if (sectionNames.some((s: string) => s.includes('competitor') || s.includes('analysis'))) {
         marketScore += 8;
     }
     
@@ -248,7 +189,7 @@ function evaluateApplication(analysis: any, criteria: any): AssessmentResult {
         if (analysis.sections.length < 6) {
             weaknesses.push('Several required sections appear to be incomplete');
         }
-        if (!sectionNames.some(s => s.includes('timeline') || s.includes('milestone'))) {
+        if (!sectionNames.some((s: string) => s.includes('timeline') || s.includes('milestone'))) {
             weaknesses.push('Missing clear timeline and milestones');
         }
     }
@@ -342,14 +283,14 @@ function scoreCategoryAgainstRequirements(analysis: any, requirements: string[],
         // Check if requirement keywords appear in document sections or content
         if (categoryName.toLowerCase().includes('innovation') || categoryName.toLowerCase().includes('technical')) {
             if (reqLower.includes('novel') || reqLower.includes('innovation')) {
-                if (sectionNames.some(s => s.includes('innovation') || s.includes('novel') || s.includes('new'))) {
+                if (sectionNames.some((s: string) => s.includes('innovation') || s.includes('novel') || s.includes('new'))) {
                     score += 8;
                 } else if (textContent.includes('innovation') || textContent.includes('novel')) {
                     score += 5;
                 }
             }
             if (reqLower.includes('technical') || reqLower.includes('feasibility')) {
-                if (sectionNames.some(s => s.includes('technical') || s.includes('method') || s.includes('approach'))) {
+                if (sectionNames.some((s: string) => s.includes('technical') || s.includes('method') || s.includes('approach'))) {
                     score += 8;
                 } else if (textContent.includes('technical') || textContent.includes('methodology')) {
                     score += 5;
@@ -359,7 +300,7 @@ function scoreCategoryAgainstRequirements(analysis: any, requirements: string[],
         
         if (categoryName.toLowerCase().includes('financial') || categoryName.toLowerCase().includes('commercial')) {
             if (reqLower.includes('budget') || reqLower.includes('financial') || reqLower.includes('cost')) {
-                if (sectionNames.some(s => s.includes('budget') || s.includes('financial') || s.includes('cost'))) {
+                if (sectionNames.some((s: string) => s.includes('budget') || s.includes('financial') || s.includes('cost'))) {
                     score += 8;
                 } else if (textContent.includes('budget') || textContent.includes('financial')) {
                     score += 5;
@@ -369,7 +310,7 @@ function scoreCategoryAgainstRequirements(analysis: any, requirements: string[],
         
         if (categoryName.toLowerCase().includes('team') || categoryName.toLowerCase().includes('capability')) {
             if (reqLower.includes('team') || reqLower.includes('experience') || reqLower.includes('qualification')) {
-                if (sectionNames.some(s => s.includes('team') || s.includes('experience') || s.includes('staff'))) {
+                if (sectionNames.some((s: string) => s.includes('team') || s.includes('experience') || s.includes('staff'))) {
                     score += 8;
                 } else if (textContent.includes('team') || textContent.includes('experience')) {
                     score += 5;
@@ -379,7 +320,7 @@ function scoreCategoryAgainstRequirements(analysis: any, requirements: string[],
         
         if (categoryName.toLowerCase().includes('market') || categoryName.toLowerCase().includes('impact')) {
             if (reqLower.includes('market') || reqLower.includes('impact') || reqLower.includes('outcome')) {
-                if (sectionNames.some(s => s.includes('market') || s.includes('impact') || s.includes('outcome'))) {
+                if (sectionNames.some((s: string) => s.includes('market') || s.includes('impact') || s.includes('outcome'))) {
                     score += 8;
                 } else if (textContent.includes('market') || textContent.includes('impact')) {
                     score += 5;
@@ -394,4 +335,98 @@ function scoreCategoryAgainstRequirements(analysis: any, requirements: string[],
     if (analysis.complexity === 'Complex') score += 5;
     
     return Math.min(95, Math.max(40, score)); // Score between 40-95
+}
+
+/**
+ * Handle fund-based assessment using the universal template system
+ */
+async function handleFundBasedAssessment(file: File, fundId: string) {
+    console.log(`🎯 Fund-based assessment: ${file.name} against fund ${fundId}`);
+
+    try {
+        // Get the fund with its analyzed data
+        const fund = await prisma.fund.findUnique({
+            where: { id: fundId },
+            include: { documents: true }
+        });
+
+        if (!fund) {
+            return NextResponse.json(
+                { error: 'Fund not found' },
+                { status: 404 }
+            );
+        }
+
+        // Get application content
+        const { extractTextFromFile } = await import('@/utils/server-document-analyzer');
+        const applicationContent = await extractTextFromFile(file);
+
+        // Use the new assessment engine for fund-based assessment
+        const { assessmentEngine } = await import('@/lib/assessment-engine');
+
+        // Get fund criteria and good examples if available
+        const criteria = fund.selectionCriteriaAnalysis;
+        const outputTemplate = fund.outputTemplatesAnalysis as any;
+        const templatePlaceholders = outputTemplate?.placeholders || [];
+
+        // Convert fund brain to assessment engine format
+        const fundBrain = {
+            fundName: fund.name,
+            criteria: criteria?.categories || [],
+            successPatterns: {
+                averageScore: 85,
+                commonStrengths: ['Clear objectives', 'Strong team'],
+                keyIndicators: ['Innovation', 'Feasibility']
+            },
+            assessmentInstructions: `Assess this application for ${fund.name}`
+        };
+
+        console.log('🤖 Running assessment with assessment engine...');
+        const assessmentResult = await assessmentEngine.assessApplication(
+            applicationContent,
+            file.name,
+            fundBrain,
+            fund.id,
+            templatePlaceholders
+        );
+
+        if (!assessmentResult.success) {
+            throw new Error(assessmentResult.error || 'Assessment failed');
+        }
+
+        const claudeAssessment = assessmentResult.result!;
+
+        // Now apply the universal template using the same system as the assess endpoint
+        const { templateEngine } = await import('@/lib/template-engine');
+
+        // The claudeAssessment is already in the correct format from assessment engine
+        const assessmentData = claudeAssessment;
+
+        console.log('🎨 Applying template using template-engine system');
+        const formattedOutput = await templateEngine.applyTemplate(assessmentData, outputTemplate);
+
+        console.log(`✅ Fund-based assessment complete: ${file.name}`);
+
+        // Return the formatted assessment using the actual template (consistent with assess endpoint)
+        return NextResponse.json({
+            success: true,
+            assessment: {
+                ...assessmentData,
+                formattedOutput: formattedOutput,
+                templateApplied: formattedOutput.success,
+                templateName: formattedOutput.metadata?.template_used || 'Standard Template',
+                templateError: formattedOutput.error,
+            },
+            score: assessmentData.overallScore,
+            feedback: 'Assessment completed using fund template',
+            analysisMode: 'ASSESSMENT_ENGINE'
+        });
+
+    } catch (error) {
+        console.error('Error in fund-based assessment:', error);
+        return NextResponse.json(
+            { error: 'Failed to assess application using fund template' },
+            { status: 500 }
+        );
+    }
 }

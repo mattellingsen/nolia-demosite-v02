@@ -1,0 +1,24 @@
+Application Form Test
+
+Section 1: Organization Details
+1.1 Organization Name: [Text Field - Required]
+1.2 Contact Email: [Email Field - Required] 
+1.3 Phone Number: [Phone Field - Required]
+
+Section 2: Project Information
+2.1 Project Title: [Text Field - Required]
+2.2 Project Description: [Textarea - Required]
+2.3 Project Category: [Dropdown - Technology/Process/Product]
+2.4 Budget: [Currency Field - Required]
+
+Section 3: Technical Details
+3.1 Technical Approach: [Textarea - Required]
+3.2 Expected Outcomes: [Textarea - Required]
+
+Section 4: Supporting Documents
+4.1 Business Plan: [File Upload - PDF]
+4.2 Financial Statements: [File Upload - Required]
+
+Section 5: Declaration
+5.1 Terms Agreement: [Checkbox - Required]
+

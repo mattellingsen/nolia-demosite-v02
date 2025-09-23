@@ -14,6 +14,31 @@ export interface DocumentAnalysis {
         questionCount: number;
         isMainSection: boolean;
     }[];
+
+    // Optional analysis mode indicator
+    analysisMode?: 'CLAUDE_AI_REASONING' | 'BASIC_FALLBACK';
+
+    // Optional enhanced Claude analysis data (only present if AI analysis was successful)
+    formAnalysis?: {
+        purpose: string;
+        targetApplicants: string;
+        informationRequirements: string[];
+        assessmentAlignment: string;
+    };
+
+    applicationRequirements?: {
+        mandatoryFields: string[];
+        optionalFields: string[];
+        documentRequirements: string[];
+        eligibilityIndicators: string[];
+    };
+
+    qualityIndicators?: {
+        structureQuality: 'Well-structured' | 'Moderately-structured' | 'Poorly-structured';
+        clarityScore: number;
+        completenessScore: number;
+        userFriendliness: number;
+    };
 }
 
 export interface CriteriaAnalysis {

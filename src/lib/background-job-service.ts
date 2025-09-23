@@ -1,6 +1,7 @@
 // Background job processing service for RAG and document analysis
 import { prisma } from './database-s3';
-import { extractTextFromFile, analyzeApplicationForm, analyzeSelectionCriteria } from '../utils/server-document-analyzer';
+import { extractTextFromFile } from '../utils/server-document-analyzer';
+import { claudeService, ClaudeService } from './claude-service';
 import { storeDocumentVector, generateEmbedding } from './aws-opensearch';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 
@@ -249,9 +250,21 @@ export class BackgroundJobService {
           
           let analysis;
           if (fileData.type === 'APPLICATION_FORM') {
-            analysis = await analyzeApplicationForm(file);
+            // Use new Claude service for application form analysis
+            const textContent = await extractTextFromFile(file);
+            analysis = await this.analyzeApplicationFormDocument(textContent, file.name);
+          } else if (fileData.type === 'OUTPUT_TEMPLATES') {
+            // Use new Claude service for output template analysis
+            const textContent = await extractTextFromFile(file);
+            analysis = await this.analyzeOutputTemplateDocument(textContent, file.name);
+          } else if (fileData.type === 'GOOD_EXAMPLES') {
+            // Use new Claude service for good examples analysis
+            const textContent = await extractTextFromFile(file);
+            analysis = await this.analyzeGoodExamplesDocument(textContent, file.name);
           } else {
-            analysis = await analyzeSelectionCriteria([file]);
+            // Default: Use new Claude service for selection criteria analysis
+            const textContent = await extractTextFromFile(file);
+            analysis = await this.analyzeSelectionCriteriaDocument(textContent, file.name);
           }
           
           console.log(`Successfully processed ${fileData.filename}`);
@@ -320,6 +333,10 @@ export class BackgroundJobService {
     if (fund.documents.some(d => d.documentType === 'GOOD_EXAMPLES')) {
       updates.goodExamplesAnalysis = { status: 'completed' };
     }
+
+    if (fund.documents.some(d => d.documentType === 'OUTPUT_TEMPLATES')) {
+      updates.outputTemplatesAnalysis = { status: 'completed' };
+    }
     
     if (Object.keys(updates).length > 0) {
       await prisma.fund.update({
@@ -340,11 +357,9 @@ export class BackgroundJobService {
     
     if (!fund) return;
     
-    // Check if analysis already exists
-    if (fund.applicationFormAnalysis?.status !== 'pending_analysis' && 
-        fund.selectionCriteriaAnalysis?.status !== 'pending_analysis' &&
-        fund.goodExamplesAnalysis?.status !== 'pending_analysis') {
-      console.log('Document analysis already complete for fund', fundId);
+    // Check if we have documents to analyze
+    if (!fund.documents || fund.documents.length === 0) {
+      console.log('No documents to analyze for fund', fundId);
       return;
     }
     
@@ -354,63 +369,90 @@ export class BackgroundJobService {
     const applicationFormDocs = fund.documents.filter(d => d.documentType === 'APPLICATION_FORM');
     const selectionCriteriaDocs = fund.documents.filter(d => d.documentType === 'SELECTION_CRITERIA');
     const goodExamplesDocs = fund.documents.filter(d => d.documentType === 'GOOD_EXAMPLES');
+    const outputTemplateDocs = fund.documents.filter(d => d.documentType === 'OUTPUT_TEMPLATES');
     
     let applicationFormAnalysis = fund.applicationFormAnalysis;
     let selectionCriteriaAnalysis = fund.selectionCriteriaAnalysis;
     let goodExamplesAnalysis = fund.goodExamplesAnalysis;
+    let outputTemplatesAnalysis = fund.outputTemplatesAnalysis;
     
     // Analyze application form
-    if (applicationFormDocs.length > 0 && fund.applicationFormAnalysis?.status === 'pending_analysis') {
+    if (applicationFormDocs.length > 0 && (!fund.applicationFormAnalysis || fund.applicationFormAnalysis?.status === 'pending_analysis' || fund.applicationFormAnalysis?.status === 'completed')) {
       try {
         const doc = applicationFormDocs[0];
         const text = await this.extractTextFromS3Document(doc.s3Key);
-        const fileBlob = new Blob([text], { type: 'text/plain' });
-        const file = new File([fileBlob], doc.filename, { type: doc.mimeType });
-        applicationFormAnalysis = await analyzeApplicationForm(file);
+        console.log(`🤖 Running Claude analysis for application form: ${doc.filename}`);
+        applicationFormAnalysis = await this.analyzeApplicationFormDocument(text, doc.filename);
+        console.log(`✅ Claude analysis completed for application form`);
       } catch (error) {
-        console.error('Error analyzing application form:', error);
+        console.error('❌ Error analyzing application form:', error);
       }
     }
     
     // Analyze selection criteria
-    if (selectionCriteriaDocs.length > 0 && fund.selectionCriteriaAnalysis?.status === 'pending_analysis') {
+    if (selectionCriteriaDocs.length > 0 && (!fund.selectionCriteriaAnalysis || fund.selectionCriteriaAnalysis?.status === 'pending_analysis' || fund.selectionCriteriaAnalysis?.status === 'completed')) {
       try {
-        const files = await Promise.all(
+        console.log(`🤖 Running Claude analysis for selection criteria: ${selectionCriteriaDocs.length} documents`);
+        // Process multiple documents by combining their content
+        const combinedText = await Promise.all(
           selectionCriteriaDocs.map(async (doc) => {
             const text = await this.extractTextFromS3Document(doc.s3Key);
-            const fileBlob = new Blob([text], { type: 'text/plain' });
-            return new File([fileBlob], doc.filename, { type: doc.mimeType });
+            return `Document: ${doc.filename}\n\n${text}`;
           })
         );
-        selectionCriteriaAnalysis = await analyzeSelectionCriteria(files);
+        selectionCriteriaAnalysis = await this.analyzeSelectionCriteriaDocument(
+          combinedText.join('\n\n---\n\n'),
+          selectionCriteriaDocs.map(d => d.filename).join(', ')
+        );
+        console.log(`✅ Claude analysis completed for selection criteria`);
       } catch (error) {
-        console.error('Error analyzing selection criteria:', error);
+        console.error('❌ Error analyzing selection criteria:', error);
       }
     }
     
     // Analyze good examples
-    if (goodExamplesDocs.length > 0 && fund.goodExamplesAnalysis?.status === 'pending_analysis') {
+    if (goodExamplesDocs.length > 0 && (!fund.goodExamplesAnalysis || fund.goodExamplesAnalysis?.status === 'pending_analysis' || fund.goodExamplesAnalysis?.status === 'completed')) {
       try {
-        const files = await Promise.all(
+        console.log(`🤖 Running Claude analysis for good examples: ${goodExamplesDocs.length} documents`);
+        // Process multiple documents by combining their content
+        const combinedText = await Promise.all(
           goodExamplesDocs.map(async (doc) => {
             const text = await this.extractTextFromS3Document(doc.s3Key);
-            const fileBlob = new Blob([text], { type: 'text/plain' });
-            return new File([fileBlob], doc.filename, { type: doc.mimeType });
+            return `Document: ${doc.filename}\n\n${text}`;
           })
         );
-        goodExamplesAnalysis = await analyzeSelectionCriteria(files);
+        goodExamplesAnalysis = await this.analyzeGoodExamplesDocument(
+          combinedText.join('\n\n---\n\n'),
+          goodExamplesDocs.map(d => d.filename).join(', ')
+        );
+        console.log(`✅ Claude analysis completed for good examples`);
       } catch (error) {
-        console.error('Error analyzing good examples:', error);
+        console.error('❌ Error analyzing good examples:', error);
       }
     }
-    
+
+    // Analyze output templates
+    if (outputTemplateDocs.length > 0 && (!fund.outputTemplatesAnalysis || fund.outputTemplatesAnalysis?.status === 'pending_analysis' || fund.outputTemplatesAnalysis?.status === 'completed')) {
+      try {
+        console.log(`🤖 Running Claude analysis for output templates: ${outputTemplateDocs.length} documents`);
+        // Process first output template document
+        const doc = outputTemplateDocs[0];
+        const text = await this.extractTextFromS3Document(doc.s3Key);
+        outputTemplatesAnalysis = await this.analyzeOutputTemplateDocument(text, doc.filename);
+        console.log(`✅ Claude analysis completed for output templates`);
+      } catch (error) {
+        console.error('❌ Error analyzing output templates:', error);
+      }
+    }
+
     // Update fund with analysis results
     await prisma.fund.update({
       where: { id: fundId },
       data: {
         applicationFormAnalysis,
         selectionCriteriaAnalysis,
-        goodExamplesAnalysis
+        goodExamplesAnalysis,
+        outputTemplatesAnalysis
       }
     });
     
@@ -422,17 +464,12 @@ export class BackgroundJobService {
    */
   private static async extractTextFromS3Document(s3Key: string): Promise<string> {
     const s3Client = new S3Client({
-      region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'us-east-1',
-      // Force IAM Role in production by not providing credentials if they start with ASIA
-      ...(process.env.NODE_ENV === 'development' && 
-          process.env.AWS_ACCESS_KEY_ID && 
-          process.env.AWS_SECRET_ACCESS_KEY && 
-          !process.env.AWS_ACCESS_KEY_ID.startsWith('ASIA') ? {
-        credentials: {
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-        },
-      } : {}),
+      region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',
+      // Use default credential chain which includes:
+      // 1. Environment variables (AWS_ACCESS_KEY_ID, etc.)
+      // 2. AWS profiles (AWS_PROFILE)
+      // 3. IAM roles (in production)
+      // 4. EC2/ECS instance profiles
     });
     
     const command = new GetObjectCommand({
@@ -445,16 +482,14 @@ export class BackgroundJobService {
       throw new Error('No content in S3 object');
     }
     
-    // Convert stream to buffer
-    const chunks: Uint8Array[] = [];
-    const reader = response.Body.getReader();
-    
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      chunks.push(value);
+    // Convert stream to buffer (Node.js stream handling)
+    const chunks: Buffer[] = [];
+
+    // Handle Node.js Readable stream
+    for await (const chunk of response.Body as any) {
+      chunks.push(chunk);
     }
-    
+
     const buffer = Buffer.concat(chunks);
     
     // Create a File-like object for the document analyzer
@@ -474,21 +509,227 @@ export class BackgroundJobService {
       where: { status: 'PENDING' },
       orderBy: { createdAt: 'asc' }
     });
-    
+
     if (!job) {
       return false; // No pending jobs
     }
-    
+
     try {
       if (job.type === 'RAG_PROCESSING') {
         await this.processRAGJob(job.id);
       }
       // Add other job types here as needed
-      
+
       return true;
     } catch (error) {
       console.error(`Failed to process job ${job.id}:`, error);
       return false;
+    }
+  }
+
+  /**
+   * Analyze application form document using new Claude service
+   */
+  static async analyzeApplicationFormDocument(content: string, filename: string): Promise<any> {
+    try {
+      const response = await claudeService.executeTask({
+        task: 'analyze_application_form',
+        prompt: ClaudeService.createFocusedPrompt(
+          'Application Form Analysis',
+          content,
+          `
+            Analyze this application form document to understand its structure and required fields.
+
+            Extract information about:
+            1. Required fields and their types
+            2. Section organization
+            3. Validation requirements
+            4. Field labels and descriptions
+          `,
+          `
+            Respond with valid JSON only:
+            {
+              "status": "completed",
+              "fields": [
+                {
+                  "name": "field_name",
+                  "label": "Field Label",
+                  "type": "text|number|email|date|select",
+                  "required": true|false,
+                  "section": "section_name"
+                }
+              ],
+              "sections": [
+                {
+                  "name": "section_name",
+                  "title": "Section Title",
+                  "fields": ["field1", "field2"]
+                }
+              ]
+            }
+          `
+        ),
+        maxTokens: 2000,
+        temperature: 0.3,
+      });
+
+      if (response.success) {
+        return JSON.parse(response.content.match(/\{[\s\S]*\}/)?.[0] || '{}');
+      } else {
+        return { status: 'failed', error: 'Claude analysis failed' };
+      }
+    } catch (error) {
+      console.error('Error in application form analysis:', error);
+      return { status: 'failed', error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
+  /**
+   * Analyze selection criteria document using new Claude service
+   */
+  static async analyzeSelectionCriteriaDocument(content: string, filename: string): Promise<any> {
+    try {
+      const response = await claudeService.executeTask({
+        task: 'analyze_selection_criteria',
+        prompt: ClaudeService.createFocusedPrompt(
+          'Selection Criteria Analysis',
+          content,
+          `
+            Analyze this selection criteria document to extract assessment criteria and scoring guidelines.
+
+            Extract information about:
+            1. Assessment criteria categories
+            2. Scoring ranges and weights
+            3. Key evaluation indicators
+            4. Assessment instructions
+          `,
+          `
+            Respond with valid JSON only:
+            {
+              "status": "completed",
+              "criteria": [
+                {
+                  "name": "criterion_name",
+                  "description": "What this criterion evaluates",
+                  "weight": 25,
+                  "maxScore": 100,
+                  "keyIndicators": ["indicator1", "indicator2"]
+                }
+              ],
+              "overallInstructions": "General assessment guidelines"
+            }
+          `
+        ),
+        maxTokens: 2000,
+        temperature: 0.3,
+      });
+
+      if (response.success) {
+        return JSON.parse(response.content.match(/\{[\s\S]*\}/)?.[0] || '{}');
+      } else {
+        return { status: 'failed', error: 'Claude analysis failed' };
+      }
+    } catch (error) {
+      console.error('Error in selection criteria analysis:', error);
+      return { status: 'failed', error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
+  /**
+   * Analyze good examples document using new Claude service
+   */
+  static async analyzeGoodExamplesDocument(content: string, filename: string): Promise<any> {
+    try {
+      const response = await claudeService.executeTask({
+        task: 'analyze_good_examples',
+        prompt: ClaudeService.createFocusedPrompt(
+          'Good Examples Analysis',
+          content,
+          `
+            Analyze these good example applications to identify success patterns.
+
+            Extract information about:
+            1. Common strengths in successful applications
+            2. Patterns in high-scoring responses
+            3. Key success factors
+            4. Quality indicators
+          `,
+          `
+            Respond with valid JSON only:
+            {
+              "status": "completed",
+              "successPatterns": {
+                "commonStrengths": ["strength1", "strength2"],
+                "keyIndicators": ["indicator1", "indicator2"],
+                "averageScore": 85
+              },
+              "examples": [
+                {
+                  "title": "Example Application",
+                  "strengths": ["what made this good"],
+                  "score": 90
+                }
+              ]
+            }
+          `
+        ),
+        maxTokens: 2000,
+        temperature: 0.3,
+      });
+
+      if (response.success) {
+        return JSON.parse(response.content.match(/\{[\s\S]*\}/)?.[0] || '{}');
+      } else {
+        return { status: 'failed', error: 'Claude analysis failed' };
+      }
+    } catch (error) {
+      console.error('Error in good examples analysis:', error);
+      return { status: 'failed', error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
+  /**
+   * Analyze output template document using new Claude service
+   */
+  static async analyzeOutputTemplateDocument(content: string, filename: string): Promise<any> {
+    try {
+      const response = await claudeService.executeTask({
+        task: 'analyze_output_template',
+        prompt: ClaudeService.createFocusedPrompt(
+          'Output Template Analysis',
+          content,
+          `
+            Analyze this output template document to identify placeholders and structure.
+
+            Extract information about:
+            1. All placeholders in the format [placeholder] or {{placeholder}}
+            2. Template structure and sections
+            3. Required data fields
+            4. Format requirements
+          `,
+          `
+            Respond with valid JSON only:
+            {
+              "status": "completed",
+              "useRawTemplate": true,
+              "rawTemplateContent": "Full template text with placeholders",
+              "placeholders": ["[placeholder1]", "[placeholder2]"],
+              "filename": "${filename}"
+            }
+          `
+        ),
+        maxTokens: 3000,
+        temperature: 0.1,
+      });
+
+      if (response.success) {
+        return JSON.parse(response.content.match(/\{[\s\S]*\}/)?.[0] || '{}');
+      } else {
+        return { status: 'failed', error: 'Claude analysis failed' };
+      }
+    } catch (error) {
+      console.error('Error in output template analysis:', error);
+      return { status: 'failed', error: error instanceof Error ? error.message : 'Unknown error' };
     }
   }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useFunds, useDeleteFund } from "@/hooks/useFunds";
 import {
     ArrowRight,
@@ -12,6 +13,7 @@ import {
     Monitor04,
     Plus,
     Send01,
+    Beaker02,
     Trash01,
     TrendUp02,
     UploadCloud01,
@@ -80,6 +82,7 @@ const generateGradient = (index: number): string => {
 
 export const SetupDashboard = () => {
     const [mounted, setMounted] = useState(false);
+    const router = useRouter();
     
     // Fetch funds data
     const { data: funds = [], isLoading: fundsLoading, error: fundsError } = useFunds();
@@ -89,7 +92,12 @@ export const SetupDashboard = () => {
         setMounted(true);
     }, []);
 
-    const handleDeleteFund = async (fundId: string) => {
+    const handleDeleteFund = async (fundId: string, event?: React.MouseEvent) => {
+        // Prevent the card click event from firing
+        if (event) {
+            event.stopPropagation();
+        }
+        
         if (window.confirm('Are you sure you want to delete this fund? This action cannot be undone.')) {
             try {
                 await deleteFund.mutateAsync(fundId);
@@ -97,6 +105,10 @@ export const SetupDashboard = () => {
                 console.error('Failed to delete fund:', error);
             }
         }
+    };
+
+    const handleFundCardClick = (fundId: string) => {
+        router.push(`/funding/fund-created?fundId=${fundId}`);
     };
 
     if (!mounted) {
@@ -293,7 +305,7 @@ export const SetupDashboard = () => {
                                 ))
                             ) : (
                                 funds.map((fund, index) => (
-                                    <div key={fund.id} className="w-full h-40 relative flex">
+                                    <div key={fund.id} className="w-full h-40 relative flex cursor-pointer hover:opacity-90 transition-opacity" onClick={() => handleFundCardClick(fund.id)}>
                                         <div className={`w-full h-full flex flex-col justify-between overflow-hidden rounded-2xl p-4 bg-linear-to-b ${generateGradient(index)} before:pointer-events-none before:absolute before:inset-0 before:z-1 before:rounded-[inherit] before:mask-linear-135 before:mask-linear-to-white/20 before:ring-1 before:ring-white/30 before:ring-inset`}>
                                             <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-1/2 bg-gray-800 rounded-b-2xl"></div>
                                             
@@ -305,7 +317,7 @@ export const SetupDashboard = () => {
                                                     tooltip="Delete" 
                                                     icon={Trash01} 
                                                     className="text-white hover:text-gray-200 !bg-transparent !border-0"
-                                                    onClick={() => handleDeleteFund(fund.id)}
+                                                    onClick={(event) => handleDeleteFund(fund.id, event)}
                                                     isDisabled={deleteFund.isPending}
                                                 />
                                             </div>
@@ -366,7 +378,7 @@ export const SetupDashboard = () => {
                             <Carousel.Content overflowHidden={false} className="gap-5">
                                 {funds.slice(0, 3).map((fund, index) => (
                                     <Carousel.Item key={fund.id} className="basis-auto">
-                                        <div className="w-68 h-40 relative flex">
+                                        <div className="w-68 h-40 relative flex cursor-pointer hover:opacity-90 transition-opacity" onClick={() => handleFundCardClick(fund.id)}>
                                             <div className={`w-full h-full flex flex-col justify-between overflow-hidden rounded-2xl p-4 bg-linear-to-b ${generateGradient(index)} before:pointer-events-none before:absolute before:inset-0 before:z-1 before:rounded-[inherit] before:mask-linear-135 before:mask-linear-to-white/20 before:ring-1 before:ring-white/30 before:ring-inset`}>
                                                 <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-1/2 bg-gray-800 rounded-b-2xl"></div>
                                                 
@@ -378,7 +390,8 @@ export const SetupDashboard = () => {
                                                         tooltip="Delete" 
                                                         icon={Trash01} 
                                                         className="text-white hover:text-gray-200 !bg-transparent !border-0"
-                                                        onClick={() => handleDeleteFund(fund.id)}
+                                                        onClick={(event) => handleDeleteFund(fund.id, event)}
+                                                        isDisabled={deleteFund.isPending}
                                                     />
                                                 </div>
 
@@ -421,6 +434,13 @@ export const SetupDashboard = () => {
                         <TableRowActionsDropdown />
                     </div>
                     <div className="flex flex-col gap-3">
+                        <a href="/funding/test-applications" className="flex items-center gap-3 rounded-xl bg-utility-green-50 p-4 hover:bg-utility-green-100 cursor-pointer transition-colors">
+                            <FeaturedIcon size="md" color="brand" theme="light" icon={Beaker02} className="bg-utility-green-100 text-utility-green-700" />
+                            <div className="flex flex-1 justify-between gap-4">
+                                <p className="text-sm font-medium text-utility-green-700">Test applications</p>
+                                <ArrowRight className="text-utility-green-700 w-4 h-4" />
+                            </div>
+                        </a>
                         <a href="/funding/upload-applications" className="flex items-center gap-3 rounded-xl bg-utility-blue-50 p-4 hover:bg-utility-blue-100 cursor-pointer transition-colors">
                             <FeaturedIcon size="md" color="brand" theme="light" icon={UploadCloud01} className="bg-utility-blue-100 text-utility-blue-700" />
                             <div className="flex flex-1 justify-between gap-4">

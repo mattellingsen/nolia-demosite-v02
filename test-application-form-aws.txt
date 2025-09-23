@@ -1,0 +1,33 @@
+Test Application Form for Claude Integration
+
+Section 1: Organization Information
+1.1 Organization Name: [Text Field - Required]
+1.2 Contact Email: [Email Field - Required]
+1.3 Phone Number: [Phone Field - Required]
+
+Section 2: Project Details  
+2.1 Project Title: [Text Field - Required]
+2.2 Project Description: [Textarea - Required, 500 words max]
+2.3 Project Category: [Dropdown - Technology/Process/Product/Service]
+2.4 Project Duration: [Number Field - Months]
+2.5 Total Budget: [Currency Field - Required]
+
+Section 3: Technical Information
+3.1 Technical Approach: [Textarea - Required]
+3.2 Expected Outcomes: [Textarea - Required]
+3.3 Risk Assessment: [Textarea - Optional]
+
+Section 4: Supporting Documents
+4.1 Business Plan: [File Upload - PDF only]
+4.2 Financial Statements: [File Upload - Required]
+4.3 Technical Specifications: [File Upload - Optional]
+
+Section 5: Declarations
+5.1 Terms and Conditions: [Checkbox - Required]
+5.2 Data Privacy Agreement: [Checkbox - Required]
+
+This form contains 12 required fields and 2 optional fields.
+Estimated completion time: 30-45 minutes.
+Total sections: 5
+Field types: Text inputs, textareas, dropdowns, number fields, currency fields, file uploads, checkboxes.
+

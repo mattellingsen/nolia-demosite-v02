@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native", "rhel-openssl-1.0.x"]
@@ -14,11 +8,67 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Enums for the funding system
+model Fund {
+  id                        String          @id @default(uuid())
+  name                      String
+  description               String?
+  status                    FundStatus      @default(DRAFT)
+  createdAt                 DateTime        @default(now())
+  updatedAt                 DateTime        @updatedAt
+  applicationFormAnalysis   Json?
+  selectionCriteriaAnalysis Json?
+  goodExamplesAnalysis      Json?
+  brainAssembledAt          DateTime?
+  brainVersion              Int             @default(1)
+  fundBrain                 Json?
+  outputTemplatesAnalysis   Json?
+  backgroundJobs            BackgroundJob[]
+  documents                 FundDocument[]
+
+  @@map("funds")
+}
+
+model FundDocument {
+  id           String       @id @default(uuid())
+  fundId       String
+  documentType DocumentType
+  filename     String
+  mimeType     String
+  fileSize     Int
+  s3Key        String
+  uploadedAt   DateTime     @default(now())
+  fund         Fund         @relation(fields: [fundId], references: [id], onDelete: Cascade)
+
+  @@map("fund_documents")
+}
+
+model BackgroundJob {
+  id                 String    @id @default(uuid())
+  fundId             String
+  type               JobType
+  status             JobStatus @default(PENDING)
+  progress           Int       @default(0)
+  totalDocuments     Int       @default(0)
+  processedDocuments Int       @default(0)
+  metadata           Json      @default("{}")
+  errorMessage       String?
+  startedAt          DateTime?
+  completedAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  fund               Fund      @relation(fields: [fundId], references: [id], onDelete: Cascade)
+
+  @@index([fundId])
+  @@index([status])
+  @@index([type])
+  @@map("background_jobs")
+}
+
 enum DocumentType {
   APPLICATION_FORM
   SELECTION_CRITERIA
   GOOD_EXAMPLES
+  OUTPUT_TEMPLATES
 }
 
 enum FundStatus {
@@ -37,72 +87,4 @@ enum JobStatus {
 enum JobType {
   RAG_PROCESSING
   DOCUMENT_ANALYSIS
-}
-
-// Fund model - represents a funding program/scheme
-model Fund {
-  id          String     @id @default(uuid())
-  name        String
-  description String?
-  status      FundStatus @default(DRAFT)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  
-  // Analysis results from uploaded documents
-  applicationFormAnalysis    Json? // DocumentAnalysis from step 1
-  selectionCriteriaAnalysis Json? // CriteriaAnalysis from step 2
-  goodExamplesAnalysis      Json? // Analysis from step 3
-  
-  // Brain assembly system for reusable assessment engine
-  fundBrain            Json?    // Assembled assessment engine combining all analyses
-  brainVersion         Int      @default(1) // Version tracking for brain updates
-  brainAssembledAt     DateTime? // When the brain was last assembled
-  
-  // Relationships
-  documents   FundDocument[]
-  backgroundJobs BackgroundJob[]
-  
-  @@map("funds")
-}
-
-// FundDocument model - stores file metadata with S3 keys
-model FundDocument {
-  id           String      @id @default(uuid())
-  fundId       String
-  documentType DocumentType
-  filename     String
-  mimeType     String
-  fileSize     Int
-  s3Key        String      // S3 object key for file access
-  uploadedAt   DateTime    @default(now())
-  
-  // Relationships
-  fund         Fund        @relation(fields: [fundId], references: [id], onDelete: Cascade)
-  
-  @@map("fund_documents")
-}
-
-// BackgroundJob model - tracks long-running background tasks
-model BackgroundJob {
-  id                  String    @id @default(uuid())
-  fundId              String
-  type                JobType
-  status              JobStatus @default(PENDING)
-  progress            Int       @default(0) // 0-100 percentage
-  totalDocuments      Int       @default(0)
-  processedDocuments  Int       @default(0)
-  metadata            Json      @default("{}")
-  errorMessage        String?
-  startedAt           DateTime?
-  completedAt         DateTime?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-  
-  // Relationships
-  fund                Fund      @relation(fields: [fundId], references: [id], onDelete: Cascade)
-  
-  @@map("background_jobs")
-  @@index([fundId])
-  @@index([status])
-  @@index([type])
 }

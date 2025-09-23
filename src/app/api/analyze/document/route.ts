@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { analyzeApplicationForm, analyzeSelectionCriteria } from '@/utils/server-document-analyzer';
+import { analyzeApplicationForm } from '@/utils/server-document-analyzer';
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,8 +39,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Perform real document analysis using server-side libraries
+    // Use pattern matching for immediate feedback (fast response)
+    console.log('📋 Using pattern matching analysis for immediate feedback');
     const analysis = await analyzeApplicationForm(file);
+    analysis.analysisMode = 'PATTERN_MATCHING';
+    console.log('✅ Pattern matching analysis complete for immediate feedback');
 
     return NextResponse.json({
       success: true,

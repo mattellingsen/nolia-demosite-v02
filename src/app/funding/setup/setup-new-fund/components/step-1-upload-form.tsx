@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { UploadCloud01, File02, ArrowRight, CheckCircle, AlertCircle } from "@untitledui/icons";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { UploadCloud01, File02, ArrowRight, CheckCircle, AlertCircle, XCircle } from "@untitledui/icons";
 import { Button } from "@/components/base/buttons/button";
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
 import { FileUpload } from "@/components/application/file-upload/file-upload-base";
@@ -19,16 +19,83 @@ interface Step1Props {
 // Use DocumentAnalysis from the document analyzer utility
 type FormAnalysis = DocumentAnalysis;
 
-export const Step1UploadForm: React.FC<Step1Props> = ({ 
-    formData, 
-    updateFormData, 
-    onNext 
+export const Step1UploadForm: React.FC<Step1Props> = ({
+    formData,
+    updateFormData,
+    onNext
 }) => {
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [analysis, setAnalysis] = useState<FormAnalysis | null>(null);
     const [uploadError, setUploadError] = useState<string>('');
     const [uploadProgress, setUploadProgress] = useState<number>(0);
     const [isUploading, setIsUploading] = useState(false);
+
+    // Fund name validation states
+    const [fundNameError, setFundNameError] = useState<string>('');
+    const [isCheckingName, setIsCheckingName] = useState(false);
+    const [nameAvailable, setNameAvailable] = useState<boolean | null>(null);
+    const checkNameTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Check if fund name is available
+    const checkFundNameAvailability = useCallback(async (name: string) => {
+        if (!name || !name.trim()) {
+            setFundNameError('');
+            setNameAvailable(null);
+            return;
+        }
+
+        setIsCheckingName(true);
+        setFundNameError('');
+
+        try {
+            const response = await fetch(`/api/funds/check-name?name=${encodeURIComponent(name.trim())}`);
+            const data = await response.json();
+
+            if (!response.ok) {
+                setFundNameError(data.error || 'Failed to check name availability');
+                setNameAvailable(false);
+            } else {
+                if (data.available) {
+                    setNameAvailable(true);
+                    setFundNameError('');
+                } else {
+                    setNameAvailable(false);
+                    setFundNameError(data.message || 'This name is already taken');
+                }
+            }
+        } catch (error) {
+            console.error('Error checking fund name:', error);
+            setFundNameError('Unable to verify name availability');
+            setNameAvailable(false);
+        } finally {
+            setIsCheckingName(false);
+        }
+    }, []);
+
+    // Debounced fund name validation
+    const handleFundNameChange = useCallback((value: string) => {
+        updateFormData({ fundName: value });
+        setNameAvailable(null); // Reset availability status while typing
+
+        // Clear any existing timeout
+        if (checkNameTimeoutRef.current) {
+            clearTimeout(checkNameTimeoutRef.current);
+        }
+
+        // Set a new timeout to check after user stops typing
+        checkNameTimeoutRef.current = setTimeout(() => {
+            checkFundNameAvailability(value);
+        }, 500); // Wait 500ms after user stops typing
+    }, [updateFormData, checkFundNameAvailability]);
+
+    // Cleanup timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (checkNameTimeoutRef.current) {
+                clearTimeout(checkNameTimeoutRef.current);
+            }
+        };
+    }, []);
 
     const analyzeForm = async (file: File) => {
         setIsAnalyzing(true);
@@ -111,15 +178,31 @@ export const Step1UploadForm: React.FC<Step1Props> = ({
                             label="Fund Name"
                             placeholder="Enter the name of your fund"
                             value={formData.fundName || ''}
-                            onChange={(e) => updateFormData({ fundName: e.target.value })}
+                            onChange={(e) => handleFundNameChange(e.target.value)}
                             size="md"
                             isRequired
                             className="w-full"
+                            error={fundNameError}
                             style={{
                                 '--tw-shadow': '0 0 0 8px rgba(59, 130, 246, 0.1)',
                                 '--tw-ring-shadow': '0 0 0 8px rgba(59, 130, 246, 0.1)'
                             }}
                         />
+
+                        {/* Success message */}
+                        {!isCheckingName && nameAvailable === true && (
+                            <p className="mt-2 text-sm text-success-600 flex items-center gap-1">
+                                <CheckCircle className="w-4 h-4" />
+                                This name is available
+                            </p>
+                        )}
+
+                        {/* Error message */}
+                        {fundNameError && !isCheckingName && (
+                            <p className="mt-2 text-sm text-error-600">
+                                {fundNameError}
+                            </p>
+                        )}
                         <style jsx global>{`
                             * input {
                                 border: 1px solid #3497B8 !important;
@@ -264,7 +347,7 @@ export const Step1UploadForm: React.FC<Step1Props> = ({
             {/* Action Buttons */}
             <div className="flex justify-between items-center pt-6 border-t border-gray-200">
                 <div className="text-sm text-secondary">
-                    Step 1 of 5
+                    Step 1 of 4
                 </div>
                 
                 <Button
@@ -272,7 +355,15 @@ export const Step1UploadForm: React.FC<Step1Props> = ({
                     color="primary"
                     iconTrailing={ArrowRight}
                     onClick={onNext}
-                    isDisabled={!formData.fundName?.trim() || !formData.applicationForm || isAnalyzing || !analysis}
+                    isDisabled={
+                        !formData.fundName?.trim() ||
+                        !formData.applicationForm ||
+                        isAnalyzing ||
+                        !analysis ||
+                        isCheckingName ||
+                        nameAvailable === false ||
+                        nameAvailable === null
+                    }
                 >
                     Continue to Selection Criteria
                 </Button>

@@ -24,12 +24,18 @@ interface CreateFundAsyncRequest {
     fileSize: number;
     content: string; // base64
   }>;
+  outputTemplatesFiles?: Array<{
+    filename: string;
+    mimeType: string;
+    fileSize: number;
+    content: string; // base64
+  }>;
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body: CreateFundAsyncRequest = await request.json();
-    const { name, description, applicationFormFile, selectionCriteriaFiles, goodExamplesFiles } = body;
+    const { name, description, applicationFormFile, selectionCriteriaFiles, goodExamplesFiles, outputTemplatesFiles } = body;
 
     if (!name) {
       return NextResponse.json({
@@ -57,7 +63,10 @@ export async function POST(request: NextRequest) {
 
     if (applicationFormFile) {
       documentsToProcess.push({
-        ...applicationFormFile,
+        filename: applicationFormFile.filename,
+        mimeType: applicationFormFile.mimeType,
+        fileSize: applicationFormFile.fileSize,
+        content: applicationFormFile.content,
         documentType: DocumentType.APPLICATION_FORM,
       });
     }
@@ -65,7 +74,10 @@ export async function POST(request: NextRequest) {
     if (selectionCriteriaFiles) {
       selectionCriteriaFiles.forEach(file => {
         documentsToProcess.push({
-          ...file,
+          filename: file.filename,
+          mimeType: file.mimeType,
+          fileSize: file.fileSize,
+          content: file.content,
           documentType: DocumentType.SELECTION_CRITERIA,
         });
       });
@@ -74,8 +86,23 @@ export async function POST(request: NextRequest) {
     if (goodExamplesFiles) {
       goodExamplesFiles.forEach(file => {
         documentsToProcess.push({
-          ...file,
+          filename: file.filename,
+          mimeType: file.mimeType,
+          fileSize: file.fileSize,
+          content: file.content,
           documentType: DocumentType.GOOD_EXAMPLES,
+        });
+      });
+    }
+
+    if (outputTemplatesFiles) {
+      outputTemplatesFiles.forEach(file => {
+        documentsToProcess.push({
+          filename: file.filename,
+          mimeType: file.mimeType,
+          fileSize: file.fileSize,
+          content: file.content,
+          documentType: DocumentType.OUTPUT_TEMPLATES,
         });
       });
     }
@@ -88,12 +115,12 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Upload files to S3 and create document records
+    // Upload to S3
     const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3');
     const crypto = await import('crypto');
 
     const s3Client = new S3Client({
-      region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'us-east-1',
+      region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',
       ...(process.env.NODE_ENV === 'development' && 
           process.env.AWS_ACCESS_KEY_ID && 
           process.env.AWS_SECRET_ACCESS_KEY && 
@@ -105,12 +132,12 @@ export async function POST(request: NextRequest) {
       } : {}),
     });
 
-    const S3_BUCKET = process.env.S3_BUCKET_DOCUMENTS || 'nolia-funding-documents-599065966827';
+    const S3_BUCKET = process.env.S3_BUCKET_DOCUMENTS || 'nolia-funding-documents-ap-southeast-2-599065966827';
     const documentRecords = [];
 
     for (const doc of documentsToProcess) {
       // Generate unique S3 key
-      const folder = doc.documentType.toLowerCase().replace('_', '-');
+      const folder = doc.documentType?.toLowerCase().replace('_', '-') || 'unknown';
       const s3Key = `${folder}/${crypto.randomUUID()}-${doc.filename}`;
 
       // Convert base64 to buffer

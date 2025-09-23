@@ -257,10 +257,10 @@ AUTH0_CLIENT_SECRET="your-client-secret"
 AUTH0_AUDIENCE="https://api.yourapp.com"
 
 # AWS (Required)
-AWS_REGION="us-east-1"
+AWS_REGION="ap-southeast-2"
 AWS_ACCESS_KEY_ID="your-access-key"
 AWS_SECRET_ACCESS_KEY="your-secret-key"
-AWS_S3_BUCKET="funding-documents"
+S3_BUCKET_DOCUMENTS="nolia-funding-documents-ap-southeast-2-599065966827"
 
 # Stripe (Required)
 STRIPE_SECRET_KEY="sk_test_..."
@@ -397,7 +397,7 @@ import crypto from 'crypto';
 import { prisma } from '@/lib/prisma';
 
 const s3Client = new S3Client({
-  region: process.env.AWS_REGION!,
+  region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',
   credentials: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
@@ -424,7 +424,7 @@ export class UploadService {
     const key = `applications/${applicationId}/${crypto.randomUUID()}-${file.originalname}`;
     
     await s3Client.send(new PutObjectCommand({
-      Bucket: process.env.AWS_S3_BUCKET!,
+      Bucket: process.env.S3_BUCKET_DOCUMENTS!,
       Key: key,
       Body: file.buffer,
       ContentType: file.mimetype,
@@ -446,7 +446,7 @@ export class UploadService {
     if (!doc) throw new Error('Document not found');
     
     return getSignedUrl(s3Client, new GetObjectCommand({
-      Bucket: process.env.AWS_S3_BUCKET!,
+      Bucket: process.env.S3_BUCKET_DOCUMENTS!,
       Key: doc.s3Key,
     }), { expiresIn: 3600 });
   }
@@ -629,14 +629,124 @@ services:
       - "6379:6379"
 ```
 
-### Production (MVP - Simple)
-- **Frontend:** AWS S3 + CloudFront
-- **Backend:** AWS ECS (single task)
-- **Database:** AWS RDS PostgreSQL
-- **Cache:** AWS ElastiCache Redis
-- **Files:** AWS S3
+### Production (Serverless Architecture)
+- **Frontend:** AWS Amplify (Next.js deployment)
+- **API:** Next.js API Routes (serverless functions)
+- **Database:** AWS RDS PostgreSQL (ap-southeast-2)
+- **Background Jobs:** AWS SQS + Lambda functions
+- **AI Processing:** AWS Bedrock (Claude API)
+- **Document Storage:** AWS S3 (ap-southeast-2)
+- **Search:** AWS OpenSearch (RAG knowledge base)
+- **Region:** ap-southeast-2 (established production region)
 
-## 10. Implementation Timeline (Per PRD)
+## 10. Serverless Architecture (Actual Implementation)
+
+### Architecture Overview
+```
+Browser → Amplify (Next.js) → API Routes → PostgreSQL + S3
+                                    ↓
+                              SQS Queue → Lambda → Bedrock/Claude → OpenSearch
+```
+
+### Core Components
+
+**Frontend Layer:**
+- **Next.js Application:** React with TypeScript, deployed on AWS Amplify
+- **Static Assets:** Cached globally via CloudFront CDN
+- **Real-time Updates:** Polling-based status updates for job processing
+
+**API Layer (Serverless):**
+- **Next.js API Routes:** Handle HTTP requests as serverless functions
+- **Authentication:** Integrated with application logic (no separate auth service)
+- **File Uploads:** Direct to S3 with presigned URLs
+- **Rate Limiting:** Built into API routes
+
+**Data Layer:**
+- **PostgreSQL (RDS):** Primary database for structured data
+- **S3 Buckets:** Document storage with lifecycle policies
+- **OpenSearch:** Vector embeddings for RAG-powered AI search
+
+**Processing Layer:**
+- **SQS Queues:** Async job management for document processing
+- **Lambda Functions:** Background processing workers
+- **Bedrock Integration:** Claude API for document analysis and RAG
+
+### Key Advantages of This Architecture
+
+**Cost Efficiency:**
+- Pay-per-request pricing scales with actual usage
+- No always-on servers during low traffic periods
+- Estimated 80-90% cost savings during MVP phase
+
+**Scalability:**
+- Auto-scales from 0 to thousands of requests instantly
+- No capacity planning or load balancer management
+- Handles traffic spikes automatically
+
+**Reliability:**
+- Built-in redundancy across multiple Availability Zones
+- No single points of failure
+- AWS-managed infrastructure with 99.9%+ uptime
+
+**Development Velocity:**
+- Single codebase for frontend and API
+- Simplified deployment pipeline
+- No container orchestration or server management
+
+### Data Flow Examples
+
+**Fund Creation Flow:**
+1. User submits form → Next.js API route
+2. API route saves to PostgreSQL, uploads files to S3
+3. SQS message triggers background Lambda
+4. Lambda processes documents with Bedrock/Claude
+5. Results stored in OpenSearch + PostgreSQL
+6. Frontend polls for completion status
+
+**Application Assessment:**
+1. Assessor opens application → Next.js page
+2. Documents loaded from S3 via presigned URLs
+3. RAG system queries OpenSearch for relevant context
+4. Assessment submitted via API route to PostgreSQL
+
+## 11. AWS Configuration Standards (Production)
+
+### Required Environment Variables
+```bash
+# Primary region (established production)
+AWS_REGION="ap-southeast-2"
+NOLIA_AWS_REGION="ap-southeast-2"
+
+# S3 bucket (region-specific)
+S3_BUCKET_DOCUMENTS="nolia-funding-documents-ap-southeast-2-599065966827"
+S3_BUCKET_REGION="ap-southeast-2"
+
+# Database (ap-southeast-2)
+DATABASE_URL="postgresql://postgres:PASSWORD@nolia-funding-db.xxxxx.ap-southeast-2.rds.amazonaws.com:5432/postgres"
+
+# OpenSearch (ap-southeast-2)
+OPENSEARCH_ENDPOINT="https://search-nolia-funding-rag-xxxxx.ap-southeast-2.es.amazonaws.com"
+```
+
+### Code Configuration Pattern
+```typescript
+// Standard AWS client configuration
+const client = new AwsClient({
+  region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',
+  // credentials configuration
+});
+
+// Standard S3 bucket reference
+const S3_BUCKET = process.env.S3_BUCKET_DOCUMENTS || 'nolia-funding-documents-ap-southeast-2-599065966827';
+```
+
+### Important Notes
+- **Production Region:** ap-southeast-2 (Sydney) is the established production region
+- **Bucket Naming:** Always use region-specific bucket names in production
+- **Fallback Order:** NOLIA_AWS_REGION → AWS_REGION → ap-southeast-2
+- **No us-east-1:** Avoid us-east-1 references in new code
+
+## 11. Implementation Timeline (Per PRD)
 
 ### Months 1-2: Foundation
 - **Sprint 1-2:** Auth0 setup, database schema
