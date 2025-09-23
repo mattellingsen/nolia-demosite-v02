@@ -128,13 +128,13 @@ export async function POST(request: NextRequest) {
 
         await prisma.backgroundJob.updateMany({
             where: {
-                entityId: fundId,
+                fundId: fundId,
                 status: { in: ['PENDING', 'RUNNING'] }
             },
             data: {
                 status: 'COMPLETED',
                 completedAt: new Date(),
-                result: {
+                metadata: {
                     manuallyFixed: true,
                     fixedAt: new Date().toISOString(),
                     processedDocuments: successfulDocs.length,
