@@ -12,8 +12,6 @@ frontend:
         - echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> .env.production
         - echo "ADMIN_API_KEY=$ADMIN_API_KEY" >> .env.production
         - echo "NOLIA_AWS_REGION=$NOLIA_AWS_REGION" >> .env.production
-        - echo "NOLIA_AWS_ACCESS_KEY_ID=$NOLIA_AWS_ACCESS_KEY_ID" >> .env.production
-        - echo "NOLIA_AWS_SECRET_ACCESS_KEY=$NOLIA_AWS_SECRET_ACCESS_KEY" >> .env.production
         - echo "SQS_DOCUMENT_PROCESSING_QUEUE=$SQS_DOCUMENT_PROCESSING_QUEUE" >> .env.production
         - echo "SQS_BRAIN_ASSEMBLY_QUEUE=$SQS_BRAIN_ASSEMBLY_QUEUE" >> .env.production
     build:
