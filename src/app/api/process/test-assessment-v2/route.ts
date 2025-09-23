@@ -3,8 +3,7 @@ import { prisma } from '@/lib/database-s3';
 
 // Static imports as fallbacks for the dynamic imports
 import { extractTextFromFile } from '@/utils/server-document-analyzer';
-import { assessApplicationWithBedrock } from '@/lib/aws-bedrock';
-import { deterministicTemplateEngine } from '@/lib/deterministic-template-engine';
+import { resilientAssessmentService } from '@/lib/resilient-assessment-service';
 
 
 export async function POST(request: NextRequest) {
@@ -114,83 +113,63 @@ async function handleFundBasedAssessment(file: File, fundId: string) {
             assessmentInstructions: `Assess this application for ${fund.name} using the complete fund brain intelligence including application form understanding, selection criteria, good examples patterns, and output template requirements.`
         };
 
-        console.log('🔍 Using direct AWS Bedrock assessment with enhanced field extraction...');
+        console.log('🧠 Using resilient assessment service with single-stage template reasoning...');
 
-        // Build RAG context from fund brain
-        const ragContext = {
-            relevantDocuments: [
-                outputTemplatesAnalysis?.rawTemplateContent || 'No template available',
-                selectionCriteriaAnalysis?.rawCriteria || 'No criteria available'
-            ],
-            criteriaText: selectionCriteriaAnalysis?.rawCriteria || 'No selection criteria available',
-            goodExamples: goodExamplesAnalysis?.examples || ['No examples available']
-        };
+        // Use new resilient assessment service
+        const resilientResult = await resilientAssessmentService.assess(
+            applicationContent,
+            completeFundBrain,
+            file.name
+        );
 
-        const bedrockResult = await assessApplicationWithBedrock({
-            applicationText: applicationContent,
-            context: ragContext,
-            assessmentType: 'scoring' // This includes field extraction
-        });
+        // Check if resilient assessment succeeded
+        if (!resilientResult.success) {
+            return NextResponse.json({
+                success: false,
+                error: 'Assessment failed',
+                details: resilientResult.error || 'Unknown error from resilient assessment service'
+            }, { status: 500 });
+        }
 
-        // Extract the assessment data from Bedrock result (includes enhanced field extraction)
-        const assessmentData = {
-            rawAssessment: bedrockResult.feedback || 'Assessment completed',
-            extractedFields: {
-                // Basic assessment fields
-                overallScore: bedrockResult.score || 75,
-                strengths: ['Application reviewed with enhanced field extraction'],
-                weaknesses: [],
-                recommendation: bedrockResult.score >= 70 ? 'Approve' : bedrockResult.score >= 50 ? 'Conditional' : 'Decline',
-                // Template-specific fields from enhanced Bedrock extraction (NEW!)
-                organizationName: bedrockResult.extractedFields?.organizationName || '[Not extracted]',
-                numberOfStudents: bedrockResult.extractedFields?.numberOfStudents || '[Not extracted]',
-                fundingAmount: bedrockResult.extractedFields?.fundingAmount || '[Not extracted]',
-                businessSummary: bedrockResult.extractedFields?.businessSummary || '[Not extracted]',
-                recentRnDActivities: bedrockResult.extractedFields?.recentRnDActivities || '[Not extracted]',
-                plannedRnDActivities: bedrockResult.extractedFields?.plannedRnDActivities || '[Not extracted]',
-                studentExposureDescription: bedrockResult.extractedFields?.studentExposureDescription || '[Not extracted]',
-                // Legacy fields for compatibility
-                overallQuality: bedrockResult.score || 75,
-                innovation: bedrockResult.score || 75,
-                financial: bedrockResult.score || 75,
-                team: bedrockResult.score || 75,
-                market: bedrockResult.score || 75
+        // Extract assessment data from resilient assessment result
+        const assessmentData = resilientResult.assessmentData;
+        const extractedFields = assessmentData.extractedFields || {};
+
+        // Build compatible assessment result for the existing template engine
+        const assessmentResult = {
+            success: true,
+            strategyUsed: resilientResult.strategyUsed.name,
+            transparencyInfo: resilientResult.transparencyInfo,
+            assessmentData: {
+                rawAssessment: assessmentData.rawAssessment || assessmentData.filledTemplate || 'Assessment completed',
+                extractedFields: {
+                    // Basic assessment fields
+                    overallScore: extractedFields.overallScore || 75,
+                    strengths: extractedFields.strengths || ['Assessment completed with template reasoning'],
+                    weaknesses: extractedFields.weaknesses || [],
+                    recommendation: extractedFields.recommendation || 'Review Required',
+                    // Legacy fields for compatibility
+                    overallQuality: extractedFields.overallScore || 75,
+                    innovation: extractedFields.overallScore || 75,
+                    financial: extractedFields.overallScore || 75,
+                    team: extractedFields.overallScore || 75,
+                    market: extractedFields.overallScore || 75
+                },
+                // Include the filled template if available
+                filledTemplate: assessmentData.filledTemplate,
+                templateFormat: assessmentData.templateFormat
             }
         };
 
-        const assessmentResult = {
+        // Use the filled template from resilient assessment service
+        console.log('✅ Using filled template from resilient assessment service');
+
+        const formattedOutput = {
             success: true,
-            strategyUsed: 'ENHANCED_BEDROCK_DIRECT',
-            transparencyInfo: {
-                userMessage: `Enhanced Bedrock assessment completed with score ${bedrockResult.score || 75}`,
-                technicalDetails: 'Used enhanced Claude Bedrock prompt with direct field extraction'
-            },
-            assessmentData
+            formattedOutput: assessmentData.filledTemplate || assessmentData.rawAssessment,
+            templateApplied: !!assessmentData.filledTemplate,
+            templateFormat: assessmentData.templateFormat || 'filled_template'
         };
-
-        // Apply deterministic template formatting (using static import)
-
-        console.log('🎨 Applying template using deterministic template engine');
-
-        // Prepare template config with actual content
-        const templateConfig = {
-            ...outputTemplatesAnalysis,
-            content: outputTemplatesAnalysis?.rawTemplateContent || outputTemplatesAnalysis?.originalContent,
-            name: outputTemplatesAnalysis?.filename || 'Output Template'
-        };
-
-        // Enhance assessment data with fund context for template engine
-        const enhancedAssessmentData = {
-            ...assessmentData,
-            fundName: fund.name,
-            fundId: fund.id,
-            assessmentDate: new Date().toISOString(),
-            assessorName: 'System Assessment',
-            strategyUsed: assessmentResult.strategyUsed,
-            transparencyInfo: assessmentResult.transparencyInfo
-        };
-
-        const formattedOutput = await deterministicTemplateEngine.applyTemplate(enhancedAssessmentData, templateConfig);
 
         console.log(`✅ Fund-based assessment complete: ${file.name} - ${assessmentResult.transparencyInfo.userMessage}`);
 
