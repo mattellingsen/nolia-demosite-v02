@@ -1,11 +1,12 @@
 /**
- * Resilient Assessment Service - World-Class Engineering Implementation
+ * Resilient Assessment Service - Single-Stage Template Reasoning
  *
  * This service implements:
  * 1. Circuit Breaker Pattern with transparent fallbacks
- * 2. Two-Stage Processing (Assessment → Formatting)
- * 3. Keyword-based fallback with clear user notification
- * 4. Never trust Claude's JSON - extract through focused queries
+ * 2. Single-Stage Processing: Intelligent template reasoning in one call
+ * 3. Contextual field mapping: Project names, assessment dates, evidence-based decisions
+ * 4. Template structure preservation with intelligent content filling
+ * 5. Keyword-based fallback with clear user notification
  */
 
 import { claudeService } from './claude-service';
