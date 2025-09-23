@@ -30,18 +30,17 @@ export async function POST(request: NextRequest) {
 
         console.log('📋 Found fund:', fund.name, 'with', fund.documents.length, 'documents');
 
-        // Check if fund needs processing (DRAFT, PROCESSING, or ACTIVE with no knowledge base)
+        // Check if fund needs processing (DRAFT, PROCESSING, or ACTIVE with no fundBrain)
         const needsProcessing = fund.status === 'DRAFT' ||
                                fund.status === 'PROCESSING' ||
-                               (fund.status === 'ACTIVE' && (!fund.knowledgeBaseAnalysis ||
-                                fund.knowledgeBaseAnalysis?.processedSuccessfully === 0));
+                               (fund.status === 'ACTIVE' && !fund.fundBrain);
 
         if (!needsProcessing) {
             return NextResponse.json(
                 {
                     error: 'Fund does not need emergency processing',
                     currentStatus: fund.status,
-                    knowledgeBase: fund.knowledgeBaseAnalysis
+                    fundBrain: fund.fundBrain
                 },
                 { status: 400 }
             );
@@ -89,32 +88,37 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // Step 2: Build knowledge base analysis
-        console.log('🧠 Building knowledge base analysis...');
+        // Step 2: Build fund brain with knowledge base
+        console.log('🧠 Building fund brain with knowledge base...');
 
         const successfulDocs = processedDocuments.filter(doc => doc.status === 'processed');
         const failedDocs = processedDocuments.filter(doc => doc.status === 'failed');
 
-        const knowledgeBaseAnalysis = {
-            totalDocuments: fund.documents.length,
-            processedSuccessfully: successfulDocs.length,
-            failed: failedDocs.length,
-            documentTypes: fund.documents.reduce((acc, doc) => {
-                acc[doc.type] = (acc[doc.type] || 0) + 1;
-                return acc;
-            }, {} as Record<string, number>),
-            readyForAssessment: successfulDocs.length > 0
+        const fundBrain = {
+            knowledgeBase: {
+                totalDocuments: fund.documents.length,
+                processedSuccessfully: successfulDocs.length,
+                failed: failedDocs.length,
+                documentTypes: fund.documents.reduce((acc, doc) => {
+                    acc[doc.documentType || 'unknown'] = (acc[doc.documentType || 'unknown'] || 0) + 1;
+                    return acc;
+                }, {} as Record<string, number>),
+                readyForAssessment: successfulDocs.length > 0,
+                lastProcessed: new Date().toISOString()
+            },
+            version: fund.brainVersion || 1,
+            status: 'READY'
         };
 
-        // Step 3: Update fund with knowledge base analysis
-        console.log('🔄 Updating fund with knowledge base analysis...');
+        // Step 3: Update fund with brain and set to ACTIVE
+        console.log('🔄 Updating fund with brain and activating...');
 
         const updatedFund = await prisma.fund.update({
             where: { id: fundId },
             data: {
-                status: fund.status === 'ACTIVE' ? 'ACTIVE' : 'ACTIVE', // Always set to ACTIVE after processing
-                knowledgeBaseAnalysis: knowledgeBaseAnalysis,
-                processedAt: new Date(),
+                status: 'ACTIVE',
+                fundBrain: fundBrain,
+                brainAssembledAt: new Date(),
                 updatedAt: new Date()
             }
         });
