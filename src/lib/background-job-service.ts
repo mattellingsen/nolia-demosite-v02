@@ -706,30 +706,75 @@ export class BackgroundJobService {
             2. Template structure and sections
             3. Required data fields
             4. Format requirements
+
+            Do NOT include the full template content in your response - just analyze it.
           `,
           `
             Respond with valid JSON only:
             {
               "status": "completed",
               "useRawTemplate": true,
-              "rawTemplateContent": "Full template text with placeholders",
               "placeholders": ["[placeholder1]", "[placeholder2]"],
+              "sections": ["Section 1", "Section 2"],
+              "templateType": "assessment_report",
               "filename": "${filename}"
             }
           `
         ),
-        maxTokens: 3000,
+        maxTokens: 2000,
         temperature: 0.1,
       });
 
       if (response.success) {
-        return JSON.parse(response.content.match(/\{[\s\S]*\}/)?.[0] || '{}');
+        const analysis = JSON.parse(response.content.match(/\{[\s\S]*\}/)?.[0] || '{}');
+
+        // Add the original content directly - this prevents truncation
+        analysis.rawTemplateContent = content;
+        analysis.originalContent = content;
+
+        return analysis;
       } else {
-        return { status: 'failed', error: 'Claude analysis failed' };
+        // Fallback: return basic analysis with original content
+        return {
+          status: 'completed',
+          useRawTemplate: true,
+          rawTemplateContent: content,
+          originalContent: content,
+          filename: filename,
+          placeholders: this.extractPlaceholdersFromContent(content),
+          error: 'Claude analysis failed, using fallback'
+        };
       }
     } catch (error) {
       console.error('Error in output template analysis:', error);
-      return { status: 'failed', error: error instanceof Error ? error.message : 'Unknown error' };
+      // Fallback: return basic analysis with original content
+      return {
+        status: 'completed',
+        useRawTemplate: true,
+        rawTemplateContent: content,
+        originalContent: content,
+        filename: filename,
+        placeholders: this.extractPlaceholdersFromContent(content),
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
     }
+  }
+
+  /**
+   * Extract placeholders from content using regex as fallback
+   */
+  private static extractPlaceholdersFromContent(content: string): string[] {
+    const placeholderRegex = /\[([^\]]+)\]/g;
+    const placeholders: string[] = [];
+    let match;
+
+    while ((match = placeholderRegex.exec(content)) !== null) {
+      const placeholder = `[${match[1]}]`;
+      if (!placeholders.includes(placeholder)) {
+        placeholders.push(placeholder);
+      }
+    }
+
+    return placeholders;
   }
 }
