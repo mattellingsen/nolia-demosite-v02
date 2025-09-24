@@ -29,6 +29,11 @@ export const prisma =
         url: getDatabaseUrl(),
       },
     },
+    // TRANSACTION TIMEOUT FIX: Increased from default 5s to 120s to handle heavy document processing
+    transactionOptions: {
+      maxWait: 120000, // 120 seconds
+      timeout: 120000, // 120 seconds
+    },
   });
 
 // Prevent multiple instances in development
