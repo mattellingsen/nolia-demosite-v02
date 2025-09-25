@@ -238,6 +238,42 @@ function FundCreatedContent() {
         }
     };
 
+    // Retry AI processing after failure
+    const handleRetryProcessing = async () => {
+        if (!fundId || isProcessingManually) return;
+
+        setIsProcessingManually(true);
+        setError('');
+
+        try {
+            const response = await fetch(`/api/funds/${fundId}/retry-processing`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to retry processing');
+            }
+
+            const result = await response.json();
+            console.log('Retry processing triggered:', result);
+
+            // Trigger an immediate status check
+            setTimeout(() => {
+                setIsProcessingManually(false);
+                // The useEffect will continue polling
+            }, 2000);
+
+        } catch (err) {
+            console.error('Error retrying processing:', err);
+            setError(`Failed to retry processing: ${err instanceof Error ? err.message : 'Unknown error'}`);
+            setIsProcessingManually(false);
+        }
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen bg-primary flex items-center justify-center">
@@ -523,7 +559,19 @@ function FundCreatedContent() {
                         </Button>
                     )}
                     
-                    {(status.status === 'ERROR' || (status.status === 'PROCESSING' && status.brainBuilding.progress === 0)) && (
+                    {status.brainBuilding.status === 'ERROR' && (
+                        <Button
+                            size="lg"
+                            color="primary"
+                            iconLeading={RefreshCw05}
+                            onClick={handleRetryProcessing}
+                            isDisabled={isProcessingManually}
+                        >
+                            {isProcessingManually ? 'Retrying AI Analysis...' : 'Retry AI Processing'}
+                        </Button>
+                    )}
+
+                    {(status.status === 'PROCESSING' && status.brainBuilding.progress === 0) && (
                         <Button
                             size="lg"
                             color="primary"

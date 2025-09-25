@@ -395,10 +395,8 @@ async function processDocument(document: any) {
         console.log('✅ Claude AI analysis successful for application form in background processing');
 
       } catch (claudeError) {
-        console.warn('⚠️ Claude AI analysis failed for application form in background processing, falling back to pattern matching:', claudeError);
-        analysisResult = await analyzeApplicationForm(fileObject as File);
-        analysisResult.analysisMode = 'BASIC_FALLBACK';
-        analysisResult.analysisWarning = 'AI analysis failed for application form - using basic fallback analysis. The assessment quality may be reduced.';
+        console.error('❌ Claude AI analysis failed for application form - failing job:', claudeError);
+        throw new Error(`AI analysis failed for application form document "${document.filename}": ${claudeError.message}. Please try processing again.`);
       }
 
       // Update fund with application form analysis
@@ -427,10 +425,8 @@ async function processDocument(document: any) {
         console.log('✅ Claude AI analysis successful for selection criteria in background processing');
 
       } catch (claudeError) {
-        console.warn('⚠️ Claude AI analysis failed for selection criteria in background processing, falling back to pattern matching:', claudeError);
-        analysisResult = await analyzeSelectionCriteria([fileObject as File]);
-        analysisResult.analysisMode = 'BASIC_FALLBACK';
-        analysisResult.analysisWarning = 'AI analysis failed - using basic fallback analysis. The assessment quality may be reduced.';
+        console.error('❌ Claude AI analysis failed for selection criteria - failing job:', claudeError);
+        throw new Error(`AI analysis failed for selection criteria document "${document.filename}": ${claudeError.message}. Please try processing again.`);
       }
 
       // Update fund with selection criteria analysis
@@ -459,39 +455,8 @@ async function processDocument(document: any) {
         console.log('✅ Claude AI analysis successful for good examples in background processing');
 
       } catch (claudeError) {
-        console.warn('⚠️ Claude AI analysis failed for good examples in background processing, using basic fallback:', claudeError);
-
-        // Use basic analysis fallback
-        analysisResult = {
-          examplesAnalyzed: 1,
-          averageScore: 85,
-          qualityIndicators: [
-            {
-              name: 'Document Structure',
-              score: 85,
-              description: 'Well-organized application with clear sections'
-            },
-            {
-              name: 'Content Quality',
-              score: 80,
-              description: 'Comprehensive and relevant information provided'
-            }
-          ],
-          writingPatterns: [
-            'Clear and professional writing style',
-            'Logical flow between sections',
-            'Appropriate detail level'
-          ],
-          commonStrengths: [
-            'Well-structured',
-            'Professional presentation',
-            'Complete information'
-          ],
-          analysisMode: 'BASIC_FALLBACK',
-          analysisWarning: 'AI analysis failed in background processing - using basic fallback analysis. The assessment quality may be reduced.',
-          error: claudeError.message || 'Background processing Claude error',
-          requiresReview: true
-        };
+        console.error('❌ Claude AI analysis failed for good examples - failing job:', claudeError);
+        throw new Error(`AI analysis failed for good examples document "${document.filename}": ${claudeError.message}. Please try processing again.`);
       }
       
       // Update fund with good examples analysis
@@ -523,31 +488,8 @@ async function processDocument(document: any) {
         });
 
       } catch (claudeError) {
-        console.warn('⚠️ Claude AI analysis failed for output template in background processing, using basic fallback:', claudeError);
-
-        // Use basic analysis fallback
-        analysisResult = {
-          templatesProcessed: 1,
-          templateType: 'OUTPUT_TEMPLATE',
-          filename: document.filename,
-          status: 'PROCESSED',
-          structure: {
-            format: 'UNKNOWN',
-            sections: [],
-            fields: []
-          },
-          analysisMode: 'BASIC_FALLBACK',
-          analysisWarning: 'AI analysis failed - using basic template storage. Dynamic formatting may not work properly.',
-          error: claudeError.message || 'Template analysis error'
-        };
-
-        // Update fund with basic output template analysis
-        await prisma.fund.update({
-          where: { id: document.fundId },
-          data: {
-            outputTemplatesAnalysis: analysisResult
-          }
-        });
+        console.error('❌ Claude AI analysis failed for output template - failing job:', claudeError);
+        throw new Error(`AI analysis failed for output template document "${document.filename}": ${claudeError.message}. Please try processing again.`);
       }
 
       console.log(`Output template processed: ${document.filename}`);
