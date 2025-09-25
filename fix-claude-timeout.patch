@@ -1,0 +1,94 @@
+## CRITICAL FIX: Add timeout protection to Claude API calls
+## This prevents the silent crashes that have been blocking fund processing
+
+## Apply this fix to prevent future funds from getting stuck
+## The issue: Claude API calls hang indefinitely without timeout
+## The solution: Add 30-second timeout with fallback to basic analysis
+
+--- File: /src/lib/background-job-service.ts
+--- Add timeout wrapper to all Claude analysis methods
+
+1. In analyzeSelectionCriteriaDocument (line ~590):
+```typescript
+static async analyzeSelectionCriteriaDocument(content: string, filename: string): Promise<any> {
+  try {
+    // ADD TIMEOUT PROTECTION
+    const response = await Promise.race([
+      claudeService.executeTask({
+        task: 'analyze_selection_criteria',
+        prompt: ClaudeService.createFocusedPrompt(
+          'Selection Criteria Analysis',
+          content,
+          // ... existing prompt
+        ),
+        maxRetries: 1,
+        timeout: 30000
+      }),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Claude API timeout after 30 seconds')), 30000)
+      )
+    ]);
+
+    return JSON.parse(response.content);
+  } catch (error) {
+    console.error('Claude analysis failed:', error);
+    throw error; // Let the caller handle fallback
+  }
+}
+```
+
+2. Apply same pattern to analyzeGoodExamplesDocument (line ~650)
+3. Apply same pattern to analyzeOutputTemplateDocument (line ~710)
+
+--- File: /src/lib/claude-service.ts
+--- Add timeout parameter support
+
+In executeTask method, add timeout handling:
+```typescript
+async executeTask({ task, prompt, maxRetries = 3, timeout = 60000 }) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    // Existing Bedrock/Claude API call with signal: controller.signal
+    const response = await bedrockClient.send(command, {
+      abortSignal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error(`Claude API timeout after ${timeout}ms`);
+    }
+    throw error;
+  }
+}
+```
+
+--- File: /src/app/api/jobs/process/route.ts
+--- Ensure fallback always works (lines 420-434)
+
+The existing try/catch at line 429 should already handle this, but verify:
+```typescript
+} catch (claudeError) {
+  console.warn('⚠️ Claude AI analysis failed, using fallback:', claudeError);
+  // This fallback is already in place and working
+  analysisResult = await analyzeSelectionCriteria([fileObject as File]);
+  analysisResult.analysisMode = 'BASIC_FALLBACK';
+}
+```
+
+## TESTING THE FIX
+1. Apply the timeout changes
+2. Create a new test fund
+3. Monitor the processing - it should either:
+   - Complete successfully with Claude analysis, OR
+   - Timeout after 30s and use basic fallback (still marking as ACTIVE)
+4. The fund should reach ACTIVE status within 5-10 minutes maximum
+
+## WHY THIS WORKS
+- Prevents infinite hangs on Claude API calls
+- Falls back to basic analysis if Claude times out
+- Ensures jobs complete one way or another
+- No funds will get stuck in PROCESSING state

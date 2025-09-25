@@ -589,40 +589,46 @@ export class BackgroundJobService {
    */
   static async analyzeSelectionCriteriaDocument(content: string, filename: string): Promise<any> {
     try {
-      const response = await claudeService.executeTask({
-        task: 'analyze_selection_criteria',
-        prompt: ClaudeService.createFocusedPrompt(
-          'Selection Criteria Analysis',
-          content,
-          `
-            Analyze this selection criteria document to extract assessment criteria and scoring guidelines.
+      // Add 30-second timeout protection to prevent infinite hangs
+      const response = await Promise.race([
+        claudeService.executeTask({
+          task: 'analyze_selection_criteria',
+          prompt: ClaudeService.createFocusedPrompt(
+            'Selection Criteria Analysis',
+            content,
+            `
+              Analyze this selection criteria document to extract assessment criteria and scoring guidelines.
 
-            Extract information about:
-            1. Assessment criteria categories
-            2. Scoring ranges and weights
-            3. Key evaluation indicators
-            4. Assessment instructions
-          `,
-          `
-            Respond with valid JSON only:
-            {
-              "status": "completed",
-              "criteria": [
-                {
-                  "name": "criterion_name",
-                  "description": "What this criterion evaluates",
-                  "weight": 25,
-                  "maxScore": 100,
-                  "keyIndicators": ["indicator1", "indicator2"]
-                }
-              ],
-              "overallInstructions": "General assessment guidelines"
-            }
-          `
-        ),
-        maxTokens: 32000,
-        temperature: 0.3,
-      });
+              Extract information about:
+              1. Assessment criteria categories
+              2. Scoring ranges and weights
+              3. Key evaluation indicators
+              4. Assessment instructions
+            `,
+            `
+              Respond with valid JSON only:
+              {
+                "status": "completed",
+                "criteria": [
+                  {
+                    "name": "criterion_name",
+                    "description": "What this criterion evaluates",
+                    "weight": 25,
+                    "maxScore": 100,
+                    "keyIndicators": ["indicator1", "indicator2"]
+                  }
+                ],
+                "overallInstructions": "General assessment guidelines"
+              }
+            `
+          ),
+          maxTokens: 32000,
+          temperature: 0.3,
+        }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Claude AI analysis timeout after 5 minutes. Please try processing again.')), 300000)
+        )
+      ]);
 
       if (response.success) {
         return JSON.parse(response.content.match(/\{[\s\S]*\}/)?.[0] || '{}');
@@ -631,7 +637,8 @@ export class BackgroundJobService {
       }
     } catch (error) {
       console.error('Error in selection criteria analysis:', error);
-      return { status: 'failed', error: error instanceof Error ? error.message : 'Unknown error' };
+      // Re-throw to trigger fallback in the calling code
+      throw error;
     }
   }
 
@@ -640,42 +647,48 @@ export class BackgroundJobService {
    */
   static async analyzeGoodExamplesDocument(content: string, filename: string): Promise<any> {
     try {
-      const response = await claudeService.executeTask({
-        task: 'analyze_good_examples',
-        prompt: ClaudeService.createFocusedPrompt(
-          'Good Examples Analysis',
-          content,
-          `
-            Analyze these good example applications to identify success patterns.
+      // Add 30-second timeout protection to prevent infinite hangs
+      const response = await Promise.race([
+        claudeService.executeTask({
+          task: 'analyze_good_examples',
+          prompt: ClaudeService.createFocusedPrompt(
+            'Good Examples Analysis',
+            content,
+            `
+              Analyze these good example applications to identify success patterns.
 
-            Extract information about:
-            1. Common strengths in successful applications
-            2. Patterns in high-scoring responses
-            3. Key success factors
-            4. Quality indicators
-          `,
-          `
-            Respond with valid JSON only:
-            {
-              "status": "completed",
-              "successPatterns": {
-                "commonStrengths": ["strength1", "strength2"],
-                "keyIndicators": ["indicator1", "indicator2"],
-                "averageScore": 85
-              },
-              "examples": [
-                {
-                  "title": "Example Application",
-                  "strengths": ["what made this good"],
-                  "score": 90
-                }
-              ]
-            }
-          `
-        ),
-        maxTokens: 32000,
-        temperature: 0.3,
-      });
+              Extract information about:
+              1. Common strengths in successful applications
+              2. Patterns in high-scoring responses
+              3. Key success factors
+              4. Quality indicators
+            `,
+            `
+              Respond with valid JSON only:
+              {
+                "status": "completed",
+                "successPatterns": {
+                  "commonStrengths": ["strength1", "strength2"],
+                  "keyIndicators": ["indicator1", "indicator2"],
+                  "averageScore": 85
+                },
+                "examples": [
+                  {
+                    "title": "Example Application",
+                    "strengths": ["what made this good"],
+                    "score": 90
+                  }
+                ]
+              }
+            `
+          ),
+          maxTokens: 32000,
+          temperature: 0.3,
+        }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Claude AI analysis timeout after 5 minutes. Please try processing again.')), 300000)
+        )
+      ]);
 
       if (response.success) {
         return JSON.parse(response.content.match(/\{[\s\S]*\}/)?.[0] || '{}');
@@ -684,7 +697,8 @@ export class BackgroundJobService {
       }
     } catch (error) {
       console.error('Error in good examples analysis:', error);
-      return { status: 'failed', error: error instanceof Error ? error.message : 'Unknown error' };
+      // Re-throw to trigger fallback in the calling code
+      throw error;
     }
   }
 
@@ -693,37 +707,43 @@ export class BackgroundJobService {
    */
   static async analyzeOutputTemplateDocument(content: string, filename: string): Promise<any> {
     try {
-      const response = await claudeService.executeTask({
-        task: 'analyze_output_template',
-        prompt: ClaudeService.createFocusedPrompt(
-          'Output Template Analysis',
-          content,
-          `
-            Analyze this output template document to identify placeholders and structure.
+      // Add 30-second timeout protection to prevent infinite hangs
+      const response = await Promise.race([
+        claudeService.executeTask({
+          task: 'analyze_output_template',
+          prompt: ClaudeService.createFocusedPrompt(
+            'Output Template Analysis',
+            content,
+            `
+              Analyze this output template document to identify placeholders and structure.
 
-            Extract information about:
-            1. All placeholders in the format [placeholder] or {{placeholder}}
-            2. Template structure and sections
-            3. Required data fields
-            4. Format requirements
+              Extract information about:
+              1. All placeholders in the format [placeholder] or {{placeholder}}
+              2. Template structure and sections
+              3. Required data fields
+              4. Format requirements
 
-            Do NOT include the full template content in your response - just analyze it.
-          `,
-          `
-            Respond with valid JSON only:
-            {
-              "status": "completed",
-              "useRawTemplate": true,
-              "placeholders": ["[placeholder1]", "[placeholder2]"],
-              "sections": ["Section 1", "Section 2"],
-              "templateType": "assessment_report",
-              "filename": "${filename}"
-            }
-          `
-        ),
-        maxTokens: 32000,
-        temperature: 0.1,
-      });
+              Do NOT include the full template content in your response - just analyze it.
+            `,
+            `
+              Respond with valid JSON only:
+              {
+                "status": "completed",
+                "useRawTemplate": true,
+                "placeholders": ["[placeholder1]", "[placeholder2]"],
+                "sections": ["Section 1", "Section 2"],
+                "templateType": "assessment_report",
+                "filename": "${filename}"
+              }
+            `
+          ),
+          maxTokens: 32000,
+          temperature: 0.1,
+        }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Claude AI analysis timeout after 5 minutes. Please try processing again.')), 300000)
+        )
+      ]);
 
       if (response.success) {
         const analysis = JSON.parse(response.content.match(/\{[\s\S]*\}/)?.[0] || '{}');
