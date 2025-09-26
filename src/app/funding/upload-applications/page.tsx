@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft } from "@untitledui/icons";
 import { SidebarNavigationSlim } from "@/components/application/app-navigation/sidebar-navigation/sidebar-slim";
 import { Button } from "@/components/base/buttons/button";
@@ -44,7 +45,8 @@ const UploadApplicationsPage = () => {
     const [assessmentResults, setAssessmentResults] = useState<AssessmentResult[]>([]);
     const [selectedFund, setSelectedFund] = useState<any>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    
+
+    const queryClient = useQueryClient();
     const { data: funds, isLoading: fundsLoading, error: fundsError } = useFunds();
 
     // Progress steps data for Untitled UI Progress component
@@ -148,6 +150,9 @@ const UploadApplicationsPage = () => {
 
             // Wait for all assessments to be saved
             await Promise.all(savePromises);
+
+            // Invalidate assessments cache to ensure fresh data is shown in the assess page
+            queryClient.invalidateQueries({ queryKey: ['assessments'] });
 
             alert(`${assessmentResults.length} assessments saved successfully! You can now view them in the Assessment page.`);
 
