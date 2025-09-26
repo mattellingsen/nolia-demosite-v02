@@ -339,6 +339,15 @@ export const Dashboard12 = () => {
                         <div className="flex items-center gap-3">
                             <p className="text-display-md font-semibold text-primary">Application Assessment ({assessments.length} assessments, {transformedAssessments.length} transformed)</p>
                         </div>
+                        {/* Debug information */}
+                        <div className="bg-yellow-100 p-4 mt-4 rounded border">
+                            <h3 className="font-bold text-black">DEBUG INFO:</h3>
+                            <p className="text-black">Loading: {assessmentsLoading ? 'YES' : 'NO'}</p>
+                            <p className="text-black">Error: {assessmentsError ? 'YES' : 'NO'}</p>
+                            <p className="text-black">Response exists: {assessmentsResponse ? 'YES' : 'NO'}</p>
+                            <p className="text-black">Raw assessments count: {assessments.length}</p>
+                            <p className="text-black">First assessment: {assessments[0] ? assessments[0].organizationName : 'NONE'}</p>
+                        </div>
                     </div>
                 </div>
 
