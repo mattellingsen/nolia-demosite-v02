@@ -242,43 +242,92 @@ export const Dashboard12 = () => {
     const { data: funds = [], isLoading: fundsLoading, error: fundsError } = useFunds();
     const activeFunds = funds.filter(fund => fund.status === 'ACTIVE');
 
-    // Fetch assessments data
-    const { data: assessmentsResponse, isLoading: assessmentsLoading, error: assessmentsError } = useAssessments();
-    console.log('Dashboard12: assessmentsResponse:', assessmentsResponse);
-    console.log('Dashboard12: assessmentsLoading:', assessmentsLoading);
-    console.log('Dashboard12: assessmentsError:', assessmentsError);
+    // Fetch assessments data - only after client mount
+    const assessmentsQuery = useAssessments();
+    const { data: assessmentsResponse, isLoading: assessmentsLoading, error: assessmentsError } = assessmentsQuery;
+
+    console.log('📊 Dashboard12: Assessment Query State:', {
+        mounted,
+        isLoading: assessmentsLoading,
+        isFetching: assessmentsQuery.isFetching,
+        isError: !!assessmentsError,
+        isSuccess: assessmentsQuery.isSuccess,
+        hasData: !!assessmentsResponse,
+        assessmentsCount: assessmentsResponse?.assessments?.length || 0,
+        error: assessmentsError?.message,
+        fetchStatus: assessmentsQuery.fetchStatus,
+        status: assessmentsQuery.status,
+    });
+
     const assessments = assessmentsResponse?.assessments || [];
 
     // Transform assessments data into the format expected by the table
     const transformedAssessments = useMemo(() => {
-        console.log('Dashboard12: Raw assessments data:', assessments);
-        console.log('Dashboard12: assessments.length:', assessments.length);
-        return assessments.map((assessment) => {
-            // Determine assessment type icon based on filename or format
-            const logoUrl = assessment.assessmentType === 'AI_POWERED'
-                ? "/images/funding/file-type-icon-pdf.png"
-                : "/images/funding/file-type-icon-doc.png";
+        console.log('🔄 Dashboard12: Starting transformation...');
+        console.log('🔄 Dashboard12: Input assessments:', assessments);
+        console.log('🔄 Dashboard12: assessments.length:', assessments.length);
+        console.log('🔄 Dashboard12: assessments type:', typeof assessments, Array.isArray(assessments));
 
-            // Get organization name and project name with flexible naming
-            const organizationName = assessment.organizationName;
-            const projectName = assessment.projectName || organizationName;
+        if (!Array.isArray(assessments) || assessments.length === 0) {
+            console.log('⚠️ Dashboard12: No valid assessments to transform');
+            return [];
+        }
 
-            return {
-                id: assessment.id,
-                vendor: {
-                    name: organizationName,
-                    website: projectName,
-                    logoUrl: logoUrl,
-                },
-                rating: Math.round(parseFloat(assessment.overallScore) || 0),
-                change: "N/A", // We don't have change tracking yet
-                changeTrend: "neutral" as const,
-                lastAssessed: new Date(assessment.createdAt).getTime(),
-                categories: [assessment.fund.name],
-                fundName: assessment.fund.name,
-                assessmentType: assessment.assessmentType,
-            };
-        });
+        try {
+            const transformed = assessments.map((assessment, index) => {
+                console.log(`🔄 Dashboard12: Transforming assessment ${index}:`, assessment);
+
+                // Validate assessment structure
+                if (!assessment || typeof assessment !== 'object') {
+                    console.error(`❌ Dashboard12: Invalid assessment at index ${index}:`, assessment);
+                    throw new Error(`Invalid assessment at index ${index}`);
+                }
+
+                // Check for required fields
+                const requiredFields = ['id', 'organizationName', 'assessmentType', 'createdAt', 'fund'];
+                for (const field of requiredFields) {
+                    if (!(field in assessment)) {
+                        console.error(`❌ Dashboard12: Missing required field '${field}' in assessment:`, assessment);
+                        throw new Error(`Missing required field '${field}' in assessment`);
+                    }
+                }
+
+                // Determine assessment type icon based on filename or format
+                const logoUrl = assessment.assessmentType === 'AI_POWERED'
+                    ? "/images/funding/file-type-icon-pdf.png"
+                    : "/images/funding/file-type-icon-doc.png";
+
+                // Get organization name and project name with flexible naming
+                const organizationName = assessment.organizationName;
+                const projectName = assessment.projectName || organizationName;
+
+                const result = {
+                    id: assessment.id,
+                    vendor: {
+                        name: organizationName,
+                        website: projectName,
+                        logoUrl: logoUrl,
+                    },
+                    rating: Math.round(parseFloat(String(assessment.overallScore)) || 0),
+                    change: "N/A", // We don't have change tracking yet
+                    changeTrend: "neutral" as const,
+                    lastAssessed: new Date(assessment.createdAt).getTime(),
+                    categories: [assessment.fund.name],
+                    fundName: assessment.fund.name,
+                    assessmentType: assessment.assessmentType,
+                };
+
+                console.log(`✅ Dashboard12: Transformed assessment ${index}:`, result);
+                return result;
+            });
+
+            console.log('✅ Dashboard12: All assessments transformed successfully:', transformed);
+            return transformed;
+        } catch (transformError) {
+            console.error('❌ Dashboard12: Error during transformation:', transformError);
+            // Return empty array on transformation error to prevent crashes
+            return [];
+        }
     }, [assessments]);
 
     useEffect(() => {
@@ -463,7 +512,7 @@ export const Dashboard12 = () => {
                             sortedItems.length={sortedItems.length},
                             using static data={sortedItems === movements ? 'YES' : 'NO'}
                         </div>
-                        {mounted && !assessmentsLoading && sortedItems && sortedItems.length > 0 ? (
+                        {mounted && sortedItems && sortedItems.length > 0 && !assessmentsLoading ? (
                             <Table
                                 key={`vendor-movements-table-${sortedItems.length}`}
                                 aria-label="Vendor movements"
