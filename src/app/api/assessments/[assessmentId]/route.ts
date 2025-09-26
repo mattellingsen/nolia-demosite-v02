@@ -3,10 +3,10 @@ import { prisma } from '@/lib/database-s3';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { assessmentId: string } }
+  { params }: { params: Promise<{ assessmentId: string }> }
 ) {
   try {
-    const { assessmentId } = params;
+    const { assessmentId } = await params;
 
     const assessment = await prisma.assessment.findUnique({
       where: { id: assessmentId },
@@ -43,10 +43,10 @@ export async function GET(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { assessmentId: string } }
+  { params }: { params: Promise<{ assessmentId: string }> }
 ) {
   try {
-    const { assessmentId } = params;
+    const { assessmentId } = await params;
 
     const assessment = await prisma.assessment.findUnique({
       where: { id: assessmentId }

@@ -2,12 +2,23 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Calendar, CheckCircle, File02, TrendUp02, Building08, Star07 } from '@untitledui/icons';
+// Import fixed icons
+import {
+  ArrowLeft,
+  Calendar,
+  CheckCircle,
+  File02,
+  TrendUp02,
+  Building08,
+  Star07,
+  Edit05,
+  Send01,
+  CheckDone01
+} from '@untitledui/icons';
 import { SidebarNavigationSlim } from "@/components/application/app-navigation/sidebar-navigation/sidebar-slim";
 import { Button } from "@/components/base/buttons/button";
 import { BadgeWithDot } from "@/components/base/badges/badges";
 import { ProgressBar } from "@/components/base/progress-indicators/progress-indicators";
-import { Edit05, Send01, CheckDone01 } from "@untitledui/icons";
 
 interface Assessment {
   id: string;
