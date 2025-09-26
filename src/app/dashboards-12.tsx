@@ -223,7 +223,20 @@ const movements = [
 export const Dashboard12 = () => {
     const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>();
     const [mounted, setMounted] = useState(false);
+    const [directFetchResult, setDirectFetchResult] = useState<string>('Not tested');
     const router = useRouter();
+
+    // Direct API test on mount
+    useEffect(() => {
+        fetch('/api/assessments')
+            .then(response => response.json())
+            .then(data => {
+                setDirectFetchResult(`Success: ${data.assessments?.length || 0} assessments`);
+            })
+            .catch(error => {
+                setDirectFetchResult(`Error: ${error.message}`);
+            });
+    }, []);
 
     // Fetch funds data for the right sidebar
     const { data: funds = [], isLoading: fundsLoading, error: fundsError } = useFunds();
@@ -347,6 +360,7 @@ export const Dashboard12 = () => {
                             <p className="text-black">Response exists: {assessmentsResponse ? 'YES' : 'NO'}</p>
                             <p className="text-black">Raw assessments count: {assessments.length}</p>
                             <p className="text-black">First assessment: {assessments[0] ? assessments[0].organizationName : 'NONE'}</p>
+                            <p className="text-black">Direct fetch test: {directFetchResult}</p>
                         </div>
                     </div>
                 </div>
