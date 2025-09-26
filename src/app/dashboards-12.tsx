@@ -303,7 +303,7 @@ export const Dashboard12 = () => {
 
             return 0;
         });
-    }, [sortDescriptor]);
+    }, [transformedAssessments, sortDescriptor]);
 
     return (
         <div className="flex flex-col bg-primary lg:flex-row">
