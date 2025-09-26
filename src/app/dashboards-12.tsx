@@ -235,6 +235,8 @@ export const Dashboard12 = () => {
 
     // Transform assessments data into the format expected by the table
     const transformedAssessments = useMemo(() => {
+        console.log('Dashboard12: Raw assessments data:', assessments);
+        console.log('Dashboard12: assessments.length:', assessments.length);
         return assessments.map((assessment) => {
             // Determine assessment type icon based on filename or format
             const logoUrl = assessment.assessmentType === 'AI_POWERED'
@@ -252,7 +254,7 @@ export const Dashboard12 = () => {
                     website: projectName,
                     logoUrl: logoUrl,
                 },
-                rating: Math.round(assessment.overallScore || 0),
+                rating: Math.round(parseFloat(assessment.overallScore) || 0),
                 change: "N/A", // We don't have change tracking yet
                 changeTrend: "neutral" as const,
                 lastAssessed: new Date(assessment.createdAt).getTime(),
@@ -268,6 +270,8 @@ export const Dashboard12 = () => {
     }, []);
 
     const sortedItems = useMemo(() => {
+        console.log('Dashboard12: transformedAssessments.length:', transformedAssessments.length);
+        console.log('Dashboard12: Using fallback to static movements?', transformedAssessments.length === 0);
         const items = transformedAssessments.length > 0 ? transformedAssessments : movements;
         if (!sortDescriptor) return items;
 
