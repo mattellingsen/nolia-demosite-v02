@@ -1,3 +1,5 @@
+"use client";
+
 import { Dashboard12 } from "../../dashboards-12";
 
 // Force dynamic rendering to prevent static caching in production
