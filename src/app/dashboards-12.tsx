@@ -337,7 +337,7 @@ export const Dashboard12 = () => {
                     <div className="flex flex-col gap-1">
                         <p className="text-md font-semibold text-tertiary">Kia ora Kylee</p>
                         <div className="flex items-center gap-3">
-                            <p className="text-display-md font-semibold text-primary">Application Assessment</p>
+                            <p className="text-display-md font-semibold text-primary">Application Assessment ({assessments.length} assessments, {transformedAssessments.length} transformed)</p>
                         </div>
                     </div>
                 </div>
@@ -435,6 +435,11 @@ export const Dashboard12 = () => {
                     </div>
 
                     <TableCard.Root className="flex flex-col">
+                        <div className="p-4 text-sm text-gray-600 border-b">
+                            Debug: mounted={mounted.toString()}, loading={assessmentsLoading.toString()},
+                            sortedItems.length={sortedItems.length},
+                            using static data={sortedItems === movements ? 'YES' : 'NO'}
+                        </div>
                         {mounted && !assessmentsLoading && sortedItems && sortedItems.length > 0 ? (
                             <Table
                                 key={`vendor-movements-table-${sortedItems.length}`}
