@@ -59,7 +59,8 @@ export const useAssessments = (options: UseAssessmentsOptions = {}): UseQueryRes
 
       return response.json();
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnWindowFocus: false,
+    staleTime: 0, // Always refetch fresh data
+    refetchOnWindowFocus: true, // Refetch when user returns to tab
+    refetchOnMount: true, // Always refetch when component mounts
   });
 };
