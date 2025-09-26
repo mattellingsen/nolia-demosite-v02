@@ -231,6 +231,9 @@ export const Dashboard12 = () => {
 
     // Fetch assessments data
     const { data: assessmentsResponse, isLoading: assessmentsLoading, error: assessmentsError } = useAssessments();
+    console.log('Dashboard12: assessmentsResponse:', assessmentsResponse);
+    console.log('Dashboard12: assessmentsLoading:', assessmentsLoading);
+    console.log('Dashboard12: assessmentsError:', assessmentsError);
     const assessments = assessmentsResponse?.assessments || [];
 
     // Transform assessments data into the format expected by the table
