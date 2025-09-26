@@ -43,6 +43,7 @@ const UploadApplicationsPage = () => {
     const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
     const [assessmentResults, setAssessmentResults] = useState<AssessmentResult[]>([]);
     const [selectedFund, setSelectedFund] = useState<any>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     
     const { data: funds, isLoading: fundsLoading, error: fundsError } = useFunds();
 
@@ -82,15 +83,85 @@ const UploadApplicationsPage = () => {
         setCurrentStep('results');
     };
 
-    const handleSubmitToDatabase = () => {
-        // Here you would normally send results to your backend
-        console.log('Submitting results to database:', assessmentResults);
-        alert('Applications submitted successfully! You can now view them in the Assessment page.');
-        
-        // Reset the workflow
-        setCurrentStep('upload');
-        setUploadedFiles([]);
-        setAssessmentResults([]);
+    const handleSubmitToDatabase = async () => {
+        if (!selectedFund || assessmentResults.length === 0) {
+            alert('No fund selected or no assessment results to save.');
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            // Save each assessment result to the database
+            const savePromises = assessmentResults.map(async (result) => {
+                // Extract organization name from filename (remove extension)
+                const organizationName = result.fileName.replace(/\.[^/.]+$/, "");
+
+                // Determine assessment type based on the result
+                const assessmentType = result.isTemplateFormatted ? 'AI_POWERED' : 'PATTERN_BASED';
+
+                // Prepare data for API
+                const assessmentData = {
+                    fundId: selectedFund.id,
+                    organizationName,
+                    projectName: organizationName, // Use same as organization for now
+                    assessmentType,
+                    overallScore: result.rating,
+                    scoringResults: {
+                        rating: result.rating,
+                        categories: result.categories,
+                        summary: result.summary,
+                        status: result.status,
+                        recommendations: result.recommendations,
+                        ...(result.isTemplateFormatted && {
+                            templateSections: result.templateSections,
+                            isTemplateFormatted: true
+                        }),
+                        ...(result.isFilledTemplate && {
+                            filledTemplate: result.filledTemplate,
+                            isFilledTemplate: true
+                        }),
+                        ...(result.details && { legacyDetails: result.details })
+                    },
+                    assessmentData: {
+                        fileName: result.fileName,
+                        originalResult: result,
+                        processedAt: new Date().toISOString(),
+                        fundName: selectedFund.name
+                    }
+                };
+
+                const response = await fetch('/api/assessments', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(assessmentData),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`Failed to save assessment for ${result.fileName}: ${errorData.error}`);
+                }
+
+                return response.json();
+            });
+
+            // Wait for all assessments to be saved
+            await Promise.all(savePromises);
+
+            alert(`${assessmentResults.length} assessments saved successfully! You can now view them in the Assessment page.`);
+
+            // Reset the workflow
+            setCurrentStep('upload');
+            setUploadedFiles([]);
+            setAssessmentResults([]);
+
+        } catch (error) {
+            console.error('Error saving assessments:', error);
+            alert(`Failed to save assessments: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const handleBackToUpload = () => {
@@ -148,6 +219,7 @@ const UploadApplicationsPage = () => {
                         results={assessmentResults}
                         onSubmit={handleSubmitToDatabase}
                         onBackToUpload={handleBackToUpload}
+                        isSubmitting={isSubmitting}
                     />
                 );
         }

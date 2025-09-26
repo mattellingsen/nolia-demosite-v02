@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
+import { useRouter } from 'next/navigation';
 import { useFunds } from "@/hooks/useFunds";
+import { useAssessments } from "@/hooks/useAssessments";
 import {
     ArrowRight,
     CheckDone01,
@@ -15,6 +17,7 @@ import {
     Trash01,
     TrendUp02,
     UploadCloud01,
+    Eye,
 } from "@untitledui/icons";
 import type { SortDescriptor } from "react-aria-components";
 import { Area, AreaChart, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, XAxis } from "recharts";
@@ -220,19 +223,55 @@ const movements = [
 export const Dashboard12 = () => {
     const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>();
     const [mounted, setMounted] = useState(false);
+    const router = useRouter();
 
     // Fetch funds data for the right sidebar
     const { data: funds = [], isLoading: fundsLoading, error: fundsError } = useFunds();
     const activeFunds = funds.filter(fund => fund.status === 'ACTIVE');
+
+    // Fetch assessments data
+    const { data: assessmentsResponse, isLoading: assessmentsLoading, error: assessmentsError } = useAssessments();
+    const assessments = assessmentsResponse?.assessments || [];
+
+    // Transform assessments data into the format expected by the table
+    const transformedAssessments = useMemo(() => {
+        return assessments.map((assessment) => {
+            // Determine assessment type icon based on filename or format
+            const logoUrl = assessment.assessmentType === 'AI_POWERED'
+                ? "/images/funding/file-type-icon-pdf.png"
+                : "/images/funding/file-type-icon-doc.png";
+
+            // Get organization name and project name with flexible naming
+            const organizationName = assessment.organizationName;
+            const projectName = assessment.projectName || organizationName;
+
+            return {
+                id: assessment.id,
+                vendor: {
+                    name: organizationName,
+                    website: projectName,
+                    logoUrl: logoUrl,
+                },
+                rating: Math.round(assessment.overallScore || 0),
+                change: "N/A", // We don't have change tracking yet
+                changeTrend: "neutral" as const,
+                lastAssessed: new Date(assessment.createdAt).getTime(),
+                categories: [assessment.fund.name],
+                fundName: assessment.fund.name,
+                assessmentType: assessment.assessmentType,
+            };
+        });
+    }, [assessments]);
 
     useEffect(() => {
         setMounted(true);
     }, []);
 
     const sortedItems = useMemo(() => {
-        if (!sortDescriptor) return movements;
+        const items = transformedAssessments.length > 0 ? transformedAssessments : movements;
+        if (!sortDescriptor) return items;
 
-        return movements.toSorted((a, b) => {
+        return items.toSorted((a, b) => {
             let first = a[sortDescriptor.column as keyof typeof a];
             let second = b[sortDescriptor.column as keyof typeof b];
 
@@ -389,7 +428,7 @@ export const Dashboard12 = () => {
                     </div>
 
                     <TableCard.Root className="flex flex-col">
-                        {mounted && sortedItems && sortedItems.length > 0 ? (
+                        {mounted && !assessmentsLoading && sortedItems && sortedItems.length > 0 ? (
                             <Table
                                 key={`vendor-movements-table-${sortedItems.length}`}
                                 aria-label="Vendor movements"
@@ -432,7 +471,7 @@ export const Dashboard12 = () => {
                                                     color="success"
                                                     className="capitalize"
                                                 >
-                                                    New to R&D Grant
+                                                    {(movement as any).fundName || "New to R&D Grant"}
                                                 </BadgeWithDot>
                                             </div>
                                         </Table.Cell>
@@ -441,8 +480,20 @@ export const Dashboard12 = () => {
                                             <div className="flex justify-end gap-0.5">
                                                 {mounted && (
                                                     <>
+                                                        {/* Only show View Details for real assessments, not mock data */}
+                                                        {transformedAssessments.length > 0 && (
+                                                            <ButtonUtility
+                                                                size="xs"
+                                                                color="tertiary"
+                                                                tooltip="View Details"
+                                                                icon={Eye}
+                                                                onClick={() => router.push(`/funding/assess/${movement.id}`)}
+                                                            />
+                                                        )}
                                                         <ButtonUtility size="xs" color="tertiary" tooltip="Delete" icon={Trash01} />
-                                                        <ButtonUtility size="xs" color="tertiary" tooltip="Edit" icon={Edit01} />
+                                                        {transformedAssessments.length === 0 && (
+                                                            <ButtonUtility size="xs" color="tertiary" tooltip="Edit" icon={Edit01} />
+                                                        )}
                                                     </>
                                                 )}
                                             </div>
@@ -451,10 +502,24 @@ export const Dashboard12 = () => {
                                 )}
                             </Table.Body>
                             </Table>
+                        ) : assessmentsLoading ? (
+                            <div className="p-8 text-center text-tertiary">Loading assessments...</div>
+                        ) : assessmentsError ? (
+                            <div className="p-8 text-center text-red-600">Error loading assessments</div>
+                        ) : transformedAssessments.length === 0 ? (
+                            <div className="p-8 text-center text-tertiary">
+                                <p className="mb-4">No assessments found</p>
+                                <p className="text-sm">Upload and assess applications to see them here</p>
+                            </div>
                         ) : (
-                            <div className="p-8 text-center text-tertiary">Loading...</div>
+                            <div className="p-8 text-center text-tertiary">No data available</div>
                         )}
-                        <PaginationPageDefault page={1} total={10} />
+                        {assessmentsResponse && assessmentsResponse.pagination && (
+                            <PaginationPageDefault
+                                page={Math.floor(assessmentsResponse.pagination.offset / assessmentsResponse.pagination.limit) + 1}
+                                total={Math.ceil(assessmentsResponse.pagination.total / assessmentsResponse.pagination.limit)}
+                            />
+                        )}
                     </TableCard.Root>
                 </div>
             </main>
@@ -507,10 +572,15 @@ export const Dashboard12 = () => {
                         <div className="flex flex-col gap-4">
                             <div className="flex flex-col gap-2">
                                 <div className="flex justify-between gap-4">
-                                    <p className="text-sm font-medium text-primary">This month</p>
-                                    <span className="text-sm text-tertiary">0 Applications</span>
+                                    <p className="text-sm font-medium text-primary">Total Assessments</p>
+                                    <span className="text-sm text-tertiary">
+                                        {assessmentsResponse ? assessmentsResponse.pagination.total : 0} Assessments
+                                    </span>
                                 </div>
-                                <ProgressBar value={0} />
+                                <ProgressBar
+                                    value={assessmentsResponse ? Math.min(assessmentsResponse.pagination.total, 100) : 0}
+                                    max={100}
+                                />
                             </div>
                             {activeFunds.length > 0 && <CarouselIndicator size="lg" framed={false} />}
                         </div>

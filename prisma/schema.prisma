@@ -24,6 +24,7 @@ model Fund {
   outputTemplatesAnalysis   Json?
   backgroundJobs            BackgroundJob[]
   documents                 FundDocument[]
+  assessments               Assessment[]
 
   @@map("funds")
 }
@@ -64,6 +65,26 @@ model BackgroundJob {
   @@map("background_jobs")
 }
 
+model Assessment {
+  id               String           @id @default(uuid())
+  fundId           String
+  organizationName String
+  projectName      String?
+  assessmentType   AssessmentType   @default(AI_POWERED)
+  status           AssessmentStatus @default(COMPLETED)
+  overallScore     Decimal?         @db.Decimal(5, 2)
+  scoringResults   Json
+  assessmentData   Json
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  fund             Fund             @relation(fields: [fundId], references: [id], onDelete: Cascade)
+
+  @@index([fundId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("assessments")
+}
+
 enum DocumentType {
   APPLICATION_FORM
   SELECTION_CRITERIA
@@ -87,4 +108,17 @@ enum JobStatus {
 enum JobType {
   RAG_PROCESSING
   DOCUMENT_ANALYSIS
+}
+
+enum AssessmentType {
+  AI_POWERED
+  PATTERN_BASED
+  MANUAL
+}
+
+enum AssessmentStatus {
+  DRAFT
+  IN_PROGRESS
+  COMPLETED
+  FAILED
 }

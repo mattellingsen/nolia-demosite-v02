@@ -10,6 +10,7 @@ interface AssessmentResultsProps {
     results: UIAssessmentResult[];
     onSubmit: () => void;
     onBackToUpload: () => void;
+    isSubmitting?: boolean;
 }
 
 // Component to render a single template section
@@ -181,7 +182,7 @@ const renderGenericSection = (section: TemplateSection) => {
     return <p className="text-sm text-gray-600">{JSON.stringify(section.content)}</p>;
 };
 
-export const AssessmentResults = ({ results, onSubmit, onBackToUpload }: AssessmentResultsProps) => {
+export const AssessmentResults = ({ results, onSubmit, onBackToUpload, isSubmitting = false }: AssessmentResultsProps) => {
     // Calculate average rating with proper error handling
     const validResults = results.filter(r => r.status === 'completed' && typeof r.rating === 'number' && !isNaN(r.rating));
     const averageRating = validResults.length > 0
@@ -441,11 +442,14 @@ export const AssessmentResults = ({ results, onSubmit, onBackToUpload }: Assessm
                     color="primary"
                     onClick={onSubmit}
                     iconLeading={CheckCircle}
-                    disabled={successfulAssessments === 0}
+                    disabled={successfulAssessments === 0 || isSubmitting}
+                    loading={isSubmitting}
                 >
-                    {successfulAssessments === 0
-                        ? 'No Results to Submit'
-                        : `Submit ${successfulAssessments} Assessment${successfulAssessments > 1 ? 's' : ''}`
+                    {isSubmitting
+                        ? `Saving ${successfulAssessments} Assessment${successfulAssessments > 1 ? 's' : ''}...`
+                        : successfulAssessments === 0
+                            ? 'No Results to Submit'
+                            : `Submit ${successfulAssessments} Assessment${successfulAssessments > 1 ? 's' : ''}`
                     }
                 </Button>
             </div>
