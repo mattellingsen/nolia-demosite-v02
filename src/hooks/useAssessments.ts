@@ -51,13 +51,17 @@ export const useAssessments = (options: UseAssessmentsOptions = {}): UseQueryRes
         params.append('fundId', fundId);
       }
 
+      console.log('useAssessments: Fetching from:', `/api/assessments?${params.toString()}`);
       const response = await fetch(`/api/assessments?${params.toString()}`);
 
       if (!response.ok) {
+        console.error('useAssessments: Failed to fetch:', response.status, response.statusText);
         throw new Error(`Failed to fetch assessments: ${response.status}`);
       }
 
-      return response.json();
+      const data = await response.json();
+      console.log('useAssessments: Successfully fetched:', data);
+      return data;
     },
     staleTime: 0, // Always refetch fresh data
     refetchOnWindowFocus: true, // Refetch when user returns to tab
