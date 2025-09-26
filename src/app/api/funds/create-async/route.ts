@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     const fund = await prisma.fund.create({
       data: {
         name,
-        description: description || 'AI-powered fund created through setup wizard',
+        description: description || 'Fund innovative businesses to employ tertiary-level students as full-time interns over their summer break.',
         status: FundStatus.DRAFT,
       },
     });

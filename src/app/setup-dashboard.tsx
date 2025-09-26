@@ -17,6 +17,8 @@ import {
     Trash01,
     TrendUp02,
     UploadCloud01,
+    MessageSmileSquare,
+    BarChart01,
 } from "@untitledui/icons";
 import type { SortDescriptor } from "react-aria-components";
 import { SidebarNavigationSlim } from "@/components/application/app-navigation/sidebar-navigation/sidebar-slim";
@@ -125,10 +127,10 @@ export const SetupDashboard = () => {
                 ]}
             />
             <main className="flex min-w-0 flex-1 flex-col gap-8 pt-8 pb-12">
-                <div className="flex flex-col flex-wrap items-start justify-between gap-x-4 gap-y-5 px-4 lg:flex-row lg:px-8">
-                    <div className="flex flex-col gap-1">
-                        <p className="text-md font-semibold text-tertiary">Fund Configuration</p>
-                        <p className="text-display-md font-semibold text-primary">Fund Management</p>
+                <div className="flex flex-col flex-wrap items-center justify-center gap-x-4 gap-y-5 px-4 lg:flex-row lg:px-8">
+                    <div className="flex flex-col gap-1 text-center">
+                        <p className="text-md font-semibold text-tertiary">Kia ora Kylee</p>
+                        <p className="text-display-md font-semibold text-primary">Fund Admin & Setup</p>
                     </div>
                 </div>
 
@@ -186,7 +188,7 @@ export const SetupDashboard = () => {
                             {fundsLoading ? (
                                 // Loading skeletons
                                 Array.from({ length: 3 }).map((_, index) => (
-                                    <div key={`skeleton-${index}`} className="w-full h-40 relative flex">
+                                    <div key={`skeleton-${index}`} className="w-full h-50 relative flex">
                                         <div className="w-full h-full flex flex-col justify-between overflow-hidden rounded-2xl p-4 bg-gray-200 animate-pulse">
                                             <div className="flex items-center justify-between">
                                                 <div className="h-4 bg-gray-300 rounded w-24"></div>
@@ -201,26 +203,14 @@ export const SetupDashboard = () => {
                                 ))
                             ) : (
                                 funds.map((fund, index) => (
-                                    <div key={fund.id} className="w-full h-40 relative flex cursor-pointer hover:opacity-90 transition-opacity" onClick={() => handleFundCardClick(fund.id)}>
-                                        <div className={`w-full h-full flex flex-col justify-between overflow-hidden rounded-2xl p-4 bg-linear-to-b ${generateGradient(index)} before:pointer-events-none before:absolute before:inset-0 before:z-1 before:rounded-[inherit] before:mask-linear-135 before:mask-linear-to-white/20 before:ring-1 before:ring-white/30 before:ring-inset`}>
-                                            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-1/2 bg-gray-800 rounded-b-2xl"></div>
-                                            
-                                            <div className="relative flex items-center justify-between px-1 pt-1">
-                                                <div className="text-md leading-[normal] font-semibold text-white">{fund.name}</div>
-                                                <ButtonUtility 
-                                                    size="xs" 
-                                                    color="tertiary" 
-                                                    tooltip="Delete" 
-                                                    icon={Trash01} 
-                                                    className="text-white hover:text-gray-200 !bg-transparent !border-0"
-                                                    onClick={(event) => handleDeleteFund(fund.id, event)}
-                                                    isDisabled={deleteFund.isPending}
-                                                />
-                                            </div>
+                                    <div key={fund.id} className="w-full h-50 relative flex cursor-pointer hover:opacity-90 transition-opacity" onClick={() => handleFundCardClick(fund.id)}>
+                                        <div className={`w-full h-full relative overflow-hidden rounded-2xl p-4 bg-linear-to-b ${generateGradient(index)} before:pointer-events-none before:absolute before:inset-0 before:z-1 before:rounded-[inherit] before:mask-linear-135 before:mask-linear-to-white/20 before:ring-1 before:ring-white/30 before:ring-inset`}>
+                                            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-5/6 bg-gray-800 rounded-b-2xl"></div>
 
-                                            <div className="relative flex items-end justify-between gap-3">
-                                                <div className="flex min-w-0 flex-col gap-2">
-                                                    <p className="text-xs leading-snug font-semibold text-white" style={{wordBreak: "break-word"}}>
+                                            <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-3">
+                                                <div className="flex min-w-0 flex-col">
+                                                    <div className="text-md leading-[normal] font-semibold text-white mb-3">{fund.name}</div>
+                                                    <p className="text-xs leading-snug font-light text-white mb-5" style={{wordBreak: "break-word"}}>
                                                         {fund.description || 'No description provided'}
                                                     </p>
                                                     <div className="flex items-center gap-2">
@@ -236,6 +226,15 @@ export const SetupDashboard = () => {
                                                         </span>
                                                     </div>
                                                 </div>
+                                                <ButtonUtility
+                                                    size="xs"
+                                                    color="tertiary"
+                                                    tooltip="Delete"
+                                                    icon={Trash01}
+                                                    className="text-white hover:text-gray-200 !bg-transparent !border-0"
+                                                    onClick={(event) => handleDeleteFund(fund.id, event)}
+                                                    isDisabled={deleteFund.isPending}
+                                                />
                                             </div>
                                         </div>
                                     </div>
@@ -243,7 +242,7 @@ export const SetupDashboard = () => {
                             )}
                             
                             {/* Setup new fund card */}
-                            <a href="/funding/setup/setup-new-fund" className="w-full h-40 relative flex cursor-pointer hover:opacity-90 transition-opacity">
+                            <a href="/funding/setup/setup-new-fund" className="w-full h-50 relative flex cursor-pointer hover:opacity-90 transition-opacity">
                                 <div className="w-full h-full flex flex-col justify-center items-center overflow-hidden rounded-2xl p-4 bg-gray-800">
                                     <div className="flex flex-col items-center justify-center gap-3 text-center">
                                         <div className="rounded-full bg-white bg-opacity-20 p-3">
@@ -268,10 +267,10 @@ export const SetupDashboard = () => {
                         <TableRowActionsDropdown />
                     </div>
                     <div className="flex flex-col gap-3">
-                        <a href="/funding/test-applications" className="flex items-center gap-3 rounded-xl bg-utility-green-50 p-4 hover:bg-utility-green-100 cursor-pointer transition-colors">
-                            <FeaturedIcon size="md" color="brand" theme="light" icon={Beaker02} className="bg-utility-green-100 text-utility-green-700" />
+                        <a href="/funding/apply" className="flex items-center gap-3 rounded-xl bg-utility-green-50 p-4 hover:bg-utility-green-100 cursor-pointer transition-colors">
+                            <FeaturedIcon size="md" color="brand" theme="light" icon={MessageSmileSquare} className="bg-utility-green-100 text-utility-green-700" />
                             <div className="flex flex-1 justify-between gap-4">
-                                <p className="text-sm font-medium text-utility-green-700">Test applications</p>
+                                <p className="text-sm font-medium text-utility-green-700">Create ApplicationBot</p>
                                 <ArrowRight className="text-utility-green-700 w-4 h-4" />
                             </div>
                         </a>
@@ -289,6 +288,13 @@ export const SetupDashboard = () => {
                                 <ArrowRight className="text-utility-pink-700 w-4 h-4" />
                             </div>
                         </div>
+                        <a href="/funding/analytics" className="flex items-center gap-3 rounded-xl bg-utility-purple-50 p-4 hover:bg-utility-purple-100 cursor-pointer transition-colors">
+                            <FeaturedIcon size="md" color="brand" theme="light" icon={BarChart01} className="bg-utility-purple-100 text-utility-purple-700" />
+                            <div className="flex flex-1 justify-between gap-4">
+                                <p className="text-sm font-medium text-utility-purple-700">View analytics</p>
+                                <ArrowRight className="text-utility-purple-700 w-4 h-4" />
+                            </div>
+                        </a>
                     </div>
                 </div>
             </div>
