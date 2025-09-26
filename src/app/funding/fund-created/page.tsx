@@ -15,7 +15,15 @@ import {
     ClipboardCheck,
     Plus,
     AlertTriangle,
-    RefreshCw05
+    RefreshCw05,
+    ArrowRight,
+    CheckDone01,
+    Edit05,
+    Send01,
+    TrendUp02,
+    Flash,
+    MessageSmileSquare,
+    BarChart01
 } from "@untitledui/icons";
 import { Area, AreaChart, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, XAxis } from "recharts";
 import { ChartTooltipContent } from "@/components/application/charts/charts-base";
@@ -23,10 +31,13 @@ import { Button } from "@/components/base/buttons/button";
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
 import { ProgressBar } from "@/components/base/progress-indicators/progress-indicators";
 import { Badge } from "@/components/base/badges/badges";
+import { SidebarNavigationSlim } from "@/components/application/app-navigation/sidebar-navigation/sidebar-slim";
+import { TableRowActionsDropdown } from "@/components/application/table/table";
 
 interface ProcessingStatus {
     fundId: string;
     fundName: string;
+    fundDescription?: string;
     status: 'CREATED' | 'PROCESSING' | 'ACTIVE' | 'ERROR';
     documentsUploaded: {
         applicationForm: boolean;
@@ -146,6 +157,7 @@ function FundCreatedContent() {
                 const transformedStatus: ProcessingStatus = {
                     fundId: data.fundId,
                     fundName: fundData?.fund?.name || "Funding Program",
+                    fundDescription: fundData?.fund?.description,
                     status: overallStatus === 'completed' ? 'ACTIVE' :
                            overallStatus === 'failed' ? 'ERROR' :
                            overallStatus === 'processing' ? 'PROCESSING' : 'CREATED',
@@ -182,6 +194,7 @@ function FundCreatedContent() {
                 const mockStatus: ProcessingStatus = {
                     fundId: fundId,
                     fundName: "Funding Program",
+                    fundDescription: "Fund innovative businesses to employ tertiary-level students as full-time interns over their summer break.",
                     status: 'PROCESSING',
                     documentsUploaded: {
                         applicationForm: true,
@@ -351,8 +364,33 @@ function FundCreatedContent() {
                           status.documentsUploaded.outputTemplates;
 
     return (
-        <div className="min-h-screen bg-primary">
-            <div className="max-w-4xl mx-auto py-8 px-4">
+        <div className="flex flex-col bg-primary lg:flex-row">
+            <SidebarNavigationSlim
+                activeUrl="/funding/setup"
+                items={[
+                    {
+                        label: "Setup",
+                        href: "/funding/setup",
+                        icon: Edit05,
+                    },
+                    {
+                        label: "Apply",
+                        href: "/funding/apply",
+                        icon: Send01,
+                    },
+                    {
+                        label: "Assess",
+                        href: "/funding/assess",
+                        icon: CheckDone01,
+                    },
+                    {
+                        label: "Analytics",
+                        href: "/funding/analytics",
+                        icon: TrendUp02,
+                    },
+                ]}
+            />
+            <main className="flex min-w-0 flex-1 flex-col gap-8 pt-8 pb-12 px-4 lg:px-8">
                 {/* Header */}
                 <div className="text-center space-y-4 mb-8">
                     <div className="flex justify-center mb-4">
@@ -365,13 +403,10 @@ function FundCreatedContent() {
                     </div>
                     <div>
                         <h1 className="text-display-sm font-semibold text-primary mb-2">
-                            {status.status === 'ACTIVE' ? 'Fund Active!' : 'Fund Created Successfully'}
+                            {status.fundName}
                         </h1>
                         <p className="text-lg text-secondary max-w-2xl mx-auto">
-                            {status.status === 'ACTIVE'
-                                ? 'Your AI-powered fund is now active and ready to assess applications.'
-                                : 'Your fund has been created and our AI is building your assessment brain.'
-                            }
+                            {status.fundDescription || 'Fund innovative businesses to employ tertiary-level students as full-time interns over their summer break.'}
                         </p>
                     </div>
                 </div>
@@ -433,14 +468,13 @@ function FundCreatedContent() {
                 {/* Fund Info Card */}
                 <div className="bg-white rounded-lg border border-gray-200 p-6 mb-8">
                     <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-lg font-semibold text-primary">Fund name: {status.fundName}</h2>
+                        <h2 className="text-lg font-semibold text-primary">Documents Uploaded</h2>
                         {getStatusBadge()}
                     </div>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Documents Summary */}
                         <div>
-                            <h3 className="text-md font-medium text-primary mb-3">Documents Uploaded</h3>
                             <div className="space-y-2">
                                 <div className="flex items-center gap-3">
                                     <FeaturedIcon size="sm" color="success" theme="light" icon={UploadCloud01} />
@@ -681,6 +715,46 @@ function FundCreatedContent() {
                     )}
                 </div>
 
+            </main>
+
+            {/* Right Sidebar */}
+            <div className="sticky top-0 hidden h-screen w-98 flex-col gap-8 overflow-auto border-l border-secondary bg-primary pb-12 lg:flex">
+                <div className="flex flex-col gap-5 px-6 pt-8">
+                    <div className="flex items-start justify-between">
+                        <p className="text-lg font-semibold text-primary">Actions</p>
+                        <TableRowActionsDropdown />
+                    </div>
+                    <div className="flex flex-col gap-3">
+                        <a href="/funding/apply" className="flex items-center gap-3 rounded-xl bg-utility-green-50 p-4 hover:bg-utility-green-100 cursor-pointer transition-colors">
+                            <FeaturedIcon size="md" color="brand" theme="light" icon={MessageSmileSquare} className="bg-utility-green-100 text-utility-green-700" />
+                            <div className="flex flex-1 justify-between gap-4">
+                                <p className="text-sm font-medium text-utility-green-700">Create ApplicationBot</p>
+                                <ArrowRight className="text-utility-green-700 w-4 h-4" />
+                            </div>
+                        </a>
+                        <a href="/funding/upload-applications" className="flex items-center gap-3 rounded-xl bg-utility-blue-50 p-4 hover:bg-utility-blue-100 cursor-pointer transition-colors">
+                            <FeaturedIcon size="md" color="brand" theme="light" icon={UploadCloud01} className="bg-utility-blue-100 text-utility-blue-700" />
+                            <div className="flex flex-1 justify-between gap-4">
+                                <p className="text-sm font-medium text-utility-blue-700">Upload applications</p>
+                                <ArrowRight className="text-utility-blue-700 w-4 h-4" />
+                            </div>
+                        </a>
+                        <div className="flex items-center gap-3 rounded-xl bg-utility-pink-50 p-4 hover:bg-utility-pink-100 cursor-pointer transition-colors">
+                            <FeaturedIcon size="md" color="brand" theme="light" icon={Flash} className="bg-utility-pink-100 text-utility-pink-700" />
+                            <div className="flex flex-1 justify-between gap-4">
+                                <p className="text-sm font-medium text-utility-pink-700">Automate assessments</p>
+                                <ArrowRight className="text-utility-pink-700 w-4 h-4" />
+                            </div>
+                        </div>
+                        <a href="/funding/analytics" className="flex items-center gap-3 rounded-xl bg-utility-purple-50 p-4 hover:bg-utility-purple-100 cursor-pointer transition-colors">
+                            <FeaturedIcon size="md" color="brand" theme="light" icon={BarChart01} className="bg-utility-purple-100 text-utility-purple-700" />
+                            <div className="flex flex-1 justify-between gap-4">
+                                <p className="text-sm font-medium text-utility-purple-700">View analytics</p>
+                                <ArrowRight className="text-utility-purple-700 w-4 h-4" />
+                            </div>
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
     );
