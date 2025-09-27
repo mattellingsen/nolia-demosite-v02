@@ -97,26 +97,34 @@ export function convertToUIResult(
   apiResponse: TemplateAssessmentResponse,
   fund: any
 ): UIAssessmentResult {
+  // Handle nested response structure from the actual API
+  const extractedFields = apiResponse.extractedFields || apiResponse.assessmentData || {};
+  const overallScore = extractedFields.overallScore || apiResponse.overallScore || 0;
+  const recommendations = extractedFields.weaknesses || extractedFields.recommendations ||
+                          apiResponse.feedback?.suggestions || [];
+
   const isTemplateFormatted = hasTemplateFormatting(apiResponse);
 
   // NEW: Check if this is a filled template format
-  const isFilledTemplate = apiResponse.formattedOutput?.templateFormat === 'raw_filled';
+  const isFilledTemplate = apiResponse.templateFormat === 'filled_template' ||
+                           apiResponse.formattedOutput?.templateFormat === 'raw_filled' ||
+                           !!apiResponse.filledTemplate;
 
   return {
     fileName: file.name,
-    rating: apiResponse.overallScore || 0,
+    rating: overallScore,
     categories: [fund.name || 'Unknown Fund'],
-    summary: generateSummaryFromFeedback(apiResponse, fund),
+    summary: extractedFields.recommendation || generateSummaryFromFeedback(apiResponse, fund),
     status: 'completed',
     isTemplateFormatted,
     templateSections: isTemplateFormatted && !isFilledTemplate ? parseTemplateSections(apiResponse.formattedOutput) : undefined,
 
     // NEW: Universal filled template content
-    filledTemplate: isFilledTemplate ? apiResponse.formattedOutput?.filledTemplate : undefined,
+    filledTemplate: apiResponse.filledTemplate || apiResponse.formattedOutput?.filledTemplate || apiResponse.formattedOutput,
     isFilledTemplate,
 
     details: !isTemplateFormatted ? createLegacyDetails(apiResponse) : undefined,
-    recommendations: apiResponse.feedback?.suggestions || [],
+    recommendations: Array.isArray(recommendations) ? recommendations : [],
   };
 }
 
