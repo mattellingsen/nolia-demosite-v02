@@ -86,6 +86,10 @@ const UploadApplicationsPage = () => {
     };
 
     const handleSubmitToDatabase = async () => {
+        console.log('🚀 handleSubmitToDatabase: Starting save process');
+        console.log('📊 Selected Fund:', selectedFund);
+        console.log('📋 Assessment Results Count:', assessmentResults.length);
+
         if (!selectedFund || assessmentResults.length === 0) {
             alert('No fund selected or no assessment results to save.');
             return;
@@ -94,7 +98,8 @@ const UploadApplicationsPage = () => {
         setIsSubmitting(true);
         try {
             // Save each assessment result to the database
-            const savePromises = assessmentResults.map(async (result) => {
+            const savePromises = assessmentResults.map(async (result, index) => {
+                console.log(`💾 Saving assessment ${index + 1}/${assessmentResults.length}: ${result.fileName}`);
                 // Extract organization name from filename (remove extension)
                 const organizationName = result.fileName.replace(/\.[^/.]+$/, "");
 
@@ -132,6 +137,8 @@ const UploadApplicationsPage = () => {
                     }
                 };
 
+                console.log('📤 Sending assessment data to API:', assessmentData);
+
                 const response = await fetch('/api/assessments', {
                     method: 'POST',
                     headers: {
@@ -140,21 +147,28 @@ const UploadApplicationsPage = () => {
                     body: JSON.stringify(assessmentData),
                 });
 
+                console.log('📥 API Response Status:', response.status);
+
                 if (!response.ok) {
                     const errorData = await response.json();
+                    console.error('❌ Failed to save assessment:', errorData);
                     throw new Error(`Failed to save assessment for ${result.fileName}: ${errorData.error}`);
                 }
 
-                return response.json();
+                const savedData = await response.json();
+                console.log('✅ Successfully saved assessment:', savedData);
+                return savedData;
             });
 
             // Wait for all assessments to be saved
-            await Promise.all(savePromises);
+            const savedResults = await Promise.all(savePromises);
+            console.log('🎉 All assessments saved successfully:', savedResults);
 
             // Invalidate assessments cache to ensure fresh data is shown in the assess page
+            console.log('🔄 Invalidating React Query cache for assessments');
             queryClient.invalidateQueries({ queryKey: ['assessments'] });
 
-            alert(`${assessmentResults.length} assessments saved successfully! You can now view them in the Assessment page.`);
+            alert(`${assessmentResults.length} assessment(s) saved successfully! You can now view them in the Assessment page.`);
 
             // Reset the workflow
             setCurrentStep('upload');
