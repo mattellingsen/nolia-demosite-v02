@@ -89,8 +89,10 @@ const UploadApplicationsPage = () => {
         console.log('🚀 handleSubmitToDatabase: Starting save process');
         console.log('📊 Selected Fund:', selectedFund);
         console.log('📋 Assessment Results Count:', assessmentResults.length);
+        console.log('📋 Assessment Results Data:', assessmentResults);
 
         if (!selectedFund || assessmentResults.length === 0) {
+            console.error('❌ Validation failed:', { selectedFund, assessmentResultsLength: assessmentResults.length });
             alert('No fund selected or no assessment results to save.');
             return;
         }
@@ -138,36 +140,83 @@ const UploadApplicationsPage = () => {
                 };
 
                 console.log('📤 Sending assessment data to API:', assessmentData);
+                console.log('🌐 Making fetch request to /api/assessments...');
 
-                const response = await fetch('/api/assessments', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(assessmentData),
-                });
+                let response;
+                try {
+                    response = await fetch('/api/assessments', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(assessmentData),
+                    });
+                    console.log('📥 Fetch completed. Response received.');
+                } catch (fetchError) {
+                    console.error('❌ Fetch request failed:', fetchError);
+                    throw new Error(`Network error while saving assessment for ${result.fileName}: ${fetchError.message}`);
+                }
 
                 console.log('📥 API Response Status:', response.status);
+                console.log('📥 API Response Headers:', Object.fromEntries(response.headers.entries()));
 
                 if (!response.ok) {
-                    const errorData = await response.json();
+                    let errorData;
+                    try {
+                        errorData = await response.json();
+                    } catch (jsonError) {
+                        console.error('❌ Could not parse error response as JSON:', jsonError);
+                        throw new Error(`Failed to save assessment for ${result.fileName}: HTTP ${response.status}`);
+                    }
                     console.error('❌ Failed to save assessment:', errorData);
                     throw new Error(`Failed to save assessment for ${result.fileName}: ${errorData.error}`);
                 }
 
-                const savedData = await response.json();
+                let savedData;
+                try {
+                    savedData = await response.json();
+                } catch (jsonError) {
+                    console.error('❌ Could not parse success response as JSON:', jsonError);
+                    throw new Error(`Received response but could not parse JSON for ${result.fileName}`);
+                }
                 console.log('✅ Successfully saved assessment:', savedData);
                 return savedData;
             });
 
             // Wait for all assessments to be saved
+            console.log('⏳ Waiting for all save promises to complete...');
             const savedResults = await Promise.all(savePromises);
             console.log('🎉 All assessments saved successfully:', savedResults);
+            console.log('🎉 Saved assessment IDs:', savedResults.map(r => r.assessment?.id));
 
             // Invalidate assessments cache to ensure fresh data is shown in the assess page
             console.log('🔄 Invalidating React Query cache for assessments');
-            queryClient.invalidateQueries({ queryKey: ['assessments'] });
+            try {
+                // Invalidate all assessments queries with exact key pattern matching
+                await queryClient.invalidateQueries({
+                    predicate: (query) => {
+                        const queryKey = query.queryKey;
+                        console.log('🔍 Checking query key for invalidation:', queryKey);
+                        // Match any query that starts with 'assessments'
+                        return Array.isArray(queryKey) && queryKey[0] === 'assessments';
+                    }
+                });
+                console.log('✅ React Query cache invalidation completed');
 
+                // Also refetch any active assessments queries to ensure immediate update
+                await queryClient.refetchQueries({
+                    predicate: (query) => {
+                        const queryKey = query.queryKey;
+                        // Match any query that starts with 'assessments'
+                        return Array.isArray(queryKey) && queryKey[0] === 'assessments';
+                    }
+                });
+                console.log('✅ React Query refetch completed');
+            } catch (cacheError) {
+                console.error('❌ React Query cache invalidation failed:', cacheError);
+            }
+
+            console.log('🎊 Showing success message to user');
             alert(`${assessmentResults.length} assessment(s) saved successfully! You can now view them in the Assessment page.`);
 
             // Reset the workflow
@@ -176,9 +225,16 @@ const UploadApplicationsPage = () => {
             setAssessmentResults([]);
 
         } catch (error) {
-            console.error('Error saving assessments:', error);
-            alert(`Failed to save assessments: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            console.error('❌ CRITICAL ERROR in handleSubmitToDatabase:', error);
+            console.error('❌ Error type:', typeof error);
+            console.error('❌ Error constructor:', error?.constructor?.name);
+            console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            console.error('❌ Showing error alert to user:', errorMessage);
+            alert(`Failed to save assessments: ${errorMessage}`);
         } finally {
+            console.log('🔄 Setting isSubmitting to false');
             setIsSubmitting(false);
         }
     };
