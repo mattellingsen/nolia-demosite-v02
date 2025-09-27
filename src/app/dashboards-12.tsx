@@ -301,6 +301,17 @@ export const Dashboard12 = () => {
                 const organizationName = assessment.organizationName;
                 const projectName = assessment.projectName || organizationName;
 
+                // Handle Decimal type from Prisma properly
+                let overallScore = 0;
+                if (assessment.overallScore !== null && assessment.overallScore !== undefined) {
+                    // Handle both Decimal object and plain number
+                    if (typeof assessment.overallScore === 'object' && 'toNumber' in assessment.overallScore) {
+                        overallScore = (assessment.overallScore as any).toNumber();
+                    } else {
+                        overallScore = parseFloat(String(assessment.overallScore));
+                    }
+                }
+
                 const result = {
                     id: assessment.id,
                     vendor: {
@@ -308,7 +319,7 @@ export const Dashboard12 = () => {
                         website: projectName,
                         logoUrl: logoUrl,
                     },
-                    rating: Math.round(parseFloat(String(assessment.overallScore)) || 0),
+                    rating: Math.round(overallScore),
                     change: "N/A", // We don't have change tracking yet
                     changeTrend: "neutral" as const,
                     lastAssessed: new Date(assessment.createdAt).getTime(),
@@ -405,11 +416,18 @@ export const Dashboard12 = () => {
                         <div className="bg-yellow-100 p-4 mt-4 rounded border">
                             <h3 className="font-bold text-black">DEBUG INFO:</h3>
                             <p className="text-black">Loading: {assessmentsLoading ? 'YES' : 'NO'}</p>
-                            <p className="text-black">Error: {assessmentsError ? 'YES' : 'NO'}</p>
+                            <p className="text-black">Error: {assessmentsError ? `YES - ${assessmentsError.message || 'Unknown'}` : 'NO'}</p>
                             <p className="text-black">Response exists: {assessmentsResponse ? 'YES' : 'NO'}</p>
+                            <p className="text-black">Response structure: {assessmentsResponse ? JSON.stringify({
+                                success: assessmentsResponse.success,
+                                hasAssessments: !!assessmentsResponse.assessments,
+                                assessmentsIsArray: Array.isArray(assessmentsResponse.assessments)
+                            }) : 'N/A'}</p>
                             <p className="text-black">Raw assessments count: {assessments.length}</p>
                             <p className="text-black">First assessment: {assessments[0] ? assessments[0].organizationName : 'NONE'}</p>
                             <p className="text-black">Direct fetch test: {directFetchResult}</p>
+                            <p className="text-black">Fetch Status: {assessmentsQuery.fetchStatus}</p>
+                            <p className="text-black">Query Status: {assessmentsQuery.status}</p>
                         </div>
                     </div>
                 </div>
