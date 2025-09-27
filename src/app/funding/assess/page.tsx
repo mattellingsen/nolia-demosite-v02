@@ -1,5 +1,3 @@
-"use client";
-
 import { Dashboard12 } from "../../dashboards-12";
 import { ErrorBoundary, QueryErrorFallback } from "@/components/ErrorBoundary";
 
