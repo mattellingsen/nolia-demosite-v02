@@ -41,6 +41,7 @@ export interface TemplateAssessmentResponse extends BaseAssessmentResult {
 // UI-focused assessment result for display components
 export interface UIAssessmentResult {
   fileName: string;
+  fileMimeType?: string; // File MIME type for icon display
   rating: number;
   categories: string[];
   summary: string;
@@ -133,6 +134,7 @@ export function convertToUIResult(
 
   const result = {
     fileName: file.name,
+    fileMimeType: file.type, // Add the file's MIME type
     rating: overallScore,
     categories: [fund.name || 'Unknown Fund'],
     summary: extractedFields.recommendation || generateSummaryFromFeedback(apiResponse, fund),
