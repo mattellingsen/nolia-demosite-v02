@@ -132,6 +132,12 @@ export function convertToUIResult(
                            apiResponse.formattedOutput?.templateFormat === 'raw_filled' ||
                            !!apiResponse.filledTemplate;
 
+  console.log('🔍 DEBUG: convertToUIResult file info:', {
+    fileName: file.name,
+    fileType: file.type,
+    fileSize: file.size
+  });
+
   const result = {
     fileName: file.name,
     fileMimeType: file.type, // Add the file's MIME type

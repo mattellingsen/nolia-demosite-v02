@@ -188,6 +188,12 @@ const UploadApplicationsPage = () => {
                     }
                 };
 
+                console.log('🔍 DEBUG: Assessment result before save:', {
+                    fileName: result.fileName,
+                    fileMimeType: result.fileMimeType,
+                    status: result.status,
+                    rating: result.rating
+                });
                 console.log('📤 Sending assessment data to API:', assessmentData);
                 console.log('🌐 Making fetch request to /api/assessments...');
 
