@@ -497,7 +497,7 @@ export const Dashboard12 = () => {
                             >
                                 <Table.Header className="bg-primary">
                                     <Table.Head id="vendor" isRowHeader allowsSorting label="Vendor" className="w-full" />
-                                    <Table.Head id="rating" label="Rating" className="min-w-30 lg:min-w-52.5 lg:pl-3" />
+                                    <Table.Head id="rating" label="Rating" className="min-w-30 lg:min-w-40 lg:pl-3" />
                                     <Table.Head id="lastAssessed" label="Assessed on" />
                                     <Table.Head id="categories" label="Fund" />
                                     <Table.Head id="actions" />
