@@ -276,7 +276,7 @@ export const Dashboard12 = () => {
                 }
 
                 // Determine file type for icon selection
-                // Use actual MIME type if available, otherwise fall back to assessment type
+                // Use actual MIME type if available, otherwise fall back to generic icon
                 const mimeType = assessment.assessmentData?.fileMimeType;
                 console.log('🔍 DEBUG: Assessment icon data:', {
                     orgName: assessment.organizationName,
@@ -284,7 +284,7 @@ export const Dashboard12 = () => {
                     mimeType: mimeType,
                     hasAssessmentData: !!assessment.assessmentData
                 });
-                const fileType = mimeType ? 'dynamic' : (assessment.assessmentType === 'AI_POWERED' ? 'pdf' : 'docx');
+                const fileType = mimeType ? 'dynamic' : 'generic';
 
                 // Get organization name and project name with flexible naming
                 const organizationName = assessment.organizationName;
@@ -530,18 +530,9 @@ export const Dashboard12 = () => {
                                                         const IconComponent = getFileIcon(movement.vendor.mimeType);
                                                         return <IconComponent width={40} height={40} />;
                                                     }
-                                                    // Fall back to file type guessing
+                                                    // Fall back to generic file icon for all cases
                                                     console.log('🔍 Using fileType fallback:', movement.vendor.fileType);
-                                                    if (movement.vendor.fileType === 'docx') {
-                                                        return <FileDocxIcon width={40} height={40} />;
-                                                    } else if (movement.vendor.fileType === 'doc') {
-                                                        return <FileDocIcon width={40} height={40} />;
-                                                    } else if (movement.vendor.fileType === 'pdf') {
-                                                        return <FilePdfIcon width={40} height={40} />;
-                                                    } else {
-                                                        // Default to generic file icon instead of PDF
-                                                        return <FileGenericIcon width={40} height={40} />;
-                                                    }
+                                                    return <FileGenericIcon width={40} height={40} />;
                                                 })()}
                                                 <div>
                                                     <p className="text-sm font-medium text-primary">{movement.vendor.name}</p>
