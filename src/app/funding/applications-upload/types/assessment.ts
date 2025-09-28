@@ -247,6 +247,34 @@ function createLegacyDetails(assessment: BaseAssessmentResult): LegacyAssessment
   };
 }
 
+// Extract organization name from assessment data
+export function extractOrganizationName(assessmentResult: UIAssessmentResult): string {
+  // Try filled template first (most reliable)
+  if (assessmentResult.filledTemplate) {
+    const orgMatch = assessmentResult.filledTemplate.match(/Organisation Name:\s*(.+?)(?:\n|$)/i);
+    if (orgMatch && orgMatch[1]) {
+      return orgMatch[1].trim();
+    }
+  }
+
+  // Fallback to filename without extension as current behavior
+  return assessmentResult.fileName.replace(/\.[^/.]+$/, "");
+}
+
+// Extract project title from assessment data
+export function extractProjectTitle(assessmentResult: UIAssessmentResult): string {
+  // Try filled template first (most reliable)
+  if (assessmentResult.filledTemplate) {
+    const titleMatch = assessmentResult.filledTemplate.match(/Application Title:\s*(.+?)(?:\n|$)/i);
+    if (titleMatch && titleMatch[1]) {
+      return titleMatch[1].trim();
+    }
+  }
+
+  // Fallback to filename as current behavior
+  return assessmentResult.fileName;
+}
+
 // Generate summary from assessment feedback
 function generateSummaryFromFeedback(assessment: BaseAssessmentResult, fund: any): string {
   // Fix score extraction - use consistent logic with convertToUIResult
