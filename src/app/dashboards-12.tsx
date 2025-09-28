@@ -19,7 +19,7 @@ import {
     UploadCloud01,
     Eye,
 } from "@untitledui/icons";
-import { FileDocIcon, FileDocxIcon, FilePdfIcon, FileXlsIcon, FileXlsxIcon, getFileIcon } from "@/components/icons/FileIcons";
+import { FileDocIcon, FileDocxIcon, FilePdfIcon, FileXlsIcon, FileXlsxIcon, FileGenericIcon, getFileIcon } from "@/components/icons/FileIcons";
 import type { SortDescriptor } from "react-aria-components";
 import { Area, AreaChart, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, XAxis } from "recharts";
 import { SidebarNavigationSlim } from "@/components/application/app-navigation/sidebar-navigation/sidebar-slim";
@@ -278,6 +278,12 @@ export const Dashboard12 = () => {
                 // Determine file type for icon selection
                 // Use actual MIME type if available, otherwise fall back to assessment type
                 const mimeType = assessment.assessmentData?.fileMimeType;
+                console.log('🔍 DEBUG: Assessment icon data:', {
+                    orgName: assessment.organizationName,
+                    assessmentType: assessment.assessmentType,
+                    mimeType: mimeType,
+                    hasAssessmentData: !!assessment.assessmentData
+                });
                 const fileType = mimeType ? 'dynamic' : (assessment.assessmentType === 'AI_POWERED' ? 'pdf' : 'docx');
 
                 // Get organization name and project name with flexible naming
@@ -520,16 +526,21 @@ export const Dashboard12 = () => {
                                                 {(() => {
                                                     // Use actual MIME type if available
                                                     if (movement.vendor.mimeType) {
+                                                        console.log('🔍 Using MIME type for icon:', movement.vendor.mimeType);
                                                         const IconComponent = getFileIcon(movement.vendor.mimeType);
                                                         return <IconComponent width={40} height={40} />;
                                                     }
                                                     // Fall back to file type guessing
+                                                    console.log('🔍 Using fileType fallback:', movement.vendor.fileType);
                                                     if (movement.vendor.fileType === 'docx') {
                                                         return <FileDocxIcon width={40} height={40} />;
                                                     } else if (movement.vendor.fileType === 'doc') {
                                                         return <FileDocIcon width={40} height={40} />;
-                                                    } else {
+                                                    } else if (movement.vendor.fileType === 'pdf') {
                                                         return <FilePdfIcon width={40} height={40} />;
+                                                    } else {
+                                                        // Default to generic file icon instead of PDF
+                                                        return <FileGenericIcon width={40} height={40} />;
                                                     }
                                                 })()}
                                                 <div>

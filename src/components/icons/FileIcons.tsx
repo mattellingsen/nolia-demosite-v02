@@ -111,37 +111,48 @@ export const FileGenericIcon: React.FC<FileIconProps> = ({ width = 40, height = 
 
 // Helper function to get the appropriate icon based on mime type
 export const getFileIcon = (mimeType?: string): React.FC<FileIconProps> => {
-  if (!mimeType) return FileGenericIcon;
+  console.log('🔍 getFileIcon called with mimeType:', mimeType);
+
+  if (!mimeType) {
+    console.log('🔍 No mimeType provided, returning FileGenericIcon');
+    return FileGenericIcon;
+  }
 
   // New Excel format (.xlsx)
   if (mimeType.includes('spreadsheetml') ||
       mimeType.includes('.xlsx')) {
+    console.log('🔍 Detected Excel .xlsx format');
     return FileXlsxIcon;
   }
 
   // Old Excel format (.xls)
   if (mimeType.includes('ms-excel') ||
       mimeType.includes('.xls')) {
+    console.log('🔍 Detected Excel .xls format');
     return FileXlsIcon;
   }
 
   // New Word format (.docx)
   if (mimeType.includes('wordprocessingml') ||
       mimeType.includes('.docx')) {
+    console.log('🔍 Detected Word .docx format');
     return FileDocxIcon;
   }
 
   // Old Word format (.doc)
   if (mimeType.includes('msword') ||
       mimeType.includes('.doc')) {
+    console.log('🔍 Detected Word .doc format');
     return FileDocIcon;
   }
 
   // PDF documents
   if (mimeType.includes('pdf')) {
+    console.log('🔍 Detected PDF format');
     return FilePdfIcon;
   }
 
   // Default fallback
+  console.log('🔍 No format match found, returning FileGenericIcon');
   return FileGenericIcon;
 };
