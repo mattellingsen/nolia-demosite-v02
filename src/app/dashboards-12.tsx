@@ -18,6 +18,8 @@ import {
     TrendUp02,
     UploadCloud01,
     Eye,
+    MessageSmileSquare,
+    BarChart01,
 } from "@untitledui/icons";
 import { FileDocIcon, FileDocxIcon, FilePdfIcon, FileXlsIcon, FileXlsxIcon, FileGenericIcon, getFileIcon } from "@/components/icons/FileIcons";
 import type { SortDescriptor } from "react-aria-components";
@@ -612,7 +614,7 @@ export const Dashboard12 = () => {
                 <div className="flex shrink-0 flex-col gap-5 overflow-x-clip px-6 pt-8">
                     <div className="flex justify-between">
                         <p className="text-lg font-semibold text-primary">Our funds</p>
-                        <Button size="md" color="link-gray" iconLeading={Plus}>
+                        <Button size="md" color="link-gray" iconLeading={Plus} href="/funding/setup">
                             Add fund
                         </Button>
                     </div>
@@ -678,7 +680,14 @@ export const Dashboard12 = () => {
                         <TableRowActionsDropdown />
                     </div>
                     <div className="flex flex-col gap-3">
-                        <a href="/funding/applications-upload" className="flex items-center gap-3 rounded-xl bg-utility-blue-50 p-4 hover:bg-utility-blue-100 cursor-pointer transition-colors">
+                        <a href="/funding/apply" className="flex items-center gap-3 rounded-xl bg-utility-green-50 p-4 hover:bg-utility-green-100 cursor-pointer transition-colors">
+                            <FeaturedIcon size="md" color="brand" theme="light" icon={MessageSmileSquare} className="bg-utility-green-100 text-utility-green-700" />
+                            <div className="flex flex-1 justify-between gap-4">
+                                <p className="text-sm font-medium text-utility-green-700">Create ApplicationBot</p>
+                                <ArrowRight className="text-utility-green-700 w-4 h-4" />
+                            </div>
+                        </a>
+                        <a href="/funding/upload-applications" className="flex items-center gap-3 rounded-xl bg-utility-blue-50 p-4 hover:bg-utility-blue-100 cursor-pointer transition-colors">
                             <FeaturedIcon size="md" color="brand" theme="light" icon={UploadCloud01} className="bg-utility-blue-100 text-utility-blue-700" />
                             <div className="flex flex-1 justify-between gap-4">
                                 <p className="text-sm font-medium text-utility-blue-700">Upload applications</p>
@@ -692,6 +701,13 @@ export const Dashboard12 = () => {
                                 <ArrowRight className="text-utility-pink-700 w-4 h-4" />
                             </div>
                         </div>
+                        <a href="/funding/analytics" className="flex items-center gap-3 rounded-xl bg-utility-purple-50 p-4 hover:bg-utility-purple-100 cursor-pointer transition-colors">
+                            <FeaturedIcon size="md" color="brand" theme="light" icon={BarChart01} className="bg-utility-purple-100 text-utility-purple-700" />
+                            <div className="flex flex-1 justify-between gap-4">
+                                <p className="text-sm font-medium text-utility-purple-700">View analytics</p>
+                                <ArrowRight className="text-utility-purple-700 w-4 h-4" />
+                            </div>
+                        </a>
                     </div>
                 </div>
             </div>
