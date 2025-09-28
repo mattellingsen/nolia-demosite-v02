@@ -283,6 +283,14 @@ export const Dashboard12 = () => {
                 const organizationName = assessment.organizationName;
                 const projectName = assessment.projectName || organizationName;
 
+                // Truncate names to 27 characters max with ellipsis
+                const truncatedOrgName = organizationName.length > 27
+                    ? organizationName.substring(0, 27) + "..."
+                    : organizationName;
+                const truncatedProjectName = projectName.length > 27
+                    ? projectName.substring(0, 27) + "..."
+                    : projectName;
+
                 // Handle Decimal type from Prisma properly
                 let overallScore = 0;
                 if (assessment.overallScore !== null && assessment.overallScore !== undefined) {
@@ -297,8 +305,8 @@ export const Dashboard12 = () => {
                 const result = {
                     id: assessment.id,
                     vendor: {
-                        name: organizationName,
-                        website: projectName,
+                        name: truncatedOrgName,
+                        website: truncatedProjectName,
                         logoUrl: logoUrl,
                     },
                     rating: Math.round(overallScore),
