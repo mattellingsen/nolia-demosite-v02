@@ -86,7 +86,7 @@ const UploadApplicationsPage = () => {
     };
 
     const handleSubmitToDatabase = async () => {
-        console.log('🚀 handleSubmitToDatabase: Starting save process');
+        console.log('🚀 handleSubmitToDatabase: Starting save process - FORCED REBUILD');
         console.log('📊 Selected Fund:', selectedFund);
         console.log('📋 Assessment Results Count:', assessmentResults.length);
         console.log('📋 Assessment Results Data:', assessmentResults);
