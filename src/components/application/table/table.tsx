@@ -36,12 +36,6 @@ export const TableRowActionsDropdown = () => (
                 <Dropdown.Item icon={Edit01}>
                     <span className="pr-4">Edit</span>
                 </Dropdown.Item>
-                <Dropdown.Item icon={Copy01}>
-                    <span className="pr-4">Copy link</span>
-                </Dropdown.Item>
-                <Dropdown.Item icon={Trash01}>
-                    <span className="pr-4">Delete</span>
-                </Dropdown.Item>
             </Dropdown.Menu>
         </Dropdown.Popover>
     </Dropdown.Root>
