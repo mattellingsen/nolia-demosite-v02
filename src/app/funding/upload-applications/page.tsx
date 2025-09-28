@@ -87,6 +87,7 @@ const UploadApplicationsPage = () => {
     };
 
     const handleSubmitToDatabase = async () => {
+        console.log('🚀🚀🚀 DEBUG: handleSubmitToDatabase called - NEW VERSION WITH MIME TYPE DEBUG');
         console.log('🚀 handleSubmitToDatabase: Starting save process - FORCED REBUILD');
         console.log('📊 Selected Fund:', selectedFund);
         console.log('📋 Assessment Results Count:', assessmentResults.length);
