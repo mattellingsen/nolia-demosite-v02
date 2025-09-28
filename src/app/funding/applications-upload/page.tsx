@@ -34,6 +34,7 @@ import { AssessmentProcessor, AssessmentResult } from "./components/assessment-p
 import { AssessmentResults } from "./components/assessment-results";
 import { useFunds } from "@/hooks/useFunds";
 import { Dot } from "@/components/foundations/dot-icon";
+import { extractOrganizationName, extractProjectTitle } from "./types/assessment";
 
 type WorkflowStep = 'upload' | 'processing' | 'results';
 
@@ -93,12 +94,14 @@ const ApplicationsUploadPage = () => {
 
             const savePromises = assessmentResults.map(async (result, index) => {
 
-                const organizationName = result.fileName.replace(/\.[^/.]+$/, "");
+                // Extract real organization name and project title from assessment content
+                const organizationName = extractOrganizationName(result);
+                const projectName = extractProjectTitle(result);
 
                 const assessmentData = {
                     fundId: selectedFund.id,
                     organizationName,
-                    projectName: result.fileName,
+                    projectName,
                     assessmentType: 'AI_POWERED',
                     overallScore: result.rating,
                     scoringResults: {
