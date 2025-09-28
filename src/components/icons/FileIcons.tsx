@@ -22,8 +22,6 @@ export const FileDocIcon: React.FC<FileIconProps> = ({ width = 40, height = 40, 
   </svg>
 );
 
-// Placeholder for PDF icon - using a simple generic file icon for now
-// You can replace this with the actual PDF icon SVG when you provide it
 export const FilePdfIcon: React.FC<FileIconProps> = ({ width = 40, height = 40, className }) => (
   <svg width={width} height={height} fill="none" viewBox="0 0 40 40" className={className}>
     <path
@@ -32,10 +30,10 @@ export const FilePdfIcon: React.FC<FileIconProps> = ({ width = 40, height = 40, 
       d="M7.75 4A3.25 3.25 0 0 1 11 .75h16c.121 0 .238.048.323.134l10.793 10.793a.46.46 0 0 1 .134.323v24A3.25 3.25 0 0 1 35 39.25H11A3.25 3.25 0 0 1 7.75 36z"
     />
     <path stroke="#D5D7DA" strokeWidth={1.5} d="M27 .5V8a4 4 0 0 0 4 4h7.5" />
-    <rect width={36} height={16} x={1} y={18} fill="#DC2626" rx={2} />
+    <rect width={26} height={16} x={1} y={18} fill="#D92D20" rx={2} />
     <path
       fill="#fff"
-      d="M10 24h2.5c1.5 0 2.5 1 2.5 2.5S14 29 12.5 29H11v2h-1v-7zm1 4h1.5c1 0 1.5-.5 1.5-1.5s-.5-1.5-1.5-1.5H11v3zm7-4h2.5c1.5 0 2.5 1 2.5 2.5s-1 2.5-2.5 2.5H19v2h-1v-7zm1 4h1.5c1 0 1.5-.5 1.5-1.5s-.5-1.5-1.5-1.5H19v3zm8-4h4v1h-3v2h2.5v1H28v3h-1v-7z"
+      d="M4.832 30v-7.273h2.87q.826 0 1.41.316.582.314.887.87.31.555.31 1.279t-.313 1.278q-.313.555-.906.863-.59.309-1.427.309h-1.83V26.41h1.581q.444 0 .732-.153.29-.156.433-.43.145-.276.145-.635 0-.363-.145-.632a.97.97 0 0 0-.433-.423q-.291-.153-.74-.153H6.37V30zm9.053 0h-2.578v-7.273h2.6q1.095 0 1.889.437.791.433 1.218 1.246.43.814.43 1.947 0 1.136-.43 1.953a2.95 2.95 0 0 1-1.226 1.253q-.795.437-1.903.437m-1.04-1.317h.976q.682 0 1.147-.242.47-.244.703-.756.238-.516.238-1.328 0-.807-.238-1.318a1.54 1.54 0 0 0-.7-.753q-.465-.24-1.146-.241h-.98zM18.582 30v-7.273h4.816v1.268H20.12v1.733h2.958v1.268H20.12V30z"
     />
   </svg>
 );
