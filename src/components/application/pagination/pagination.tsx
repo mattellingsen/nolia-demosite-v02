@@ -78,7 +78,7 @@ export const PaginationPageDefault = ({ rounded, page = 1, total = 10, className
             total={total}
             className={cx("flex w-full items-center justify-between gap-3 border-t border-secondary pt-4 md:pt-5", className)}
         >
-            <div className="hidden flex-1 justify-start md:flex">
+            <div className="hidden flex-1 justify-start md:flex pl-4">
                 <Pagination.PrevTrigger asChild>
                     <Button iconLeading={ArrowLeft} color="link-gray" size="sm">
                         {isDesktop ? "Previous" : undefined}{" "}
@@ -95,7 +95,7 @@ export const PaginationPageDefault = ({ rounded, page = 1, total = 10, className
             <Pagination.Context>
                 {({ pages, currentPage, total }) => (
                     <>
-                        <div className="hidden justify-center gap-0.5 md:flex">
+                        <div className="hidden justify-center items-center gap-0.5 md:flex">
                             {pages.map((page, index) =>
                                 page.type === "page" ? (
                                     <PaginationItem key={index} rounded={rounded} {...page} />
@@ -107,14 +107,14 @@ export const PaginationPageDefault = ({ rounded, page = 1, total = 10, className
                             )}
                         </div>
 
-                        <div className="flex justify-center text-sm whitespace-pre text-fg-secondary md:hidden">
+                        <div className="flex justify-center items-center text-sm whitespace-pre text-fg-secondary md:hidden">
                             Page <span className="font-medium">{currentPage}</span> of <span className="font-medium">{total}</span>
                         </div>
                     </>
                 )}
             </Pagination.Context>
 
-            <div className="hidden flex-1 justify-end md:flex">
+            <div className="hidden flex-1 justify-end md:flex pr-4">
                 <Pagination.NextTrigger asChild>
                     <Button iconTrailing={ArrowRight} color="link-gray" size="sm">
                         {isDesktop ? "Next" : undefined}
