@@ -246,36 +246,18 @@ export const Dashboard12 = () => {
     const assessmentsQuery = useAssessments();
     const { data: assessmentsResponse, isLoading: assessmentsLoading, error: assessmentsError } = assessmentsQuery;
 
-    console.log('📊 Dashboard12: Assessment Query State:', {
-        mounted,
-        isLoading: assessmentsLoading,
-        isFetching: assessmentsQuery.isFetching,
-        isError: !!assessmentsError,
-        isSuccess: assessmentsQuery.isSuccess,
-        hasData: !!assessmentsResponse,
-        assessmentsCount: assessmentsResponse?.assessments?.length || 0,
-        error: assessmentsError?.message,
-        fetchStatus: assessmentsQuery.fetchStatus,
-        status: assessmentsQuery.status,
-    });
 
     const assessments = assessmentsResponse?.assessments || [];
 
     // Transform assessments data into the format expected by the table
     const transformedAssessments = useMemo(() => {
-        console.log('🔄 Dashboard12: Starting transformation...');
-        console.log('🔄 Dashboard12: Input assessments:', assessments);
-        console.log('🔄 Dashboard12: assessments.length:', assessments.length);
-        console.log('🔄 Dashboard12: assessments type:', typeof assessments, Array.isArray(assessments));
 
         if (!Array.isArray(assessments) || assessments.length === 0) {
-            console.log('⚠️ Dashboard12: No valid assessments to transform');
             return [];
         }
 
         try {
             const transformed = assessments.map((assessment, index) => {
-                console.log(`🔄 Dashboard12: Transforming assessment ${index}:`, assessment);
 
                 // Validate assessment structure
                 if (!assessment || typeof assessment !== 'object') {
@@ -328,11 +310,9 @@ export const Dashboard12 = () => {
                     assessmentType: assessment.assessmentType,
                 };
 
-                console.log(`✅ Dashboard12: Transformed assessment ${index}:`, result);
                 return result;
             });
 
-            console.log('✅ Dashboard12: All assessments transformed successfully:', transformed);
             return transformed;
         } catch (transformError) {
             console.error('❌ Dashboard12: Error during transformation:', transformError);
@@ -346,8 +326,6 @@ export const Dashboard12 = () => {
     }, []);
 
     const sortedItems = useMemo(() => {
-        console.log('Dashboard12: transformedAssessments.length:', transformedAssessments.length);
-        console.log('Dashboard12: Using fallback to static movements?', transformedAssessments.length === 0);
         const items = transformedAssessments.length > 0 ? transformedAssessments : movements;
         if (!sortDescriptor) return items;
 
@@ -410,24 +388,7 @@ export const Dashboard12 = () => {
                     <div className="flex flex-col gap-1">
                         <p className="text-md font-semibold text-tertiary">Kia ora Kylee</p>
                         <div className="flex items-center gap-3">
-                            <p className="text-display-md font-semibold text-primary">Application Assessment ({assessments.length} assessments, {transformedAssessments.length} transformed)</p>
-                        </div>
-                        {/* Debug information */}
-                        <div className="bg-yellow-100 p-4 mt-4 rounded border">
-                            <h3 className="font-bold text-black">DEBUG INFO:</h3>
-                            <p className="text-black">Loading: {assessmentsLoading ? 'YES' : 'NO'}</p>
-                            <p className="text-black">Error: {assessmentsError ? `YES - ${assessmentsError.message || 'Unknown'}` : 'NO'}</p>
-                            <p className="text-black">Response exists: {assessmentsResponse ? 'YES' : 'NO'}</p>
-                            <p className="text-black">Response structure: {assessmentsResponse ? JSON.stringify({
-                                success: assessmentsResponse.success,
-                                hasAssessments: !!assessmentsResponse.assessments,
-                                assessmentsIsArray: Array.isArray(assessmentsResponse.assessments)
-                            }) : 'N/A'}</p>
-                            <p className="text-black">Raw assessments count: {assessments.length}</p>
-                            <p className="text-black">First assessment: {assessments[0] ? assessments[0].organizationName : 'NONE'}</p>
-                            <p className="text-black">Direct fetch test: {directFetchResult}</p>
-                            <p className="text-black">Fetch Status: {assessmentsQuery.fetchStatus}</p>
-                            <p className="text-black">Query Status: {assessmentsQuery.status}</p>
+                            <p className="text-display-md font-semibold text-primary">Application Assessment</p>
                         </div>
                     </div>
                 </div>
@@ -525,11 +486,6 @@ export const Dashboard12 = () => {
                     </div>
 
                     <TableCard.Root className="flex flex-col">
-                        <div className="p-4 text-sm text-gray-600 border-b">
-                            Debug: mounted={mounted.toString()}, loading={assessmentsLoading.toString()},
-                            sortedItems.length={sortedItems.length},
-                            using static data={sortedItems === movements ? 'YES' : 'NO'}
-                        </div>
                         {mounted && sortedItems && sortedItems.length > 0 && !assessmentsLoading ? (
                             <Table
                                 key={`vendor-movements-table-${sortedItems.length}`}

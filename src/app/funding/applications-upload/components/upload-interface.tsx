@@ -105,10 +105,10 @@ export const UploadInterface = ({ mode, onFilesUploaded }: UploadInterfaceProps)
                         maxSize={50 * 1024 * 1024} // 50MB
                         onDropFiles={handleFileDrop}
                         onDropUnacceptedFiles={(files) => {
-                            console.log('Unaccepted files:', files);
+                            // Handle unaccepted files silently or show user feedback
                         }}
                         onSizeLimitExceed={(files) => {
-                            console.log('Size limit exceeded:', files);
+                            // Handle size limit exceeded silently or show user feedback
                         }}
                         className="!bg-white !border !border-brand-secondary-600 min-h-64 py-12 !flex !items-center !justify-center !rounded-lg upload-dropzone-shadow"
                     />

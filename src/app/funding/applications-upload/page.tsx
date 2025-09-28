@@ -83,24 +83,15 @@ const ApplicationsUploadPage = () => {
     };
 
     const handleSubmitToDatabase = async () => {
-        console.log('🚀 handleSubmitToDatabase: Starting REAL save process');
-        console.log('📊 Selected Fund:', selectedFund);
-        console.log('📋 Assessment Results:', assessmentResults);
 
         if (!selectedFund || assessmentResults.length === 0) {
-            console.error('❌ Validation failed:', {
-                selectedFund: !!selectedFund,
-                assessmentResultsLength: assessmentResults.length
-            });
             alert('No fund selected or no assessment results to save.');
             return;
         }
 
         try {
-            console.log(`🔄 Saving ${assessmentResults.length} assessments...`);
 
             const savePromises = assessmentResults.map(async (result, index) => {
-                console.log(`💾 Saving assessment ${index + 1}: ${result.fileName}`);
 
                 const organizationName = result.fileName.replace(/\.[^/.]+$/, "");
 
@@ -119,7 +110,6 @@ const ApplicationsUploadPage = () => {
                     assessmentData: result
                 };
 
-                console.log(`📤 POST /api/assessments for ${result.fileName}:`, assessmentData);
 
                 const response = await fetch('/api/assessments', {
                     method: 'POST',
@@ -134,12 +124,10 @@ const ApplicationsUploadPage = () => {
                 }
 
                 const savedAssessment = await response.json();
-                console.log(`✅ Successfully saved ${result.fileName}:`, savedAssessment);
                 return savedAssessment;
             });
 
             const savedAssessments = await Promise.all(savePromises);
-            console.log('🎉 ALL ASSESSMENTS SAVED SUCCESSFULLY:', savedAssessments);
 
             alert(`✅ ${savedAssessments.length} applications submitted successfully! You can now view them in the Assessment page.`);
 
