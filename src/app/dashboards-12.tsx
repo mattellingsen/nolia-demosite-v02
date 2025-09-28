@@ -19,7 +19,7 @@ import {
     UploadCloud01,
     Eye,
 } from "@untitledui/icons";
-import { FileDocIcon, FileDocxIcon, FilePdfIcon } from "@/components/icons/FileIcons";
+import { FileDocIcon, FileDocxIcon, FilePdfIcon, FileXlsIcon, FileXlsxIcon, getFileIcon } from "@/components/icons/FileIcons";
 import type { SortDescriptor } from "react-aria-components";
 import { Area, AreaChart, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, XAxis } from "recharts";
 import { SidebarNavigationSlim } from "@/components/application/app-navigation/sidebar-navigation/sidebar-slim";
@@ -276,7 +276,9 @@ export const Dashboard12 = () => {
                 }
 
                 // Determine file type for icon selection
-                const fileType = assessment.assessmentType === 'AI_POWERED' ? 'pdf' : 'docx';
+                // Use actual MIME type if available, otherwise fall back to assessment type
+                const mimeType = assessment.assessmentData?.fileMimeType;
+                const fileType = mimeType ? 'dynamic' : (assessment.assessmentType === 'AI_POWERED' ? 'pdf' : 'docx');
 
                 // Get organization name and project name with flexible naming
                 const organizationName = assessment.organizationName;
@@ -307,6 +309,7 @@ export const Dashboard12 = () => {
                         name: truncatedOrgName,
                         website: truncatedProjectName,
                         fileType: fileType,
+                        mimeType: mimeType, // Pass the actual MIME type
                     },
                     rating: Math.round(overallScore),
                     change: "N/A", // We don't have change tracking yet
@@ -514,13 +517,21 @@ export const Dashboard12 = () => {
                                     <Table.Row id={movement.id} highlightSelectedRow={false}>
                                         <Table.Cell className="lg:px-0">
                                             <div className="group flex items-center gap-3">
-                                                {movement.vendor.fileType === 'docx' ? (
-                                                    <FileDocxIcon width={40} height={40} />
-                                                ) : movement.vendor.fileType === 'doc' ? (
-                                                    <FileDocIcon width={40} height={40} />
-                                                ) : (
-                                                    <FilePdfIcon width={40} height={40} />
-                                                )}
+                                                {(() => {
+                                                    // Use actual MIME type if available
+                                                    if (movement.vendor.mimeType) {
+                                                        const IconComponent = getFileIcon(movement.vendor.mimeType);
+                                                        return <IconComponent width={40} height={40} />;
+                                                    }
+                                                    // Fall back to file type guessing
+                                                    if (movement.vendor.fileType === 'docx') {
+                                                        return <FileDocxIcon width={40} height={40} />;
+                                                    } else if (movement.vendor.fileType === 'doc') {
+                                                        return <FileDocIcon width={40} height={40} />;
+                                                    } else {
+                                                        return <FilePdfIcon width={40} height={40} />;
+                                                    }
+                                                })()}
                                                 <div>
                                                     <p className="text-sm font-medium text-primary">{movement.vendor.name}</p>
                                                     <p className="text-sm text-tertiary">{movement.vendor.website}</p>

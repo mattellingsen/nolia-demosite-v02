@@ -181,6 +181,7 @@ const UploadApplicationsPage = () => {
                     },
                     assessmentData: {
                         fileName: result.fileName,
+                        fileMimeType: result.fileMimeType, // Pass the file MIME type
                         originalResult: result,
                         processedAt: new Date().toISOString(),
                         fundName: selectedFund.name
