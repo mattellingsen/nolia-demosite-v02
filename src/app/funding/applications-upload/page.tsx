@@ -82,15 +82,76 @@ const ApplicationsUploadPage = () => {
         setCurrentStep('results');
     };
 
-    const handleSubmitToDatabase = () => {
-        // Here you would normally send results to your backend
-        console.log('Submitting results to database:', assessmentResults);
-        alert('Applications submitted successfully! You can now view them in the Assessment page.');
+    const handleSubmitToDatabase = async () => {
+        console.log('🚀 handleSubmitToDatabase: Starting REAL save process');
+        console.log('📊 Selected Fund:', selectedFund);
+        console.log('📋 Assessment Results:', assessmentResults);
 
-        // Reset the workflow
-        setCurrentStep('upload');
-        setUploadedFiles([]);
-        setAssessmentResults([]);
+        if (!selectedFund || assessmentResults.length === 0) {
+            console.error('❌ Validation failed:', {
+                selectedFund: !!selectedFund,
+                assessmentResultsLength: assessmentResults.length
+            });
+            alert('No fund selected or no assessment results to save.');
+            return;
+        }
+
+        try {
+            console.log(`🔄 Saving ${assessmentResults.length} assessments...`);
+
+            const savePromises = assessmentResults.map(async (result, index) => {
+                console.log(`💾 Saving assessment ${index + 1}: ${result.fileName}`);
+
+                const organizationName = result.fileName.replace(/\.[^/.]+$/, "");
+
+                const assessmentData = {
+                    fundId: selectedFund.id,
+                    organizationName,
+                    projectName: result.fileName,
+                    assessmentType: 'AI_POWERED',
+                    overallScore: result.rating,
+                    scoringResults: {
+                        overallScore: result.rating,
+                        categories: result.categories,
+                        summary: result.summary,
+                        recommendations: result.recommendations
+                    },
+                    assessmentData: result
+                };
+
+                console.log(`📤 POST /api/assessments for ${result.fileName}:`, assessmentData);
+
+                const response = await fetch('/api/assessments', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(assessmentData),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Failed to save ${result.fileName}: ${response.statusText}`);
+                }
+
+                const savedAssessment = await response.json();
+                console.log(`✅ Successfully saved ${result.fileName}:`, savedAssessment);
+                return savedAssessment;
+            });
+
+            const savedAssessments = await Promise.all(savePromises);
+            console.log('🎉 ALL ASSESSMENTS SAVED SUCCESSFULLY:', savedAssessments);
+
+            alert(`✅ ${savedAssessments.length} applications submitted successfully! You can now view them in the Assessment page.`);
+
+            // Reset the workflow
+            setCurrentStep('upload');
+            setUploadedFiles([]);
+            setAssessmentResults([]);
+
+        } catch (error) {
+            console.error('❌ Error saving assessments:', error);
+            alert(`❌ Error saving applications: ${error.message}`);
+        }
     };
 
     const handleBackToUpload = () => {
