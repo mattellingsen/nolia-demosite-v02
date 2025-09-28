@@ -42,15 +42,6 @@ async function assessFileAgainstFund(file: File, fund: any): Promise<UIAssessmen
             // V2 fund-based assessment response
             const assessment: TemplateAssessmentResponse = data.assessment;
 
-            console.log('🔍 V2 Assessment data:', {
-                hasFormattedOutput: !!assessment.formattedOutput,
-                templateApplied: assessment.templateApplied,
-                templateName: assessment.templateName,
-                formattedOutput: typeof assessment.formattedOutput === 'string' ?
-                    assessment.formattedOutput.substring(0, 200) + '...' : assessment.formattedOutput,
-                score: data.score,
-                assessmentScore: assessment.extractedFields?.overallScore
-            });
 
             // Merge API-level score into assessment object for proper extraction
             const enhancedAssessment = {
