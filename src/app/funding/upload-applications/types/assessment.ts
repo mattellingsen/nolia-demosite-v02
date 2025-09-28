@@ -97,11 +97,32 @@ export function convertToUIResult(
   apiResponse: TemplateAssessmentResponse,
   fund: any
 ): UIAssessmentResult {
+  console.log('🔄 convertToUIResult: Starting conversion for file:', file.name);
+  console.log('📥 Raw API Response structure:', {
+    hasExtractedFields: !!apiResponse.extractedFields,
+    hasAssessmentData: !!apiResponse.assessmentData,
+    hasOverallScore: !!apiResponse.overallScore,
+    hasFilledTemplate: !!apiResponse.filledTemplate,
+    hasFormattedOutput: !!apiResponse.formattedOutput,
+    templateFormat: apiResponse.templateFormat,
+    keys: Object.keys(apiResponse)
+  });
+
   // Handle nested response structure from the actual API
   const extractedFields = apiResponse.extractedFields || apiResponse.assessmentData || {};
   const overallScore = extractedFields.overallScore || apiResponse.overallScore || 0;
   const recommendations = extractedFields.weaknesses || extractedFields.recommendations ||
                           apiResponse.feedback?.suggestions || [];
+
+  console.log('📊 Extracted data analysis:', {
+    extractedFields: extractedFields,
+    overallScore: overallScore,
+    overallScoreType: typeof overallScore,
+    overallScoreValid: typeof overallScore === 'number' && !isNaN(overallScore),
+    recommendations: recommendations,
+    recommendationsType: typeof recommendations,
+    recommendationsIsArray: Array.isArray(recommendations)
+  });
 
   const isTemplateFormatted = hasTemplateFormatting(apiResponse);
 
@@ -110,7 +131,7 @@ export function convertToUIResult(
                            apiResponse.formattedOutput?.templateFormat === 'raw_filled' ||
                            !!apiResponse.filledTemplate;
 
-  return {
+  const result = {
     fileName: file.name,
     rating: overallScore,
     categories: [fund.name || 'Unknown Fund'],
@@ -126,6 +147,18 @@ export function convertToUIResult(
     details: !isTemplateFormatted ? createLegacyDetails(apiResponse) : undefined,
     recommendations: Array.isArray(recommendations) ? recommendations : [],
   };
+
+  console.log('✅ convertToUIResult: Final result:', {
+    fileName: result.fileName,
+    rating: result.rating,
+    ratingType: typeof result.rating,
+    status: result.status,
+    categoriesLength: result.categories.length,
+    recommendationsLength: result.recommendations.length,
+    fullResult: result
+  });
+
+  return result;
 }
 
 // Parse template output into structured sections

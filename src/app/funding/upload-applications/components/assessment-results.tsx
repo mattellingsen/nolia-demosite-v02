@@ -183,6 +183,13 @@ const renderGenericSection = (section: TemplateSection) => {
 };
 
 export const AssessmentResults = ({ results, onSubmit, onBackToUpload, isSubmitting = false }: AssessmentResultsProps) => {
+    console.log('🎯 AssessmentResults: Rendering with results:', {
+        resultsCount: results.length,
+        resultStatuses: results.map(r => r.status),
+        resultRatings: results.map(r => ({ name: r.fileName, rating: r.rating, ratingType: typeof r.rating })),
+        fullResults: results
+    });
+
     // Calculate average rating with proper error handling
     const validResults = results.filter(r => r.status === 'completed' && typeof r.rating === 'number' && !isNaN(r.rating));
     const averageRating = validResults.length > 0
@@ -191,6 +198,15 @@ export const AssessmentResults = ({ results, onSubmit, onBackToUpload, isSubmitt
     const successfulAssessments = results.filter(r => r.status === 'completed').length;
     const failedAssessments = results.filter(r => r.status === 'error').length;
     const hasAnyErrors = failedAssessments > 0;
+
+    console.log('📊 AssessmentResults: Calculated values:', {
+        validResults: validResults.length,
+        averageRating: averageRating,
+        successfulAssessments: successfulAssessments,
+        failedAssessments: failedAssessments,
+        hasAnyErrors: hasAnyErrors,
+        saveButtonWillBeDisabled: successfulAssessments === 0 || isSubmitting
+    });
 
     return (
         <div className="space-y-6">
