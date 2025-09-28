@@ -19,7 +19,7 @@ import {
     UploadCloud01,
     Eye,
 } from "@untitledui/icons";
-import { FileDocIcon, FilePdfIcon } from "@/components/icons/FileIcons";
+import { FileDocIcon, FileDocxIcon, FilePdfIcon } from "@/components/icons/FileIcons";
 import type { SortDescriptor } from "react-aria-components";
 import { Area, AreaChart, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, XAxis } from "recharts";
 import { SidebarNavigationSlim } from "@/components/application/app-navigation/sidebar-navigation/sidebar-slim";
@@ -158,7 +158,7 @@ const movements = [
         vendor: {
             name: "KiwiMed Diagnostics Ltd",
             website: "Point-of-care device development",
-            fileType: "doc",
+            fileType: "docx",
         },
         rating: 78,
         change: "6%",
@@ -184,7 +184,7 @@ const movements = [
         vendor: {
             name: "Precision Horticulture Ltd",
             website: "Precision Crop Monitoring and Yield Prediction Systems",
-            fileType: "doc",
+            fileType: "docx",
         },
         rating: 42,
         change: "1%",
@@ -197,7 +197,7 @@ const movements = [
         vendor: {
             name: "Precision Optics NZ",
             website: "Advanced Optical Coating Development Programme",
-            fileType: "doc",
+            fileType: "docx",
         },
         rating: 66,
         change: "6%",
@@ -276,7 +276,7 @@ export const Dashboard12 = () => {
                 }
 
                 // Determine file type for icon selection
-                const fileType = assessment.assessmentType === 'AI_POWERED' ? 'pdf' : 'doc';
+                const fileType = assessment.assessmentType === 'AI_POWERED' ? 'pdf' : 'docx';
 
                 // Get organization name and project name with flexible naming
                 const organizationName = assessment.organizationName;
@@ -514,7 +514,9 @@ export const Dashboard12 = () => {
                                     <Table.Row id={movement.id} highlightSelectedRow={false}>
                                         <Table.Cell className="lg:px-0">
                                             <div className="group flex items-center gap-3">
-                                                {movement.vendor.fileType === 'doc' ? (
+                                                {movement.vendor.fileType === 'docx' ? (
+                                                    <FileDocxIcon width={40} height={40} />
+                                                ) : movement.vendor.fileType === 'doc' ? (
                                                     <FileDocIcon width={40} height={40} />
                                                 ) : (
                                                     <FilePdfIcon width={40} height={40} />
