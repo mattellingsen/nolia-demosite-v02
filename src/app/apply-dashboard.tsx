@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { useFunds } from "@/hooks/useFunds";
+import { useAssessments } from "@/hooks/useAssessments";
 import {
     ArrowRight,
     CheckDone01,
@@ -15,6 +16,8 @@ import {
     Trash01,
     TrendUp02,
     UploadCloud01,
+    MessageSmileSquare,
+    BarChart01,
 } from "@untitledui/icons";
 import type { SortDescriptor } from "react-aria-components";
 import { Area, AreaChart, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, XAxis } from "recharts";
@@ -88,13 +91,16 @@ export const ApplyDashboard = () => {
     const { data: funds = [], isLoading: fundsLoading, error: fundsError } = useFunds();
     const activeFunds = funds.filter(fund => fund.status === 'ACTIVE');
 
+    // Fetch assessments data for accurate count
+    const assessmentsQuery = useAssessments();
+
     useEffect(() => {
         setMounted(true);
     }, []);
 
     // Calculate real stats
     const activeFormsCount = 0; // Forms created, not funds
-    const applicationsCount = 0; // Real applications count
+    const applicationsCount = assessmentsQuery.data?.pagination?.total || 0; // Real applications count from assessments
     const completionRate = 0; // Real completion rate
     const avgTime = "0min"; // Real avg time
 
@@ -283,7 +289,7 @@ export const ApplyDashboard = () => {
                 <div className="flex shrink-0 flex-col gap-5 overflow-x-clip px-6 pt-8">
                     <div className="flex justify-between">
                         <p className="text-lg font-semibold text-primary">Our funds</p>
-                        <Button size="md" color="link-gray" iconLeading={Plus}>
+                        <Button size="md" color="link-gray" iconLeading={Plus} href="/funding/setup">
                             Add fund
                         </Button>
                     </div>
@@ -344,7 +350,14 @@ export const ApplyDashboard = () => {
                         <TableRowActionsDropdown />
                     </div>
                     <div className="flex flex-col gap-3">
-                        <a href="/funding/applications-upload" className="flex items-center gap-3 rounded-xl bg-utility-blue-50 p-4 hover:bg-utility-blue-100 cursor-pointer transition-colors">
+                        <a href="/funding/apply" className="flex items-center gap-3 rounded-xl bg-utility-green-50 p-4 hover:bg-utility-green-100 cursor-pointer transition-colors">
+                            <FeaturedIcon size="md" color="brand" theme="light" icon={MessageSmileSquare} className="bg-utility-green-100 text-utility-green-700" />
+                            <div className="flex flex-1 justify-between gap-4">
+                                <p className="text-sm font-medium text-utility-green-700">Create ApplicationBot</p>
+                                <ArrowRight className="text-utility-green-700 w-4 h-4" />
+                            </div>
+                        </a>
+                        <a href="/funding/upload-applications" className="flex items-center gap-3 rounded-xl bg-utility-blue-50 p-4 hover:bg-utility-blue-100 cursor-pointer transition-colors">
                             <FeaturedIcon size="md" color="brand" theme="light" icon={UploadCloud01} className="bg-utility-blue-100 text-utility-blue-700" />
                             <div className="flex flex-1 justify-between gap-4">
                                 <p className="text-sm font-medium text-utility-blue-700">Upload applications</p>
@@ -358,6 +371,13 @@ export const ApplyDashboard = () => {
                                 <ArrowRight className="text-utility-pink-700 w-4 h-4" />
                             </div>
                         </div>
+                        <a href="/funding/analytics" className="flex items-center gap-3 rounded-xl bg-utility-purple-50 p-4 hover:bg-utility-purple-100 cursor-pointer transition-colors">
+                            <FeaturedIcon size="md" color="brand" theme="light" icon={BarChart01} className="bg-utility-purple-100 text-utility-purple-700" />
+                            <div className="flex flex-1 justify-between gap-4">
+                                <p className="text-sm font-medium text-utility-purple-700">View analytics</p>
+                                <ArrowRight className="text-utility-purple-700 w-4 h-4" />
+                            </div>
+                        </a>
                     </div>
                 </div>
             </div>
