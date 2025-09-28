@@ -19,6 +19,7 @@ import {
     UploadCloud01,
     Eye,
 } from "@untitledui/icons";
+import { FileDocIcon, FilePdfIcon } from "@/components/icons/FileIcons";
 import type { SortDescriptor } from "react-aria-components";
 import { Area, AreaChart, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, XAxis } from "recharts";
 import { SidebarNavigationSlim } from "@/components/application/app-navigation/sidebar-navigation/sidebar-slim";
@@ -131,7 +132,7 @@ const movements = [
         vendor: {
             name: "CloudScale Analytics",
             website: "Distributed Computing for Genomics Analysis",
-            logoUrl: "/images/funding/file-type-icon-pdf.png",
+            fileType: "pdf",
         },
         rating: 60,
         change: "5%",
@@ -144,7 +145,7 @@ const movements = [
         vendor: {
             name: "Digital Health Solutions",
             website: "Point-of-care device development",
-            logoUrl: "/images/funding/file-type-icon-pdf.png",
+            fileType: "pdf",
         },
         rating: 72,
         change: "4%",
@@ -157,7 +158,7 @@ const movements = [
         vendor: {
             name: "KiwiMed Diagnostics Ltd",
             website: "Point-of-care device development",
-            logoUrl: "/images/funding/file-type-icon-doc.png",
+            fileType: "doc",
         },
         rating: 78,
         change: "6%",
@@ -170,7 +171,7 @@ const movements = [
         vendor: {
             name: "MicroProcessor Systems",
             website: "Energy-Efficient IoT Microprocessor Architecture Development",
-            logoUrl: "/images/funding/file-type-icon-pdf.png",
+            fileType: "pdf",
         },
         rating: 38,
         change: "8%",
@@ -183,7 +184,7 @@ const movements = [
         vendor: {
             name: "Precision Horticulture Ltd",
             website: "Precision Crop Monitoring and Yield Prediction Systems",
-            logoUrl: "/images/funding/file-type-icon-doc.png",
+            fileType: "doc",
         },
         rating: 42,
         change: "1%",
@@ -196,7 +197,7 @@ const movements = [
         vendor: {
             name: "Precision Optics NZ",
             website: "Advanced Optical Coating Development Programme",
-            logoUrl: "/images/funding/file-type-icon-doc.png",
+            fileType: "doc",
         },
         rating: 66,
         change: "6%",
@@ -209,7 +210,7 @@ const movements = [
         vendor: {
             name: "Wellington Robotics Ltd",
             website: "Autonomous Robotic Systems for Precision Agriculture",
-            logoUrl: "/images/funding/file-type-icon-pdf.png",
+            fileType: "pdf",
         },
         rating: 91,
         change: "2%",
@@ -274,10 +275,8 @@ export const Dashboard12 = () => {
                     }
                 }
 
-                // Determine assessment type icon based on filename or format
-                const logoUrl = assessment.assessmentType === 'AI_POWERED'
-                    ? "/images/funding/file-type-icon-pdf.png"
-                    : "/images/funding/file-type-icon-doc.png";
+                // Determine file type for icon selection
+                const fileType = assessment.assessmentType === 'AI_POWERED' ? 'pdf' : 'doc';
 
                 // Get organization name and project name with flexible naming
                 const organizationName = assessment.organizationName;
@@ -307,7 +306,7 @@ export const Dashboard12 = () => {
                     vendor: {
                         name: truncatedOrgName,
                         website: truncatedProjectName,
-                        logoUrl: logoUrl,
+                        fileType: fileType,
                     },
                     rating: Math.round(overallScore),
                     change: "N/A", // We don't have change tracking yet
@@ -515,7 +514,11 @@ export const Dashboard12 = () => {
                                     <Table.Row id={movement.id} highlightSelectedRow={false}>
                                         <Table.Cell className="lg:px-0">
                                             <div className="group flex items-center gap-3">
-                                                <img src={movement.vendor.logoUrl} alt={movement.vendor.name} className="h-10 w-10" />
+                                                {movement.vendor.fileType === 'doc' ? (
+                                                    <FileDocIcon width={40} height={40} />
+                                                ) : (
+                                                    <FilePdfIcon width={40} height={40} />
+                                                )}
                                                 <div>
                                                     <p className="text-sm font-medium text-primary">{movement.vendor.name}</p>
                                                     <p className="text-sm text-tertiary">{movement.vendor.website}</p>
