@@ -91,17 +91,64 @@ const UploadApplicationsPage = () => {
         console.log('📋 Assessment Results Count:', assessmentResults.length);
         console.log('📋 Assessment Results Data:', assessmentResults);
 
+        // DETAILED ANALYSIS OF ASSESSMENT RESULTS
+        console.log('🔍 DETAILED ASSESSMENT ANALYSIS:');
+        assessmentResults.forEach((result, index) => {
+            console.log(`  Assessment ${index + 1}:`, {
+                fileName: result.fileName,
+                status: result.status,
+                rating: result.rating,
+                ratingType: typeof result.rating,
+                isRatingValid: typeof result.rating === 'number' && !isNaN(result.rating),
+                hasRecommendations: !!result.recommendations,
+                recommendationsLength: result.recommendations?.length || 0,
+                fullStructure: result
+            });
+        });
+
+        // Filter successful assessments to see what would be saved
+        const savableAssessments = assessmentResults.filter(r => r.status === 'completed');
+        console.log('💾 Savable assessments (status === completed):', savableAssessments.length);
+
         if (!selectedFund || assessmentResults.length === 0) {
-            console.error('❌ Validation failed:', { selectedFund, assessmentResultsLength: assessmentResults.length });
+            console.error('❌ Validation failed:', {
+                selectedFund: !!selectedFund,
+                selectedFundId: selectedFund?.id,
+                assessmentResultsLength: assessmentResults.length,
+                savableAssessmentsLength: savableAssessments.length
+            });
             alert('No fund selected or no assessment results to save.');
+            return;
+        }
+
+        if (savableAssessments.length === 0) {
+            console.error('❌ No completed assessments to save! All assessments have status:',
+                assessmentResults.map(r => r.status)
+            );
+            alert('No completed assessments to save. Please ensure assessments completed successfully.');
             return;
         }
 
         setIsSubmitting(true);
         try {
+            console.log(`🔄 About to create ${assessmentResults.length} save promises`);
+
             // Save each assessment result to the database
             const savePromises = assessmentResults.map(async (result, index) => {
-                console.log(`💾 Saving assessment ${index + 1}/${assessmentResults.length}: ${result.fileName}`);
+                console.log(`💾 PROCESSING assessment ${index + 1}/${assessmentResults.length}:`, {
+                    fileName: result.fileName,
+                    status: result.status,
+                    rating: result.rating,
+                    willSkipDueToStatus: result.status !== 'completed'
+                });
+
+                // Skip assessments that aren't completed
+                if (result.status !== 'completed') {
+                    console.log(`⏭️ SKIPPING assessment ${index + 1} - status is '${result.status}', not 'completed'`);
+                    return { skipped: true, reason: `Status is ${result.status}` };
+                }
+
+                console.log(`✅ PROCEEDING to save assessment ${index + 1}: ${result.fileName}`);
                 // Extract organization name from filename (remove extension)
                 const organizationName = result.fileName.replace(/\.[^/.]+$/, "");
 
@@ -184,10 +231,24 @@ const UploadApplicationsPage = () => {
             });
 
             // Wait for all assessments to be saved
-            console.log('⏳ Waiting for all save promises to complete...');
+            console.log(`⏳ Waiting for ${savePromises.length} save promises to complete...`);
+
             const savedResults = await Promise.all(savePromises);
-            console.log('🎉 All assessments saved successfully:', savedResults);
-            console.log('🎉 Saved assessment IDs:', savedResults.map(r => r.assessment?.id));
+
+            console.log('📊 SAVE RESULTS ANALYSIS:');
+            console.log('  - Total promises created:', savePromises.length);
+            console.log('  - Total results returned:', savedResults.length);
+
+            const actualSaves = savedResults.filter(r => !r.skipped);
+            const skippedSaves = savedResults.filter(r => r.skipped);
+
+            console.log('  - Actually processed:', actualSaves.length);
+            console.log('  - Skipped:', skippedSaves.length);
+            console.log('  - Skipped reasons:', skippedSaves.map(r => r.reason));
+
+            console.log('🎉 Full save results:', savedResults);
+            console.log('🎉 Actual API responses:', actualSaves);
+            console.log('🎉 Saved assessment IDs:', actualSaves.map(r => r.assessment?.id));
 
             // Invalidate assessments cache to ensure fresh data is shown in the assess page
             console.log('🔄 Invalidating React Query cache for assessments');
@@ -217,7 +278,15 @@ const UploadApplicationsPage = () => {
             }
 
             console.log('🎊 Showing success message to user');
-            alert(`${assessmentResults.length} assessment(s) saved successfully! You can now view them in the Assessment page.`);
+            const successfulSaves = actualSaves.filter(r => r.assessment?.id).length;
+            console.log('📈 Final count for user message:', {
+                totalAssessments: assessmentResults.length,
+                actualSaves: actualSaves.length,
+                successfulSaves: successfulSaves,
+                skippedSaves: skippedSaves.length
+            });
+
+            alert(`DEBUG: ${successfulSaves} of ${assessmentResults.length} assessment(s) saved successfully! (${skippedSaves.length} skipped). Check console for details.`);
 
             // Reset the workflow
             setCurrentStep('upload');
