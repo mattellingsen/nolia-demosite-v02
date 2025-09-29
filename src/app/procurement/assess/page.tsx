@@ -1,4 +1,4 @@
-import { Dashboard12 } from "../../dashboards-12";
+import { ProcurementAssessDashboard } from "../../procurement-assess-dashboard";
 import { ErrorBoundary, QueryErrorFallback } from "@/components/ErrorBoundary";
 
 // Force dynamic rendering to prevent static caching in production
@@ -8,7 +8,7 @@ export const revalidate = 0;
 export default function AssessPage() {
     return (
         <ErrorBoundary fallback={QueryErrorFallback}>
-            <Dashboard12 />
+            <ProcurementAssessDashboard />
         </ErrorBoundary>
     );
 }
