@@ -92,6 +92,7 @@ export async function generateS3DownloadUrl(s3Key: string): Promise<string> {
 export async function saveFundWithDocuments(fundData: {
   name: string;
   description?: string;
+  moduleType?: 'FUNDING' | 'PROCUREMENT';
   applicationForm?: {
     file: Buffer;
     filename: string;
@@ -111,14 +112,15 @@ export async function saveFundWithDocuments(fundData: {
   }>;
   goodExamplesAnalysis?: any;
 }) {
-  const { 
-    name, 
-    description, 
-    applicationForm, 
-    selectionCriteria, 
+  const {
+    name,
+    description,
+    moduleType = 'FUNDING',
+    applicationForm,
+    selectionCriteria,
     selectionCriteriaAnalysis,
-    goodExamples, 
-    goodExamplesAnalysis 
+    goodExamples,
+    goodExamplesAnalysis
   } = fundData;
 
   // Upload application form to S3
@@ -164,6 +166,7 @@ export async function saveFundWithDocuments(fundData: {
     data: {
       name,
       description,
+      moduleType,
       applicationFormAnalysis: applicationForm?.analysis,
       selectionCriteriaAnalysis,
       goodExamplesAnalysis,
@@ -221,6 +224,9 @@ export async function getFundWithDocuments(fundId: string) {
  */
 export async function getAllFunds() {
   return await prisma.fund.findMany({
+    where: {
+      moduleType: 'FUNDING'
+    },
     include: {
       _count: {
         select: { documents: true }

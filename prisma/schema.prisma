@@ -13,6 +13,7 @@ model Fund {
   name                      String
   description               String?
   status                    FundStatus      @default(DRAFT)
+  moduleType                ModuleType      @default(FUNDING)
   createdAt                 DateTime        @default(now())
   updatedAt                 DateTime        @updatedAt
   applicationFormAnalysis   Json?
@@ -26,6 +27,7 @@ model Fund {
   documents                 FundDocument[]
   assessments               Assessment[]
 
+  @@index([moduleType])
   @@map("funds")
 }
 
@@ -37,31 +39,35 @@ model FundDocument {
   mimeType     String
   fileSize     Int
   s3Key        String
+  moduleType   ModuleType   @default(FUNDING)
   uploadedAt   DateTime     @default(now())
   fund         Fund         @relation(fields: [fundId], references: [id], onDelete: Cascade)
 
+  @@index([moduleType])
   @@map("fund_documents")
 }
 
 model BackgroundJob {
-  id                 String    @id @default(uuid())
+  id                 String     @id @default(uuid())
   fundId             String
   type               JobType
-  status             JobStatus @default(PENDING)
-  progress           Int       @default(0)
-  totalDocuments     Int       @default(0)
-  processedDocuments Int       @default(0)
-  metadata           Json      @default("{}")
+  status             JobStatus  @default(PENDING)
+  progress           Int        @default(0)
+  totalDocuments     Int        @default(0)
+  processedDocuments Int        @default(0)
+  metadata           Json       @default("{}")
   errorMessage       String?
   startedAt          DateTime?
   completedAt        DateTime?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-  fund               Fund      @relation(fields: [fundId], references: [id], onDelete: Cascade)
+  moduleType         ModuleType @default(FUNDING)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  fund               Fund       @relation(fields: [fundId], references: [id], onDelete: Cascade)
 
   @@index([fundId])
   @@index([status])
   @@index([type])
+  @@index([moduleType])
   @@map("background_jobs")
 }
 
@@ -75,6 +81,7 @@ model Assessment {
   overallScore     Decimal?         @db.Decimal(5, 2)
   scoringResults   Json
   assessmentData   Json
+  moduleType       ModuleType       @default(FUNDING)
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
   fund             Fund             @relation(fields: [fundId], references: [id], onDelete: Cascade)
@@ -82,6 +89,7 @@ model Assessment {
   @@index([fundId])
   @@index([status])
   @@index([createdAt])
+  @@index([moduleType])
   @@map("assessments")
 }
 
@@ -121,4 +129,9 @@ enum AssessmentStatus {
   IN_PROGRESS
   COMPLETED
   FAILED
+}
+
+enum ModuleType {
+  FUNDING
+  PROCUREMENT
 }
