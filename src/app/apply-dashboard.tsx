@@ -350,7 +350,7 @@ export const ApplyDashboard = () => {
                         <TableRowActionsDropdown />
                     </div>
                     <div className="flex flex-col gap-3">
-                        <a href="/funding/upload-applications" className="flex items-center gap-3 rounded-xl bg-utility-blue-50 p-4 hover:bg-utility-blue-100 cursor-pointer transition-colors">
+                        <a href="/funding/applications-upload" className="flex items-center gap-3 rounded-xl bg-utility-blue-50 p-4 hover:bg-utility-blue-100 cursor-pointer transition-colors">
                             <FeaturedIcon size="md" color="brand" theme="light" icon={UploadCloud01} className="bg-utility-blue-100 text-utility-blue-700" />
                             <div className="flex flex-1 justify-between gap-4">
                                 <p className="text-sm font-medium text-utility-blue-700">Upload applications</p>
