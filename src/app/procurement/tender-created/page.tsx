@@ -322,9 +322,9 @@ function TenderCreatedContent() {
                     </div>
                     <h1 className="text-xl font-semibold text-primary mb-2">Error Loading Tender</h1>
                     <p className="text-secondary mb-6">{error || 'Tender not found'}</p>
-                    <Button 
-                        color="primary" 
-                        onClick={() => router.push('/procurement/setup'))
+                    <Button
+                        color="primary"
+                        onClick={() => router.push('/procurement/setup')}
                     >
                         Back to Setup
                     </Button>
@@ -455,7 +455,7 @@ function TenderCreatedContent() {
                                     <Button
                                         size="sm"
                                         color="tertiary"
-                                        onClick={() => router.push('/procurement/setup'))
+                                        onClick={() => router.push('/procurement/setup')}
                                     >
                                         Upload New Documents
                                     </Button>
@@ -675,7 +675,7 @@ function TenderCreatedContent() {
                         size="lg"
                         color="tertiary"
                         iconLeading={ArrowLeft}
-                        onClick={() => router.push('/procurement/setup'))
+                        onClick={() => router.push('/procurement/setup')}
                     >
                         Back to Setup
                     </Button>

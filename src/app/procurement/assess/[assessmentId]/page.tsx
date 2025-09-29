@@ -155,7 +155,7 @@ export default function AssessmentDetailPage() {
         {/* Header */}
         <div className="flex flex-col gap-4">
           <Button
-            onClick={() => router.push('/procurement/assess'))
+            onClick={() => router.push('/procurement/assess')}
             size="sm"
             color="tertiary"
             iconLeading={ArrowLeft}
