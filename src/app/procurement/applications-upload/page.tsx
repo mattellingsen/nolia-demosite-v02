@@ -32,7 +32,7 @@ import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-ic
 import { UploadInterface } from "./components/upload-interface";
 import { AssessmentProcessor, AssessmentResult } from "./components/assessment-processor";
 import { AssessmentResults } from "./components/assessment-results";
-import { useFunds } from "@/hooks/useFunds";
+import { useTenders } from "@/hooks/useTenders";
 import { Dot } from "@/components/foundations/dot-icon";
 import { extractOrganizationName, extractProjectTitle } from "./types/assessment";
 
@@ -43,15 +43,15 @@ const ApplicationsUploadPage = () => {
     const [currentStep, setCurrentStep] = useState<WorkflowStep>('upload');
     const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
     const [assessmentResults, setAssessmentResults] = useState<AssessmentResult[]>([]);
-    const [selectedFund, setSelectedFund] = useState<any>(null);
+    const [selectedTender, setSelectedTender] = useState<any>(null);
 
-    const { data: funds, isLoading: fundsLoading, error: fundsError } = useFunds();
+    const { data: tenders, isLoading: tendersLoading, error: tendersError } = useTenders();
 
     // Progress steps data for Untitled UI Progress component
     const progressSteps = [
         {
-            title: 'Upload Application',
-            description: 'Upload your application documents',
+            title: 'Upload Submission',
+            description: 'Upload your submission documents',
             status: currentStep === 'upload' ? 'current' : currentStep === 'processing' || currentStep === 'results' ? 'complete' : 'incomplete',
             icon: UploadCloud01
         },
@@ -85,8 +85,8 @@ const ApplicationsUploadPage = () => {
 
     const handleSubmitToDatabase = async () => {
 
-        if (!selectedFund || assessmentResults.length === 0) {
-            alert('No fund selected or no assessment results to save.');
+        if (!selectedTender || assessmentResults.length === 0) {
+            alert('No tender selected or no assessment results to save.');
             return;
         }
 
@@ -99,7 +99,7 @@ const ApplicationsUploadPage = () => {
                 const projectName = extractProjectTitle(result);
 
                 const assessmentData = {
-                    fundId: selectedFund.id,
+                    tenderId: selectedTender.id,
                     organizationName,
                     projectName,
                     assessmentType: 'AI_POWERED',
@@ -156,7 +156,7 @@ const ApplicationsUploadPage = () => {
             case 'upload':
                 return (
                     <div className="space-y-6">
-                        {selectedFund && (
+                        {selectedTender && (
                             <div className="flex justify-center">
                                 <div className="w-full max-w-2xl relative">
                                     {/* Upload Mode Toggle - positioned top right of uploader with dots */}
@@ -170,7 +170,7 @@ const ApplicationsUploadPage = () => {
                                                 if (selected) setUploadMode(selected);
                                             }}
                                         >
-                                            <ButtonGroupItem id="single">Single Application</ButtonGroupItem>
+                                            <ButtonGroupItem id="single">Single Submission</ButtonGroupItem>
                                             <ButtonGroupItem id="bulk">Bulk Upload</ButtonGroupItem>
                                         </ButtonGroup>
                                     </div>
@@ -189,7 +189,7 @@ const ApplicationsUploadPage = () => {
                 return (
                     <AssessmentProcessor
                         files={uploadedFiles}
-                        selectedFund={selectedFund}
+                        selectedTender={selectedTender}
                         onAssessmentComplete={handleAssessmentComplete}
                     />
                 );
@@ -208,26 +208,26 @@ const ApplicationsUploadPage = () => {
     return (
         <div className="flex flex-col bg-primary lg:flex-row">
             <SidebarNavigationSlim
-                activeUrl="/funding/assess"
+                activeUrl="/procurement/assess"
                 items={[
                     {
                         label: "Setup",
-                        href: "/funding/setup",
+                        href: "/procurement/setup",
                         icon: Edit05,
                     },
                     {
                         label: "Apply",
-                        href: "/funding/apply",
+                        href: "/procurement/apply",
                         icon: Send01,
                     },
                     {
                         label: "Assess",
-                        href: "/funding/assess",
+                        href: "/procurement/assess",
                         icon: CheckDone01,
                     },
                     {
                         label: "Analytics",
-                        href: "/funding/analytics",
+                        href: "/procurement/analytics",
                         icon: TrendUp02,
                     },
                 ]}
@@ -240,14 +240,14 @@ const ApplicationsUploadPage = () => {
                             size="sm"
                             color="tertiary"
                             iconLeading={ArrowLeft}
-                            href="/funding"
+                            href="/procurement"
                             className="self-start [&_svg]:!text-brand-600"
                         >
                             Back
                         </Button>
                         <div className="flex flex-col gap-1 text-center">
                             <p className="text-md font-semibold text-tertiary">Upload & Assess</p>
-                            <p className="text-display-md font-semibold text-primary">Applications Upload</p>
+                            <p className="text-display-md font-semibold text-primary">Submissions Upload</p>
                         </div>
                     </div>
                 </div>
@@ -268,23 +268,23 @@ const ApplicationsUploadPage = () => {
                     <div className="w-full max-w-md">
                         <div className="mb-4 text-center">
                             <p className="text-lg text-secondary">
-                                Select the fund to assess against
+                                Select the tender to assess against
                             </p>
                         </div>
                         <div className="relative select-custom">
-                            {fundsError ? (
+                            {tendersError ? (
                                 <div className="p-3 bg-error-50 border border-error-200 rounded-lg text-error-700">
-                                    Failed to load funds. Please try refreshing the page.
+                                    Failed to load tenders. Please try refreshing the page.
                                 </div>
-                            ) : funds && funds.length === 0 ? (
+                            ) : tenders && tenders.length === 0 ? (
                                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                                     <p className="text-sm text-blue-800">
-                                        <strong>No funds available.</strong> You need to create a fund first in the Setup section before uploading applications.
+                                        <strong>No tenders available.</strong> You need to create a tender first in the Setup section before uploading submissions.
                                     </p>
                                     <Button
                                         size="sm"
                                         color="primary"
-                                        href="/funding/setup"
+                                        href="/procurement/setup"
                                         className="mt-2"
                                     >
                                         Go to Setup
@@ -292,21 +292,21 @@ const ApplicationsUploadPage = () => {
                                 </div>
                             ) : (
                                 <Select
-                                    placeholder={fundsLoading ? "Loading funds..." : "Select fund"}
+                                    placeholder={tendersLoading ? "Loading tenders..." : "Select tender"}
                                     size="md"
-                                    items={funds ? funds.map(fund => ({
-                                        id: fund.id,
-                                        label: fund.name,
-                                        supportingText: fund.status.toLowerCase()
+                                    items={tenders ? tenders.map(tender => ({
+                                        id: tender.id,
+                                        label: tender.name,
+                                        supportingText: tender.status.toLowerCase()
                                     })) : []}
                                     placeholderIcon={Folder}
                                     className="w-full"
-                                    isDisabled={fundsLoading || !funds || funds.length === 0}
-                                    selectedKey={selectedFund?.id}
+                                    isDisabled={tendersLoading || !tenders || tenders.length === 0}
+                                    selectedKey={selectedTender?.id}
                                     onSelectionChange={(selectedId) => {
                                         if (selectedId) {
-                                            const fund = funds?.find(fund => fund.id === selectedId);
-                                            setSelectedFund(fund);
+                                            const tender = tenders?.find(tender => tender.id === selectedId);
+                                            setSelectedTender(tender);
                                         }
                                     }}
                                 >
@@ -329,7 +329,7 @@ const ApplicationsUploadPage = () => {
                 </div>
 
                 {/* Upload Instructions - only show when fund is selected */}
-                {selectedFund && (
+                {selectedTender && (
                     <div className="flex justify-center px-4 lg:px-8">
                         <div className="w-full max-w-md">
                             <div className="text-center">
@@ -351,9 +351,9 @@ const ApplicationsUploadPage = () => {
             <div className="sticky top-0 hidden h-screen w-98 flex-col gap-8 overflow-auto border-l border-secondary bg-primary pb-12 lg:flex">
                 <div className="flex shrink-0 flex-col gap-5 overflow-x-clip px-6 pt-8">
                     <div className="flex justify-between">
-                        <p className="text-lg font-semibold text-primary">Our funds</p>
+                        <p className="text-lg font-semibold text-primary">Our tenders</p>
                         <Button size="md" color="link-gray" iconLeading={Plus}>
-                            Add fund
+                            Add tender
                         </Button>
                     </div>
                     <Carousel.Root className="flex flex-col gap-5">
@@ -404,7 +404,7 @@ const ApplicationsUploadPage = () => {
                             <div className="flex flex-col gap-2">
                                 <div className="flex justify-between gap-4">
                                     <p className="text-sm font-medium text-primary">This month</p>
-                                    <span className="text-sm text-tertiary">240 Applications</span>
+                                    <span className="text-sm text-tertiary">240 Submissions</span>
                                 </div>
                                 <ProgressBar value={60} />
                             </div>
@@ -419,10 +419,10 @@ const ApplicationsUploadPage = () => {
                         <TableRowActionsDropdown />
                     </div>
                     <div className="flex flex-col gap-3">
-                        <a href="/funding/applications-upload" className="flex items-center gap-3 rounded-xl bg-utility-blue-50 p-4 hover:bg-utility-blue-100 cursor-pointer transition-colors">
+                        <a href="/procurement/applications-upload" className="flex items-center gap-3 rounded-xl bg-utility-blue-50 p-4 hover:bg-utility-blue-100 cursor-pointer transition-colors">
                             <FeaturedIcon size="md" color="brand" theme="light" icon={UploadCloud01} className="bg-utility-blue-100 text-utility-blue-700" />
                             <div className="flex flex-1 justify-between gap-4">
-                                <p className="text-sm font-medium text-utility-blue-700">Upload applications</p>
+                                <p className="text-sm font-medium text-utility-blue-700">Upload submissions</p>
                                 <ArrowRight className="text-utility-blue-700 w-4 h-4" />
                             </div>
                         </a>
