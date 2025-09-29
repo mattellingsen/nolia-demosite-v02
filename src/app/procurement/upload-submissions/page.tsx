@@ -501,8 +501,8 @@ const UploadSubmissionsPage = () => {
                     </div>
                 </div>
 
-                {/* Upload Instructions - only show when fund is selected */}
-                {selectedFund && (
+                {/* Upload Instructions - only show when tender is selected */}
+                {selectedTender && (
                     <div className="flex justify-center px-4 lg:px-8">
                         <div className="w-full max-w-md">
                             <div className="text-center">
