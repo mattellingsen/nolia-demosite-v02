@@ -13,6 +13,7 @@ import { BackgroundJobService } from './background-job-service';
 export async function saveFundWithRAG(fundData: {
   name: string;
   description?: string;
+  moduleType?: 'FUNDING' | 'PROCUREMENT';
   applicationForm?: {
     file: Buffer;
     filename: string;
