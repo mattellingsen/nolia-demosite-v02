@@ -188,23 +188,14 @@ export const Step1UploadPolicies: React.FC<Step1Props> = ({
                 </p>
 
                 {/* File Upload Component */}
-                <FileUpload.Root
+                <FileUpload.DropZone
                     accept=".pdf,.doc,.docx"
-                    multiple
-                    onFilesSelected={handlePolicyUpload}
+                    allowsMultiple={true}
+                    maxSize={10 * 1024 * 1024} // 10MB
+                    onDropFiles={handlePolicyUpload}
+                    hint="PDF, DOC, DOCX up to 10MB each"
                     className="mb-4"
-                >
-                    <FileUpload.Trigger>
-                        <div className="flex flex-col items-center gap-3 rounded-lg border-2 border-dashed border-secondary p-6 text-center hover:border-brand-600 hover:bg-brand-50 transition-colors">
-                            <FeaturedIcon icon={BookOpen01} size="lg" color="brand" />
-                            <div>
-                                <p className="font-semibold text-primary">Click to upload policies</p>
-                                <p className="text-sm text-tertiary">or drag and drop</p>
-                                <p className="mt-1 text-xs text-tertiary">PDF, DOC, DOCX up to 10MB each</p>
-                            </div>
-                        </div>
-                    </FileUpload.Trigger>
-                </FileUpload.Root>
+                />
 
                 {uploadError && (
                     <div className="mb-4 flex items-center gap-2 rounded-lg bg-error-50 p-3 text-sm text-error-700">

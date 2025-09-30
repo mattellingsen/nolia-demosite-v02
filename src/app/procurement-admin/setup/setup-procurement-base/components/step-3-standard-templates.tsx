@@ -86,22 +86,13 @@ export const Step3StandardTemplates: React.FC<Step3Props> = ({
             </div>
 
             {/* File Upload Component */}
-            <FileUpload.Root
+            <FileUpload.DropZone
                 accept=".pdf,.doc,.docx,.xls,.xlsx"
-                multiple
-                onFilesSelected={handleTemplateUpload}
-            >
-                <FileUpload.Trigger>
-                    <div className="flex flex-col items-center gap-3 rounded-lg border-2 border-dashed border-secondary p-6 text-center hover:border-brand-600 hover:bg-brand-50 transition-colors">
-                        <FeaturedIcon icon={File02} size="lg" color="brand" />
-                        <div>
-                            <p className="font-semibold text-primary">Click to upload templates</p>
-                            <p className="text-sm text-tertiary">or drag and drop</p>
-                            <p className="mt-1 text-xs text-tertiary">PDF, DOC, DOCX, XLS, XLSX up to 10MB each</p>
-                        </div>
-                    </div>
-                </FileUpload.Trigger>
-            </FileUpload.Root>
+                allowsMultiple={true}
+                maxSize={10 * 1024 * 1024} // 10MB
+                onDropFiles={handleTemplateUpload}
+                hint="PDF, DOC, DOCX, XLS, XLSX up to 10MB each"
+            />
 
             {uploadError && (
                 <div className="flex items-center gap-2 rounded-lg bg-error-50 p-3 text-sm text-error-700">
