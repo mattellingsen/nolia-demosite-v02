@@ -18,6 +18,7 @@ frontend:
       commands:
         - npx prisma generate
         - npm run build
+        - echo "Build completed successfully with procurement-admin routes"
   artifacts:
     baseDirectory: .next
     files:
