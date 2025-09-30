@@ -43,6 +43,9 @@ export const HeroGeometricShapes03 = () => {
                                 Funding
                             </Button>
                             <Button href="/procurement" size="xl">Procurement</Button>
+                            <Button href="/procurement-admin" color="secondary" size="xl">
+                                Procurement Admin
+                            </Button>
                         </div>
                     </div>
                 </div>
