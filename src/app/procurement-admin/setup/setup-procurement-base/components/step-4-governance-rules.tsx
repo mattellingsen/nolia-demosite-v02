@@ -111,22 +111,13 @@ export const Step4GovernanceRules: React.FC<Step4Props> = ({
             </div>
 
             {/* File Upload Component */}
-            <FileUpload.Root
+            <FileUpload.DropZone
                 accept=".pdf,.doc,.docx,.xls,.xlsx"
-                multiple
-                onFilesSelected={handleGovernanceUpload}
-            >
-                <FileUpload.Trigger>
-                    <div className="flex flex-col items-center gap-3 rounded-lg border-2 border-dashed border-secondary p-6 text-center hover:border-brand-600 hover:bg-brand-50 transition-colors">
-                        <FeaturedIcon icon={Shield01} size="lg" color="warning" />
-                        <div>
-                            <p className="font-semibold text-primary">Click to upload governance documents</p>
-                            <p className="text-sm text-tertiary">or drag and drop</p>
-                            <p className="mt-1 text-xs text-tertiary">PDF, DOC, DOCX, XLS, XLSX up to 10MB each</p>
-                        </div>
-                    </div>
-                </FileUpload.Trigger>
-            </FileUpload.Root>
+                allowsMultiple={true}
+                maxSize={10 * 1024 * 1024} // 10MB
+                onDropFiles={handleGovernanceUpload}
+                hint="PDF, DOC, DOCX, XLS, XLSX up to 10MB each"
+            />
 
             {uploadError && (
                 <div className="flex items-center gap-2 rounded-lg bg-error-50 p-3 text-sm text-error-700">

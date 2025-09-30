@@ -5,18 +5,16 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft } from "@untitledui/icons";
 import { SidebarNavigationSlim } from "@/components/application/app-navigation/sidebar-navigation/sidebar-slim";
 import { Button } from "@/components/base/buttons/button";
-import {
-    Edit05,
-    Settings01,
-    ArrowRight,
-    UploadCloud01,
-    FileCheck02,
-    File02,
-    CheckCircle,
-    Shield01,
-    Building02,
-    BookOpen01,
-} from "@untitledui/icons";
+import { Edit05 } from "@untitledui/icons";
+import { Settings01 } from "@untitledui/icons";
+import { ArrowRight } from "@untitledui/icons";
+import { UploadCloud01 } from "@untitledui/icons";
+import { FileCheck02 } from "@untitledui/icons";
+import { File02 } from "@untitledui/icons";
+import { CheckCircle } from "@untitledui/icons";
+import { Shield01 } from "@untitledui/icons";
+import { Building02 } from "@untitledui/icons";
+import { BookOpen01 } from "@untitledui/icons";
 
 import { Progress } from "@/components/application/progress-steps/progress-steps";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
@@ -26,6 +24,9 @@ import { Step1UploadPolicies } from "./components/step-1-upload-policies";
 import { Step2ComplianceDocs } from "./components/step-2-compliance-docs";
 import { Step3StandardTemplates } from "./components/step-3-standard-templates";
 import { Step4GovernanceRules } from "./components/step-4-governance-rules";
+
+// Disable static generation to fix build issues
+export const dynamic = 'force-dynamic';
 
 type FormBuilderStep = 'step1' | 'step2' | 'step3' | 'step4';
 
