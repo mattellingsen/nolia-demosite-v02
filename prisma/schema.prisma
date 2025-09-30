@@ -134,4 +134,5 @@ enum AssessmentStatus {
 enum ModuleType {
   FUNDING
   PROCUREMENT
+  PROCUREMENT_ADMIN
 }
