@@ -6,11 +6,10 @@
  */
 
 import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
+import { forceIAMRole } from './force-iam-role';
 
-// CRITICAL: In production, unset AWS_PROFILE to prevent SSO errors
-if (process.env.NODE_ENV === 'production' && process.env.AWS_PROFILE) {
-  delete process.env.AWS_PROFILE;
-}
+// CRITICAL: Force IAM role usage in production (prevents SSO errors)
+forceIAMRole();
 
 // Initialize Bedrock client with same credential pattern as working S3 client
 const bedrock = new BedrockRuntimeClient({

@@ -4,6 +4,7 @@ import { extractTextFromFile } from '../utils/server-document-analyzer';
 import { claudeService, ClaudeService } from './claude-service';
 import { storeDocumentVector, generateEmbedding } from './aws-opensearch';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { forceIAMRole } from './force-iam-role';
 
 // Job types
 export type JobType = 'RAG_PROCESSING' | 'DOCUMENT_ANALYSIS';
@@ -463,11 +464,8 @@ export class BackgroundJobService {
    * Extract text from S3 document
    */
   private static async extractTextFromS3Document(s3Key: string): Promise<string> {
-    // CRITICAL: In production, unset AWS_PROFILE to prevent SSO errors
-    const originalProfile = process.env.AWS_PROFILE;
-    if (process.env.NODE_ENV === 'production') {
-      delete process.env.AWS_PROFILE;
-    }
+    // CRITICAL: Force IAM role usage in production (prevents SSO errors)
+    forceIAMRole();
 
     const s3Client = new S3Client({
       region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',
@@ -483,11 +481,6 @@ export class BackgroundJobService {
       } : {}),
     });
 
-    // Restore AWS_PROFILE after creating client
-    if (originalProfile) {
-      process.env.AWS_PROFILE = originalProfile;
-    }
-    
     const command = new GetObjectCommand({
       Bucket: process.env.S3_BUCKET_DOCUMENTS,
       Key: s3Key,
