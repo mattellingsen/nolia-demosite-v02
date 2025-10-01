@@ -20,7 +20,6 @@ export const Step2ComplianceDocs: React.FC<Step2Props> = ({
     onNext,
     onPrevious
 }) => {
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [uploadError, setUploadError] = useState<string>('');
     const [isUploading, setIsUploading] = useState(false);
 
@@ -33,24 +32,12 @@ export const Step2ComplianceDocs: React.FC<Step2Props> = ({
             const newDocs = [...(formData.complianceDocs || []), ...files];
             updateFormData({ complianceDocs: newDocs });
 
-            // Simulate analysis
-            setIsAnalyzing(true);
-            await new Promise(resolve => setTimeout(resolve, 1500));
-
-            // Update with mock analysis results
+            // Real analysis will happen via background processing after creation
+            // Just show success state immediately for uploaded files
             updateFormData({
                 complianceDocsAnalysis: {
                     documentCount: newDocs.length,
-                    regulations: [
-                        'ISO 9001:2015 Quality Management',
-                        'SOC 2 Type II Compliance',
-                        'GDPR Data Protection',
-                        'Anti-Corruption Policies',
-                        'Environmental Standards'
-                    ],
-                    riskLevel: 'Low',
-                    lastReviewDate: new Date().toISOString(),
-                    status: 'analyzed'
+                    status: 'uploaded'
                 }
             });
 
@@ -58,7 +45,6 @@ export const Step2ComplianceDocs: React.FC<Step2Props> = ({
             console.error('Error uploading compliance documents:', error);
             setUploadError('Failed to upload compliance documents. Please try again.');
         } finally {
-            setIsAnalyzing(false);
             setIsUploading(false);
         }
     }, [formData.complianceDocs, updateFormData]);
@@ -161,13 +147,6 @@ export const Step2ComplianceDocs: React.FC<Step2Props> = ({
                 </div>
             )}
 
-            {isAnalyzing && (
-                <div className="flex items-center gap-3 rounded-lg bg-blue-50 p-4">
-                    <LoadingIndicator size="sm" />
-                    <p className="text-sm text-blue-700">Analyzing compliance requirements...</p>
-                </div>
-            )}
-
             {/* Helper Information */}
             <div className="rounded-lg bg-gray-50 p-4">
                 <h4 className="text-sm font-medium text-primary mb-2">Recommended Documents</h4>
@@ -196,7 +175,7 @@ export const Step2ComplianceDocs: React.FC<Step2Props> = ({
                     color="primary"
                     iconTrailing={ArrowRight}
                     onClick={onNext}
-                    disabled={!canProceed || isAnalyzing || isUploading}
+                    disabled={!canProceed || isUploading}
                 >
                     Continue to Templates
                 </Button>

@@ -20,7 +20,6 @@ export const Step4GovernanceRules: React.FC<Step4Props> = ({
     onNext,
     onPrevious
 }) => {
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [uploadError, setUploadError] = useState<string>('');
     const [isUploading, setIsUploading] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
@@ -34,30 +33,12 @@ export const Step4GovernanceRules: React.FC<Step4Props> = ({
             const newRules = [...(formData.governanceRules || []), ...files];
             updateFormData({ governanceRules: newRules });
 
-            // Simulate analysis
-            setIsAnalyzing(true);
-            await new Promise(resolve => setTimeout(resolve, 1500));
-
-            // Update with mock analysis results
+            // Real analysis will happen via background processing after creation
+            // Just show success state immediately for uploaded files
             updateFormData({
                 governanceRulesAnalysis: {
                     documentCount: newRules.length,
-                    approvalLevels: [
-                        'Department Head (<$10,000)',
-                        'Finance Director ($10,000 - $50,000)',
-                        'CFO ($50,000 - $250,000)',
-                        'CEO (>$250,000)',
-                        'Board Approval (>$1,000,000)'
-                    ],
-                    workflows: [
-                        'Standard Purchase Workflow',
-                        'Emergency Procurement Process',
-                        'Sole Source Justification',
-                        'Contract Amendment Process'
-                    ],
-                    delegationMatrix: true,
-                    auditRequirements: true,
-                    status: 'analyzed'
+                    status: 'uploaded'
                 }
             });
 
@@ -65,7 +46,6 @@ export const Step4GovernanceRules: React.FC<Step4Props> = ({
             console.error('Error uploading governance rules:', error);
             setUploadError('Failed to upload governance documents. Please try again.');
         } finally {
-            setIsAnalyzing(false);
             setIsUploading(false);
         }
     }, [formData.governanceRules, updateFormData]);
@@ -199,13 +179,6 @@ export const Step4GovernanceRules: React.FC<Step4Props> = ({
                 </div>
             )}
 
-            {isAnalyzing && (
-                <div className="flex items-center gap-3 rounded-lg bg-blue-50 p-4">
-                    <LoadingIndicator size="sm" />
-                    <p className="text-sm text-blue-700">Analyzing governance structures...</p>
-                </div>
-            )}
-
             {/* Summary Card */}
             <div className="rounded-lg bg-brand-50 border border-brand-200 p-4">
                 <div className="flex items-start gap-3">
@@ -263,7 +236,7 @@ export const Step4GovernanceRules: React.FC<Step4Props> = ({
                         color="primary"
                         iconLeading={Flash}
                         onClick={handleCreateBase}
-                        disabled={(!canProceed && !canSkip) || isAnalyzing || isUploading || isCreating}
+                        disabled={(!canProceed && !canSkip) || isUploading || isCreating}
                     >
                         {isCreating ? 'Creating Base...' : 'Create Procurement Base'}
                     </Button>

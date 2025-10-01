@@ -269,8 +269,7 @@ function BaseCreatedContent() {
                                             Building your procurement knowledge base
                                         </p>
                                     </div>
-                                    <Badge color={getStatusColor()} theme="modern">
-                                        <FeaturedIcon icon={getStatusIcon()} size="sm" />
+                                    <Badge color={getStatusColor()}>
                                         {status.brainBuilding.status}
                                     </Badge>
                                 </div>
@@ -285,7 +284,7 @@ function BaseCreatedContent() {
                                                 {status.brainBuilding.progress}%
                                             </span>
                                         </div>
-                                        <ProgressBar value={status.brainBuilding.progress} size="md" />
+                                        <ProgressBar value={status.brainBuilding.progress} />
                                         {status.brainBuilding.estimatedCompletion &&
                                          status.brainBuilding.status === 'PROCESSING' && (
                                             <p className="text-xs text-tertiary mt-2">
@@ -420,7 +419,7 @@ function BaseCreatedContent() {
                                     </div>
                                     <div>
                                         <p className="text-xs text-tertiary">Module Type</p>
-                                        <Badge color="purple" theme="modern">
+                                        <Badge color="purple">
                                             PROCUREMENT_ADMIN
                                         </Badge>
                                     </div>

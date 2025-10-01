@@ -7,8 +7,6 @@ import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-ic
 import { FileUpload } from "@/components/application/file-upload/file-upload-base";
 import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
 import { InputBase } from "@/components/base/input/input";
-import { analyzeDocumentViaAPI } from "@/lib/api-client";
-import { type DocumentAnalysis } from "@/utils/browser-document-analyzer";
 
 interface Step1Props {
     formData: any;
@@ -132,7 +130,7 @@ export const Step1UploadPolicies: React.FC<Step1Props> = ({
                             label="Knowledgebase Name"
                             placeholder="e.g., Corporate Procurement Standards 2025"
                             value={formData.baseName || ''}
-                            onChange={(e) => handleBaseNameChange(e.target.value)}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleBaseNameChange(e.target.value)}
                             error={baseNameError}
                             success={nameAvailable === true}
                             hint={
@@ -162,7 +160,7 @@ export const Step1UploadPolicies: React.FC<Step1Props> = ({
                         label="Description (Optional)"
                         placeholder="Brief description of this knowledgebase"
                         value={formData.description || ''}
-                        onChange={(e) => updateFormData({ description: e.target.value })}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateFormData({ description: e.target.value })}
                         hint="Describe the purpose and scope of this knowledgebase"
                     />
                 </div>
@@ -180,7 +178,10 @@ export const Step1UploadPolicies: React.FC<Step1Props> = ({
                     accept=".pdf,.doc,.docx"
                     allowsMultiple={true}
                     maxSize={10 * 1024 * 1024} // 10MB
-                    onDropFiles={handlePolicyUpload}
+                    onDropFiles={(files: FileList) => {
+                        const filesArray = Array.from(files);
+                        handlePolicyUpload(filesArray);
+                    }}
                     hint="PDF, DOC, DOCX up to 10MB each"
                     className="mb-4"
                 />
