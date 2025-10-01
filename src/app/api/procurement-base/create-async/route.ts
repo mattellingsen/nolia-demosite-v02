@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { sqsService } from '@/lib/sqs-service';
 import crypto from 'crypto';
 
 const prisma = new PrismaClient();
@@ -111,29 +112,24 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Create background job for document analysis
+    // Queue documents for processing via SQS (like funding system)
+    let job = null;
     if (documentUploads.length > 0) {
-      await prisma.backgroundJob.create({
-        data: {
-          fundId: base.id,
-          type: 'DOCUMENT_ANALYSIS',
-          status: 'PENDING',
-          progress: 0,
-          totalDocuments: documentUploads.length,
-          processedDocuments: 0,
-          metadata: {
-            queuedAt: new Date().toISOString(),
-            documentIds: documentUploads.map(d => d.documentId)
-          },
-          moduleType: 'PROCUREMENT_ADMIN'
-        }
-      });
+      job = await sqsService.queueDocumentProcessing(base.id, documentUploads.map(doc => ({
+        id: doc.documentId,
+        s3Key: doc.s3Key,
+        documentType: doc.documentType,
+        filename: doc.filename,
+        mimeType: 'application/pdf' // Will be properly set from file data
+      })));
     }
 
-    // Update base status to processing
+    // Keep status as DRAFT until brain building completes
+    const finalStatus = documentUploads.length > 0 ? 'DRAFT' : 'ACTIVE';
+
     await prisma.fund.update({
       where: { id: base.id },
-      data: { status: 'ACTIVE' } // Set to ACTIVE for procurement admin bases
+      data: { status: finalStatus }
     });
 
     return NextResponse.json({
@@ -142,12 +138,13 @@ export async function POST(req: NextRequest) {
         id: base.id,
         name: base.name,
         description: base.description,
-        status: 'ACTIVE',
+        status: finalStatus,
         createdAt: base.createdAt.toISOString(),
         updatedAt: base.updatedAt.toISOString()
       },
+      jobId: job?.id,
       documentsUploaded: documentUploads.length,
-      message: `Procurement base created with ${documentUploads.length} documents`
+      message: `Procurement base created and ${documentUploads.length} documents queued for processing`
     });
 
   } catch (error) {

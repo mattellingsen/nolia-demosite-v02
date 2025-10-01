@@ -37,10 +37,13 @@ interface ProcessingStatus {
         governanceRules: number;
     };
     brainBuilding: {
-        status: 'PENDING' | 'ANALYSING' | 'COMPLETE' | 'ERROR';
+        status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
         progress: number;
         currentTask?: string;
         estimatedCompletion?: string;
+        processedDocuments?: number;
+        totalDocuments?: number;
+        errorMessage?: string;
     };
     createdAt: string;
     analysisWarnings?: Array<{
@@ -55,77 +58,93 @@ function BaseCreatedContent() {
     const searchParams = useSearchParams();
     const baseId = searchParams.get('baseId');
 
-    // Mock processing status (in real app, would fetch from API)
-    const [status, setStatus] = useState<ProcessingStatus>({
-        baseId: baseId || 'new-base-id',
-        baseName: 'Corporate Procurement Standards 2025',
-        baseDescription: 'Company-wide procurement standards and templates',
-        status: 'PROCESSING',
-        documentsUploaded: {
-            policies: 2,
-            complianceDocs: 0,
-            standardTemplates: 0,
-            governanceRules: 0
-        },
-        brainBuilding: {
-            status: 'ANALYSING',
-            progress: 45,
-            currentTask: 'Analyzing compliance requirements...',
-            estimatedCompletion: '2 minutes'
-        },
-        createdAt: new Date().toISOString()
-    });
+    const [status, setStatus] = useState<ProcessingStatus | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-    // Simulate processing progress
+    // Fetch real job status from API
+    const fetchJobStatus = async () => {
+        if (!baseId) return;
+
+        try {
+            const response = await fetch(`/api/procurement-base/${baseId}/job-status`);
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to fetch job status');
+            }
+
+            // Map API response to our interface
+            const mappedStatus: ProcessingStatus = {
+                baseId: data.baseId,
+                baseName: data.baseName || 'Untitled Knowledgebase',
+                baseDescription: data.baseDescription,
+                status: mapBaseStatus(data.baseStatus, data.overallStatus),
+                documentsUploaded: data.documentsUploaded,
+                brainBuilding: data.brainBuilding ? {
+                    status: mapJobStatus(data.brainBuilding.status),
+                    progress: data.brainBuilding.progress || 0,
+                    currentTask: data.brainBuilding.currentTask || 'Waiting to start...',
+                    estimatedCompletion: data.brainBuilding.estimatedCompletion,
+                    processedDocuments: data.brainBuilding.processedDocuments,
+                    totalDocuments: data.brainBuilding.totalDocuments,
+                    errorMessage: data.brainBuilding.errorMessage
+                } : {
+                    status: 'PENDING',
+                    progress: 0,
+                    currentTask: 'Waiting to start...'
+                },
+                createdAt: data.createdAt
+            };
+
+            setStatus(mappedStatus);
+            setError(null);
+        } catch (err) {
+            console.error('Error fetching job status:', err);
+            setError(err instanceof Error ? err.message : 'Failed to load job status');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Poll for updates if processing
     useEffect(() => {
+        fetchJobStatus();
+
         const interval = setInterval(() => {
-            setStatus(prev => {
-                if (prev.brainBuilding.progress >= 100) {
-                    clearInterval(interval);
-                    return {
-                        ...prev,
-                        status: 'ACTIVE',
-                        brainBuilding: {
-                            ...prev.brainBuilding,
-                            status: 'COMPLETE',
-                            progress: 100,
-                            currentTask: 'Base configuration complete'
-                        }
-                    };
-                }
-
-                const newProgress = Math.min(prev.brainBuilding.progress + 15, 100);
-                const tasks = [
-                    'Processing policy documents...',
-                    'Analysing compliance requirements...',
-                    'Organising standard templates...',
-                    'Mapping governance workflows...',
-                    'Building knowledge base...',
-                    'Finalising configuration...'
-                ];
-                const taskIndex = Math.floor((newProgress / 100) * tasks.length);
-
-                return {
-                    ...prev,
-                    brainBuilding: {
-                        ...prev.brainBuilding,
-                        progress: newProgress,
-                        currentTask: tasks[Math.min(taskIndex, tasks.length - 1)]
-                    }
-                };
-            });
-        }, 2000);
+            if (status?.brainBuilding.status === 'PROCESSING') {
+                fetchJobStatus();
+            }
+        }, 3000); // Poll every 3 seconds while processing
 
         return () => clearInterval(interval);
-    }, []);
+    }, [baseId, status?.brainBuilding.status]);
+
+    // Helper functions to map API statuses to our interface
+    const mapBaseStatus = (baseStatus: string, overallStatus: string): 'CREATED' | 'PROCESSING' | 'ACTIVE' | 'ERROR' => {
+        if (overallStatus === 'failed') return 'ERROR';
+        if (overallStatus === 'completed') return 'ACTIVE';
+        if (overallStatus === 'processing') return 'PROCESSING';
+        return 'CREATED';
+    };
+
+    const mapJobStatus = (jobStatus: string): 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' => {
+        switch (jobStatus) {
+            case 'PROCESSING': return 'PROCESSING';
+            case 'COMPLETED': return 'COMPLETED';
+            case 'FAILED': return 'FAILED';
+            default: return 'PENDING';
+        }
+    };
 
     const getStatusColor = () => {
+        if (!status) return 'gray';
         switch (status.brainBuilding.status) {
-            case 'COMPLETE':
+            case 'COMPLETED':
                 return 'success';
-            case 'ERROR':
+            case 'FAILED':
                 return 'error';
-            case 'ANALYSING':
+            case 'PROCESSING':
                 return 'warning';
             default:
                 return 'gray';
@@ -133,17 +152,67 @@ function BaseCreatedContent() {
     };
 
     const getStatusIcon = () => {
+        if (!status) return Clock;
         switch (status.brainBuilding.status) {
-            case 'COMPLETE':
+            case 'COMPLETED':
                 return CheckCircle;
-            case 'ERROR':
+            case 'FAILED':
                 return AlertTriangle;
-            case 'ANALYSING':
+            case 'PROCESSING':
                 return Clock;
             default:
                 return Clock;
         }
     };
+
+    // Loading state
+    if (isLoading) {
+        return (
+            <div className="flex h-screen items-center justify-center">
+                <div className="text-tertiary">Loading knowledgebase status...</div>
+            </div>
+        );
+    }
+
+    // Error state
+    if (error || !status) {
+        return (
+            <div className="flex flex-col items-center gap-4 rounded-lg border border-error-300 bg-error-50 p-8 text-center">
+                <FeaturedIcon icon={AlertTriangle} color="error" size="lg" />
+                <div>
+                    <p className="font-semibold text-primary">Failed to load knowledgebase status</p>
+                    <p className="mt-1 text-sm text-tertiary">{error || 'Unknown error occurred'}</p>
+                </div>
+                <Button
+                    size="sm"
+                    color="primary"
+                    onClick={() => window.location.reload()}
+                >
+                    Retry
+                </Button>
+            </div>
+        );
+    }
+
+    // No baseId
+    if (!baseId) {
+        return (
+            <div className="flex flex-col items-center gap-4 rounded-lg border border-error-300 bg-error-50 p-8 text-center">
+                <FeaturedIcon icon={AlertTriangle} color="error" size="lg" />
+                <div>
+                    <p className="font-semibold text-primary">Invalid knowledgebase</p>
+                    <p className="mt-1 text-sm text-tertiary">No knowledgebase ID provided</p>
+                </div>
+                <Button
+                    size="sm"
+                    color="primary"
+                    href="/procurement-admin/setup"
+                >
+                    Go Back
+                </Button>
+            </div>
+        );
+    }
 
 
     return (
@@ -218,9 +287,19 @@ function BaseCreatedContent() {
                                         </div>
                                         <ProgressBar value={status.brainBuilding.progress} size="md" />
                                         {status.brainBuilding.estimatedCompletion &&
-                                         status.brainBuilding.status === 'ANALYSING' && (
+                                         status.brainBuilding.status === 'PROCESSING' && (
                                             <p className="text-xs text-tertiary mt-2">
                                                 Estimated completion: {status.brainBuilding.estimatedCompletion}
+                                            </p>
+                                        )}
+                                        {status.brainBuilding.status === 'FAILED' && status.brainBuilding.errorMessage && (
+                                            <div className="mt-2 text-xs text-error-600">
+                                                Error: {status.brainBuilding.errorMessage}
+                                            </div>
+                                        )}
+                                        {status.brainBuilding.processedDocuments !== undefined && status.brainBuilding.totalDocuments !== undefined && (
+                                            <p className="text-xs text-tertiary mt-2">
+                                                Processed {status.brainBuilding.processedDocuments} of {status.brainBuilding.totalDocuments} documents
                                             </p>
                                         )}
                                     </div>
@@ -229,27 +308,67 @@ function BaseCreatedContent() {
 
                             {/* Documents Uploaded */}
                             <div className="rounded-lg border border-secondary bg-primary p-6">
-                                <h3 className="text-lg font-semibold text-primary mb-4">Documents Uploaded ({status.documentsUploaded.policies})</h3>
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between rounded-lg border border-secondary p-3">
-                                        <div className="flex items-center gap-3">
-                                            <File02 className="size-5 text-tertiary" />
-                                            <div>
-                                                <p className="text-sm font-medium text-primary">Corporate Procurement Policy 2025.pdf</p>
-                                                <p className="text-xs text-tertiary">125.3 KB</p>
+                                <h3 className="text-lg font-semibold text-primary mb-4">
+                                    Documents Uploaded ({Object.values(status.documentsUploaded).reduce((sum, count) => sum + count, 0)})
+                                </h3>
+                                {Object.values(status.documentsUploaded).reduce((sum, count) => sum + count, 0) > 0 ? (
+                                    <div className="space-y-2">
+                                        {status.documentsUploaded.policies > 0 && (
+                                            <div className="flex items-center justify-between rounded-lg border border-secondary p-3">
+                                                <div className="flex items-center gap-3">
+                                                    <File02 className="size-5 text-tertiary" />
+                                                    <div>
+                                                        <p className="text-sm font-medium text-primary">
+                                                            {status.documentsUploaded.policies} Policy Document{status.documentsUploaded.policies > 1 ? 's' : ''}
+                                                        </p>
+                                                        <p className="text-xs text-tertiary">Processed and indexed</p>
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center justify-between rounded-lg border border-secondary p-3">
-                                        <div className="flex items-center gap-3">
-                                            <File02 className="size-5 text-tertiary" />
-                                            <div>
-                                                <p className="text-sm font-medium text-primary">Vendor Selection Guidelines.pdf</p>
-                                                <p className="text-xs text-tertiary">89.7 KB</p>
+                                        )}
+                                        {status.documentsUploaded.complianceDocs > 0 && (
+                                            <div className="flex items-center justify-between rounded-lg border border-secondary p-3">
+                                                <div className="flex items-center gap-3">
+                                                    <File02 className="size-5 text-tertiary" />
+                                                    <div>
+                                                        <p className="text-sm font-medium text-primary">
+                                                            {status.documentsUploaded.complianceDocs} Compliance Document{status.documentsUploaded.complianceDocs > 1 ? 's' : ''}
+                                                        </p>
+                                                        <p className="text-xs text-tertiary">Processed and indexed</p>
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </div>
+                                        )}
+                                        {status.documentsUploaded.standardTemplates > 0 && (
+                                            <div className="flex items-center justify-between rounded-lg border border-secondary p-3">
+                                                <div className="flex items-center gap-3">
+                                                    <File02 className="size-5 text-tertiary" />
+                                                    <div>
+                                                        <p className="text-sm font-medium text-primary">
+                                                            {status.documentsUploaded.standardTemplates} Standard Template{status.documentsUploaded.standardTemplates > 1 ? 's' : ''}
+                                                        </p>
+                                                        <p className="text-xs text-tertiary">Processed and indexed</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                        {status.documentsUploaded.governanceRules > 0 && (
+                                            <div className="flex items-center justify-between rounded-lg border border-secondary p-3">
+                                                <div className="flex items-center gap-3">
+                                                    <File02 className="size-5 text-tertiary" />
+                                                    <div>
+                                                        <p className="text-sm font-medium text-primary">
+                                                            {status.documentsUploaded.governanceRules} Governance Document{status.documentsUploaded.governanceRules > 1 ? 's' : ''}
+                                                        </p>
+                                                        <p className="text-xs text-tertiary">Processed and indexed</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
-                                </div>
+                                ) : (
+                                    <p className="text-sm text-tertiary">No documents uploaded yet</p>
+                                )}
                             </div>
 
                             {/* Warnings/Notices */}
