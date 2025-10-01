@@ -6,6 +6,8 @@ const prisma = new PrismaClient();
 // GET: List all procurement bases
 export async function GET(req: NextRequest) {
   try {
+    // Force cache refresh - deployment timestamp
+    console.log('🔄 API called at:', new Date().toISOString());
     const bases = await prisma.fund.findMany({
       where: {
         moduleType: 'PROCUREMENT_ADMIN'
