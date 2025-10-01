@@ -203,7 +203,8 @@ class BackgroundProcessor {
               // Trigger brain assembly directly for RAG jobs - use module-specific endpoints
               let assemblyUrl;
               if (job.fund?.moduleType === 'PROCUREMENT_ADMIN') {
-                assemblyUrl = `${this.getBaseUrl()}/api/procurement-brain/${job.fundId}/assemble`;
+                // FIXED: procurement-brain endpoint expects baseId parameter, not fundId
+                assemblyUrl = `${this.getBaseUrl()}/api/procurement-brain/${job.fund.id}/assemble`;
               } else {
                 assemblyUrl = `${this.getBaseUrl()}/api/brain/${job.fundId}/assemble`;
               }
