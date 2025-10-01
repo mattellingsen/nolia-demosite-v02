@@ -17,17 +17,42 @@ forceIAMRole();
  */
 export async function POST(request: NextRequest) {
   try {
-    console.log('🔍 Checking for stale PENDING jobs...');
+    // Parse optional parameters
+    let body: any = {};
+    try {
+      const text = await request.text();
+      if (text) {
+        body = JSON.parse(text);
+      }
+    } catch {
+      // Ignore parse errors - body is optional
+    }
 
-    // Find PENDING RAG_PROCESSING jobs older than 30 seconds
+    const { immediate = false, fundId = null } = body;
+
+    console.log('🔍 Checking for PENDING jobs...', { immediate, fundId });
+
+    // Build query conditions
+    const whereConditions: any = {
+      type: 'RAG_PROCESSING',
+      status: JobStatus.PENDING,
+    };
+
+    // If immediate trigger, don't wait for age threshold
+    if (!immediate) {
+      whereConditions.createdAt = {
+        lt: new Date(Date.now() - 30 * 1000) // Created > 30 seconds ago
+      };
+    }
+
+    // If specific fundId provided, only process that fund's jobs
+    if (fundId) {
+      whereConditions.fundId = fundId;
+    }
+
+    // Find PENDING RAG_PROCESSING jobs
     const stalePendingJobs = await prisma.backgroundJob.findMany({
-      where: {
-        type: 'RAG_PROCESSING',
-        status: JobStatus.PENDING,
-        createdAt: {
-          lt: new Date(Date.now() - 30 * 1000) // Created > 30 seconds ago
-        }
-      },
+      where: whereConditions,
       include: {
         fund: {
           select: {

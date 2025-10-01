@@ -48,7 +48,8 @@ export async function GET(
         status: true,
         name: true,
         description: true,
-        createdAt: true
+        createdAt: true,
+        moduleType: true
       }
     });
 
@@ -61,6 +62,37 @@ export async function GET(
 
     // Get overall status
     let ragJob = jobs.find(job => job.type === 'RAG_PROCESSING');
+
+    // AUTO-TRIGGER: Check if we have a pending RAG job that should be triggered
+    if (ragJob && ragJob.status === 'PENDING') {
+      const jobAge = Date.now() - new Date(ragJob.createdAt).getTime();
+
+      // If job is older than 5 seconds, trigger it automatically
+      if (jobAge > 5000) {
+        console.log(`🚀 Auto-triggering stale PENDING RAG job ${ragJob.id} from job-status endpoint`);
+
+        try {
+          const baseUrl = process.env.NEXTAUTH_URL || 'https://main.d2l8hlr3sei3te.amplifyapp.com';
+          const assemblyUrl = `${baseUrl}/api/procurement-brain/${baseId}/assemble`;
+
+          // Fire and forget - don't await
+          fetch(assemblyUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          }).then(response => {
+            if (response.ok) {
+              console.log(`✅ Successfully triggered brain assembly for ${baseId}`);
+            } else {
+              console.error(`❌ Failed to trigger brain assembly: ${response.status}`);
+            }
+          }).catch(error => {
+            console.error(`❌ Error triggering brain assembly:`, error);
+          });
+        } catch (error) {
+          console.error(`❌ Exception triggering brain assembly:`, error);
+        }
+      }
+    }
 
     // If no RAG job but fundBrain exists, create a virtual completed job
     if (!ragJob && base?.fundBrain) {

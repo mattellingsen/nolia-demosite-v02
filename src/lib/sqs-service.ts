@@ -201,26 +201,38 @@ export class SQSService {
     if (isComplete && job.type === JobType.DOCUMENT_ANALYSIS) {
       await this.queueBrainAssembly(job.fundId, 'DOCUMENT_COMPLETE');
 
-      // In serverless environments, trigger pending job processing
-      // This ensures brain assembly happens even without a persistent background processor
+      // In serverless environments, immediately attempt to trigger brain assembly
+      // This works because the RAG job was just created and is immediately available
       if (process.env.NODE_ENV === 'production') {
-        console.log('🔄 Triggering pending job check after document analysis completion...');
-        setTimeout(async () => {
-          try {
-            const baseUrl = process.env.NEXTAUTH_URL || 'https://main.d2l8hlr3sei3te.amplifyapp.com';
-            const response = await fetch(`${baseUrl}/api/jobs/trigger-pending`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' }
-            });
-            if (response.ok) {
-              console.log('✅ Triggered pending job processing');
-            } else {
-              console.error('❌ Failed to trigger pending jobs:', response.status);
-            }
-          } catch (error) {
-            console.error('❌ Error triggering pending jobs:', error);
+        console.log('🚀 Immediately triggering brain assembly after document completion...');
+
+        // Small delay to ensure database write is committed
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        try {
+          const baseUrl = process.env.NEXTAUTH_URL || 'https://main.d2l8hlr3sei3te.amplifyapp.com';
+
+          // Directly call the trigger-pending endpoint which will process the RAG job
+          const response = await fetch(`${baseUrl}/api/jobs/trigger-pending`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              immediate: true,
+              fundId: job.fundId
+            })
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            console.log('✅ Successfully triggered brain assembly:', result.message);
+          } else {
+            console.error('❌ Failed to trigger brain assembly immediately:', response.status);
+            // Not fatal - client polling will catch this
           }
-        }, 35000); // Wait 35 seconds (>30s threshold) then trigger
+        } catch (error) {
+          console.error('⚠️ Could not immediately trigger brain assembly (will be caught by polling):', error);
+          // Not fatal - the client-side polling will pick this up
+        }
       }
     }
 
