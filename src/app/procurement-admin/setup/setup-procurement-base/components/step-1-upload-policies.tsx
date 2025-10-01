@@ -21,7 +21,6 @@ export const Step1UploadPolicies: React.FC<Step1Props> = ({
     updateFormData,
     onNext
 }) => {
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [uploadError, setUploadError] = useState<string>('');
     const [uploadProgress, setUploadProgress] = useState<number>(0);
     const [isUploading, setIsUploading] = useState(false);
@@ -93,22 +92,12 @@ export const Step1UploadPolicies: React.FC<Step1Props> = ({
             const newPolicies = [...(formData.policies || []), ...files];
             updateFormData({ policies: newPolicies });
 
-            // Simulate analysis (in real app, this would analyze the documents)
-            setIsAnalyzing(true);
-            await new Promise(resolve => setTimeout(resolve, 1500));
-
-            // Update with mock analysis results
+            // Real analysis will happen via background processing after creation
+            // Just show success state immediately for uploaded files
             updateFormData({
                 policiesAnalysis: {
                     documentCount: newPolicies.length,
-                    totalPages: newPolicies.reduce((acc, file) => acc + Math.floor(file.size / 3000), 0),
-                    keyPolicies: [
-                        'Vendor selection criteria',
-                        'Approval workflows',
-                        'Budget thresholds',
-                        'Compliance requirements'
-                    ],
-                    status: 'analyzed'
+                    status: 'uploaded'
                 }
             });
 
@@ -237,21 +226,15 @@ export const Step1UploadPolicies: React.FC<Step1Props> = ({
                         <div className="flex items-start gap-3">
                             <CheckCircle className="size-5 text-success-600 mt-0.5" />
                             <div>
-                                <p className="font-medium text-success-900">Documents analysed successfully</p>
+                                <p className="font-medium text-success-900">Documents uploaded successfully</p>
                                 <p className="mt-1 text-sm text-success-700">
-                                    {formData.policiesAnalysis.documentCount} documents processed
+                                    {formData.policiesAnalysis.documentCount} documents ready for processing
                                 </p>
                             </div>
                         </div>
                     </div>
                 )}
 
-                {isAnalyzing && (
-                    <div className="mt-4 flex items-center gap-3 rounded-lg bg-blue-50 p-4">
-                        <LoadingIndicator size="sm" />
-                        <p className="text-sm text-blue-700">Analysing documents...</p>
-                    </div>
-                )}
             </div>
 
             {/* Navigation Buttons */}
