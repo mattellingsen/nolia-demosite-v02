@@ -4,11 +4,17 @@ import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedroc
 // Initialize Bedrock client
 const bedrockClient = new BedrockRuntimeClient({
   region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',
-  // Use default credential chain which includes:
-  // 1. Environment variables (AWS_ACCESS_KEY_ID, etc.)
-  // 2. AWS profiles (AWS_PROFILE)
-  // 3. IAM roles (in production)
-  // 4. EC2/ECS instance profiles
+  // Only use explicit credentials in development when they are intentionally set
+  ...(process.env.NODE_ENV === 'development' &&
+      process.env.AWS_ACCESS_KEY_ID &&
+      process.env.AWS_SECRET_ACCESS_KEY &&
+      !process.env.AWS_ACCESS_KEY_ID.startsWith('ASIA') ? {
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    },
+  } : {}),
+  // In production, omit credentials to use IAM role automatically
 });
 
 // Claude model configuration - Updated to use Claude 3.5 Sonnet v2 (working model)
