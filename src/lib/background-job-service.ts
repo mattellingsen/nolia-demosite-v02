@@ -463,6 +463,12 @@ export class BackgroundJobService {
    * Extract text from S3 document
    */
   private static async extractTextFromS3Document(s3Key: string): Promise<string> {
+    // CRITICAL: In production, unset AWS_PROFILE to prevent SSO errors
+    const originalProfile = process.env.AWS_PROFILE;
+    if (process.env.NODE_ENV === 'production') {
+      delete process.env.AWS_PROFILE;
+    }
+
     const s3Client = new S3Client({
       region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',
       // Only use explicit credentials in development when they are intentionally set
@@ -475,8 +481,12 @@ export class BackgroundJobService {
           secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
         },
       } : {}),
-      // In production, omit credentials to use IAM role automatically
     });
+
+    // Restore AWS_PROFILE after creating client
+    if (originalProfile) {
+      process.env.AWS_PROFILE = originalProfile;
+    }
     
     const command = new GetObjectCommand({
       Bucket: process.env.S3_BUCKET_DOCUMENTS,

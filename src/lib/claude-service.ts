@@ -7,6 +7,11 @@
 
 import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
 
+// CRITICAL: In production, unset AWS_PROFILE to prevent SSO errors
+if (process.env.NODE_ENV === 'production' && process.env.AWS_PROFILE) {
+  delete process.env.AWS_PROFILE;
+}
+
 // Initialize Bedrock client with same credential pattern as working S3 client
 const bedrock = new BedrockRuntimeClient({
   region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',
