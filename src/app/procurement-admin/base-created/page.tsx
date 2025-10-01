@@ -62,10 +62,10 @@ function BaseCreatedContent() {
         baseDescription: 'Company-wide procurement standards and templates',
         status: 'PROCESSING',
         documentsUploaded: {
-            policies: 3,
-            complianceDocs: 5,
-            standardTemplates: 8,
-            governanceRules: 4
+            policies: 2,
+            complianceDocs: 0,
+            standardTemplates: 0,
+            governanceRules: 0
         },
         brainBuilding: {
             status: 'ANALYSING',
@@ -145,11 +145,6 @@ function BaseCreatedContent() {
         }
     };
 
-    const totalDocuments =
-        status.documentsUploaded.policies +
-        status.documentsUploaded.complianceDocs +
-        status.documentsUploaded.standardTemplates +
-        status.documentsUploaded.governanceRules;
 
     return (
         <div className="flex flex-col bg-primary lg:flex-row">
@@ -232,51 +227,27 @@ function BaseCreatedContent() {
                                 </div>
                             </div>
 
-                            {/* Documents Summary */}
+                            {/* Documents Uploaded */}
                             <div className="rounded-lg border border-secondary bg-primary p-6">
-                                <h3 className="text-lg font-semibold text-primary mb-4">Documents Uploaded</h3>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="flex items-start gap-3">
-                                        <FeaturedIcon icon={BookOpen01} size="md" color="brand" />
-                                        <div>
-                                            <p className="text-sm font-medium text-primary">Policies</p>
-                                            <p className="text-lg font-semibold text-brand-600">
-                                                {status.documentsUploaded.policies}
-                                            </p>
+                                <h3 className="text-lg font-semibold text-primary mb-4">Documents Uploaded ({status.documentsUploaded.policies})</h3>
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between rounded-lg border border-secondary p-3">
+                                        <div className="flex items-center gap-3">
+                                            <File02 className="size-5 text-tertiary" />
+                                            <div>
+                                                <p className="text-sm font-medium text-primary">Corporate Procurement Policy 2025.pdf</p>
+                                                <p className="text-xs text-tertiary">125.3 KB</p>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div className="flex items-start gap-3">
-                                        <FeaturedIcon icon={Shield01} size="md" color="success" />
-                                        <div>
-                                            <p className="text-sm font-medium text-primary">Compliance</p>
-                                            <p className="text-lg font-semibold text-success-600">
-                                                {status.documentsUploaded.complianceDocs}
-                                            </p>
+                                    <div className="flex items-center justify-between rounded-lg border border-secondary p-3">
+                                        <div className="flex items-center gap-3">
+                                            <File02 className="size-5 text-tertiary" />
+                                            <div>
+                                                <p className="text-sm font-medium text-primary">Vendor Selection Guidelines.pdf</p>
+                                                <p className="text-xs text-tertiary">89.7 KB</p>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className="flex items-start gap-3">
-                                        <FeaturedIcon icon={File02} size="md" color="gray" />
-                                        <div>
-                                            <p className="text-sm font-medium text-primary">Templates</p>
-                                            <p className="text-lg font-semibold text-gray-600">
-                                                {status.documentsUploaded.standardTemplates}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-start gap-3">
-                                        <FeaturedIcon icon={Flash} size="md" color="warning" />
-                                        <div>
-                                            <p className="text-sm font-medium text-primary">Governance</p>
-                                            <p className="text-lg font-semibold text-warning-600">
-                                                {status.documentsUploaded.governanceRules}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="mt-4 pt-4 border-t border-secondary">
-                                    <div className="flex items-center justify-between">
-                                        <p className="text-sm text-tertiary">Total Documents</p>
-                                        <p className="text-lg font-semibold text-primary">{totalDocuments}</p>
                                     </div>
                                 </div>
                             </div>
