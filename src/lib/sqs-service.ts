@@ -3,13 +3,18 @@ import { prisma } from './database-s3';
 import { JobType, JobStatus } from '@prisma/client';
 import crypto from 'crypto';
 
+// CRITICAL: In production, unset AWS_PROFILE to prevent SSO errors
+if (process.env.NODE_ENV === 'production' && process.env.AWS_PROFILE) {
+  delete process.env.AWS_PROFILE;
+}
+
 // SQS client configuration - matches S3 client pattern from database-s3.ts
 const sqsClient = new SQSClient({
   region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',
   // Only use explicit credentials in development when they are intentionally set
-  ...(process.env.NODE_ENV === 'development' && 
-      process.env.AWS_ACCESS_KEY_ID && 
-      process.env.AWS_SECRET_ACCESS_KEY && 
+  ...(process.env.NODE_ENV === 'development' &&
+      process.env.AWS_ACCESS_KEY_ID &&
+      process.env.AWS_SECRET_ACCESS_KEY &&
       !process.env.AWS_ACCESS_KEY_ID.startsWith('ASIA') ? {
     credentials: {
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
