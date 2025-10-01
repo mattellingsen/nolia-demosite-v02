@@ -4,6 +4,7 @@
     "private": true,
     "scripts": {
         "dev": "next dev --turbopack",
+        "dev:aws": "source ./scripts/export-aws-creds.sh && next dev --turbopack",
         "build": "next build",
         "start": "next start"
     },
