@@ -36,8 +36,15 @@ if (process.env.NODE_ENV === 'development') {
   // Add a delay to ensure the database is ready
   setTimeout(initializeServices, 2000);
 } else {
-  // In production, initialize immediately
-  initializeServices();
+  // In production, initialize with a short delay to ensure environment is ready
+  setTimeout(initializeServices, 1000);
 }
+
+// Also ensure startup is triggered on any import
+export const ensureStartup = () => {
+  if (!initialized) {
+    initializeServices();
+  }
+};
 
 export { initializeServices };

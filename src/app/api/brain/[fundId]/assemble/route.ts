@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database-s3';
 import { sqsService } from '@/lib/sqs-service';
+import { ensureStartup } from '@/lib/startup';
 
 interface RouteParams {
   params: {
@@ -14,6 +15,9 @@ interface RouteParams {
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
+    // Ensure background processor is started in production
+    ensureStartup();
+
     const { fundId } = await params;
 
     if (!fundId) {
