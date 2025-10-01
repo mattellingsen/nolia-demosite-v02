@@ -8,10 +8,18 @@ const prisma = new PrismaClient();
 
 const s3Client = new S3Client({
   region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-  },
+  // Only use explicit credentials in development when they are intentionally set
+  ...(process.env.NODE_ENV === 'development' &&
+      process.env.AWS_ACCESS_KEY_ID &&
+      process.env.AWS_SECRET_ACCESS_KEY &&
+      !process.env.AWS_ACCESS_KEY_ID.startsWith('ASIA') ? {
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    },
+  } : {
+    // In production or when ASIA credentials are detected, force IAM Role by not providing credentials
+  }),
 });
 
 // POST: Create procurement base asynchronously with document processing
@@ -27,6 +35,8 @@ export async function POST(req: NextRequest) {
       templateFiles = [],
       governanceFiles = []
     } = body;
+
+    console.log('🚀 Creating procurement base:', { name, moduleType, totalFiles: (policyFiles?.length || 0) + (complianceFiles?.length || 0) + (templateFiles?.length || 0) + (governanceFiles?.length || 0) });
 
     if (!name) {
       return NextResponse.json(
@@ -63,20 +73,53 @@ export async function POST(req: NextRequest) {
 
     // Process and upload documents
     const documentUploads = [];
+
+    console.log('📥 Input files:', {
+      policyFiles: policyFiles?.length || 0,
+      complianceFiles: complianceFiles?.length || 0,
+      templateFiles: templateFiles?.length || 0,
+      governanceFiles: governanceFiles?.length || 0
+    });
+
     const allFiles = [
-      ...policyFiles.map((f: any) => ({ ...f, documentType: 'APPLICATION_FORM' })), // Reuse enum
-      ...complianceFiles.map((f: any) => ({ ...f, documentType: 'SELECTION_CRITERIA' })),
-      ...templateFiles.map((f: any) => ({ ...f, documentType: 'GOOD_EXAMPLES' })),
-      ...governanceFiles.map((f: any) => ({ ...f, documentType: 'OUTPUT_TEMPLATES' }))
+      ...(policyFiles || []).map((f: any) => ({ ...f, documentType: 'APPLICATION_FORM' })), // Reuse enum
+      ...(complianceFiles || []).map((f: any) => ({ ...f, documentType: 'SELECTION_CRITERIA' })),
+      ...(templateFiles || []).map((f: any) => ({ ...f, documentType: 'GOOD_EXAMPLES' })),
+      ...(governanceFiles || []).map((f: any) => ({ ...f, documentType: 'OUTPUT_TEMPLATES' }))
     ];
+
+    console.log('📋 Processed file array:', allFiles?.length || 0, 'files');
+    if (allFiles.length > 0) {
+      console.log('📄 First file sample:', {
+        filename: allFiles[0]?.filename,
+        hasContent: !!allFiles[0]?.content,
+        documentType: allFiles[0]?.documentType
+      });
+    }
+
+    console.log(`📁 Processing ${allFiles.length} files for upload`);
 
     for (const file of allFiles) {
       try {
+        console.log(`📄 Processing file: ${file.filename} (${file.documentType})`);
+
+        // Validate file has required properties
+        if (!file.content) {
+          console.error(`❌ File ${file.filename} missing content property`);
+          continue;
+        }
+
+        if (!file.filename) {
+          console.error(`❌ File missing filename property`);
+          continue;
+        }
+
         // Generate S3 key
         const documentKey = `procurement-admin/${base.id}/${crypto.randomUUID()}-${file.filename}`;
 
         // Convert base64 to buffer
         const fileBuffer = Buffer.from(file.content, 'base64');
+        console.log(`📤 Uploading ${file.filename} to S3 key: ${documentKey}`);
 
         // Upload to S3
         await s3Client.send(new PutObjectCommand({
@@ -85,6 +128,8 @@ export async function POST(req: NextRequest) {
           Body: fileBuffer,
           ContentType: file.mimeType,
         }));
+
+        console.log(`✅ S3 upload successful for ${file.filename}`);
 
         // Create document record
         const document = await prisma.fundDocument.create({
@@ -99,6 +144,8 @@ export async function POST(req: NextRequest) {
           }
         });
 
+        console.log(`✅ Database record created for ${file.filename} (ID: ${document.id})`);
+
         documentUploads.push({
           documentId: document.id,
           filename: file.filename,
@@ -107,21 +154,58 @@ export async function POST(req: NextRequest) {
         });
 
       } catch (uploadError) {
-        console.error('Error uploading document:', uploadError);
+        console.error(`❌ Error uploading document ${file.filename}:`, uploadError);
+
+        // Store error for debugging
+        (documentUploads as any[]).push({
+          documentId: 'error',
+          filename: file.filename,
+          s3Key: 'error',
+          documentType: file.documentType,
+          error: uploadError instanceof Error ? uploadError.message : String(uploadError)
+        });
+
         // Continue with other documents rather than failing completely
       }
     }
 
-    // Queue documents for processing via SQS (like funding system)
+    // Handle failed uploads vs successful uploads separately
+    const successfulUploads = documentUploads.filter((upload: any) => upload.documentId !== 'error');
+    const failedUploads = documentUploads.filter((upload: any) => upload.documentId === 'error');
+
+    console.log(`📊 Upload summary: ${successfulUploads.length} successful, ${failedUploads.length} failed`);
+
+    // Queue successful documents for processing via SQS (like funding system)
     let job = null;
-    if (documentUploads.length > 0) {
-      job = await sqsService.queueDocumentProcessing(base.id, documentUploads.map(doc => ({
-        id: doc.documentId,
-        s3Key: doc.s3Key,
-        documentType: doc.documentType,
-        filename: doc.filename,
-        mimeType: 'application/pdf' // Will be properly set from file data
-      })));
+    if (successfulUploads.length > 0) {
+      try {
+        job = await sqsService.queueDocumentProcessing(base.id, successfulUploads.map(doc => ({
+          id: doc.documentId,
+          s3Key: doc.s3Key,
+          documentType: doc.documentType,
+          filename: doc.filename,
+          mimeType: 'application/pdf' // Will be properly set from file data
+        })));
+        console.log('✅ SQS job created:', job.id);
+      } catch (sqsError) {
+        console.error('❌ Failed to create SQS job:', sqsError);
+        // Create a placeholder job in the database so frontend has something to track
+        job = await prisma.backgroundJob.create({
+          data: {
+            fundId: base.id,
+            type: 'DOCUMENT_ANALYSIS',
+            status: 'FAILED',
+            totalDocuments: successfulUploads.length,
+            processedDocuments: 0,
+            errorMessage: `SQS queue failed: ${sqsError instanceof Error ? sqsError.message : 'Unknown error'}`,
+            metadata: {
+              documentIds: successfulUploads.map(d => d.documentId),
+              failureReason: 'SQS_ERROR'
+            },
+            moduleType: 'PROCUREMENT_ADMIN'
+          }
+        });
+      }
     }
 
     // Keep status as DRAFT until brain building completes
@@ -132,8 +216,12 @@ export async function POST(req: NextRequest) {
       data: { status: finalStatus }
     });
 
+    // Determine overall success
+    const hasErrors = failedUploads.length > 0;
+    const overallSuccess = successfulUploads.length > 0;
+
     return NextResponse.json({
-      success: true,
+      success: overallSuccess,
       base: {
         id: base.id,
         name: base.name,
@@ -143,14 +231,40 @@ export async function POST(req: NextRequest) {
         updatedAt: base.updatedAt.toISOString()
       },
       jobId: job?.id,
-      documentsUploaded: documentUploads.length,
-      message: `Procurement base created and ${documentUploads.length} documents queued for processing`
+      documentsUploaded: successfulUploads.length,
+      documentsFailed: failedUploads.length,
+      message: hasErrors
+        ? `Procurement base created with ${successfulUploads.length} successful uploads and ${failedUploads.length} failures`
+        : `Procurement base created and ${successfulUploads.length} documents queued for processing`,
+      warnings: hasErrors ? failedUploads.map((upload: any) => `Failed to upload ${upload.filename}: ${upload.error}`) : [],
+      debug: {
+        inputFiles: {
+          policyFiles: policyFiles?.length || 0,
+          complianceFiles: complianceFiles?.length || 0,
+          templateFiles: templateFiles?.length || 0,
+          governanceFiles: governanceFiles?.length || 0
+        },
+        allFilesLength: allFiles.length,
+        documentUploadsLength: documentUploads.length,
+        successfulUploads: successfulUploads.length,
+        failedUploads: failedUploads.length,
+        uploads: documentUploads.map((upload: any) => ({
+          filename: upload.filename,
+          documentType: upload.documentType,
+          status: upload.documentId === 'error' ? 'error' : 'success',
+          error: upload.error || null
+        }))
+      }
     });
 
   } catch (error) {
     console.error('Error creating procurement base:', error);
     return NextResponse.json(
-      { error: 'Failed to create procurement base' },
+      {
+        error: 'Failed to create procurement base',
+        details: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      },
       { status: 500 }
     );
   }

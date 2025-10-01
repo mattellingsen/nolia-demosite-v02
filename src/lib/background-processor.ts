@@ -50,6 +50,7 @@ class BackgroundProcessor {
 
     try {
       // Find jobs that are stuck (PROCESSING status but no progress for > 2 minutes)
+      // Include ALL module types: FUNDING, PROCUREMENT, PROCUREMENT_ADMIN
       const stuckJobs = await prisma.backgroundJob.findMany({
         where: {
           status: JobStatus.PROCESSING,
@@ -62,13 +63,15 @@ class BackgroundProcessor {
           fund: {
             select: {
               id: true,
-              name: true
+              name: true,
+              moduleType: true
             }
           }
         }
       });
 
       // Find recently failed jobs that might be retryable (failed < 10 minutes ago)
+      // Include ALL module types: FUNDING, PROCUREMENT, PROCUREMENT_ADMIN
       const retryableFailedJobs = await prisma.backgroundJob.findMany({
         where: {
           status: JobStatus.FAILED,
@@ -84,7 +87,8 @@ class BackgroundProcessor {
           fund: {
             select: {
               id: true,
-              name: true
+              name: true,
+              moduleType: true
             }
           }
         }
@@ -158,11 +162,21 @@ class BackgroundProcessor {
       }
 
       // Also check for very old PENDING jobs (> 5 minutes)
+      // Include ALL module types: FUNDING, PROCUREMENT, PROCUREMENT_ADMIN
       const stalePendingJobs = await prisma.backgroundJob.findMany({
         where: {
           status: JobStatus.PENDING,
           createdAt: {
             lt: new Date(Date.now() - 5 * 60 * 1000) // Created > 5 minutes ago
+          }
+        },
+        include: {
+          fund: {
+            select: {
+              id: true,
+              name: true,
+              moduleType: true
+            }
           }
         }
       });
@@ -172,6 +186,8 @@ class BackgroundProcessor {
 
         for (const job of stalePendingJobs) {
           try {
+            console.log(`🔧 Processing stale ${job.type} job for ${job.fund?.moduleType} module: ${job.fund?.name}`);
+
             if (job.type === 'RAG_PROCESSING') {
               // Trigger brain assembly directly for RAG jobs
               const response = await fetch(`http://localhost:3000/api/brain/${job.fundId}/assemble`, {
@@ -182,10 +198,10 @@ class BackgroundProcessor {
               });
 
               if (response.ok) {
-                console.log(`✅ Successfully triggered brain assembly for job ${job.id}`);
+                console.log(`✅ Successfully triggered brain assembly for ${job.fund?.moduleType} job ${job.id}`);
               } else {
                 const errorData = await response.json();
-                console.error(`❌ Failed to trigger brain assembly for job ${job.id}:`, errorData.error);
+                console.error(`❌ Failed to trigger brain assembly for ${job.fund?.moduleType} job ${job.id}:`, errorData.error);
               }
             } else {
               // Trigger document processing for other jobs
@@ -201,14 +217,14 @@ class BackgroundProcessor {
               });
 
               if (response.ok) {
-                console.log(`✅ Successfully triggered stale job ${job.id}`);
+                console.log(`✅ Successfully triggered stale ${job.fund?.moduleType} job ${job.id}`);
               } else {
                 const errorData = await response.json();
-                console.error(`❌ Failed to trigger job ${job.id}:`, errorData.error);
+                console.error(`❌ Failed to trigger ${job.fund?.moduleType} job ${job.id}:`, errorData.error);
               }
             }
           } catch (error) {
-            console.error(`❌ Error triggering stale job ${job.id}:`, error);
+            console.error(`❌ Error triggering stale ${job.fund?.moduleType} job ${job.id}:`, error);
           }
         }
       }
