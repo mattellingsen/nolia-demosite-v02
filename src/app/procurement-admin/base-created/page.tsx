@@ -274,39 +274,16 @@ function BaseCreatedContent() {
 
                         {/* Right Column - Actions & Info */}
                         <div className="space-y-6">
-                            {/* Quick Actions */}
-                            <div className="rounded-lg border border-secondary bg-primary p-6">
-                                <h3 className="text-lg font-semibold text-primary mb-4">Next Steps</h3>
-                                <div className="space-y-3">
-                                    <Button
-                                        size="md"
-                                        color="primary"
-                                        iconLeading={Building02}
-                                        className="w-full justify-center"
-                                        disabled={status.brainBuilding.status !== 'COMPLETE'}
-                                    >
-                                        Apply to Organisation
-                                    </Button>
-                                    <Button
-                                        size="md"
-                                        color="secondary"
-                                        iconLeading={Database02}
-                                        className="w-full justify-center"
-                                        disabled={status.brainBuilding.status !== 'COMPLETE'}
-                                    >
-                                        View Knowledge Base
-                                    </Button>
-                                    <Button
-                                        size="md"
-                                        color="tertiary"
-                                        iconLeading={Edit05}
-                                        className="w-full justify-center"
-                                        href={`/procurement-admin/setup/setup-procurement-base?edit=${baseId}`}
-                                    >
-                                        Edit Configuration
-                                    </Button>
-                                </div>
-                            </div>
+                            {/* Edit Configuration */}
+                            <Button
+                                href={`/procurement-admin/setup/setup-procurement-base?edit=${baseId}`}
+                                iconLeading={Edit05}
+                                color="primary"
+                                size="md"
+                                className="w-full"
+                            >
+                                Edit Configuration
+                            </Button>
 
                             {/* Base Info */}
                             <div className="rounded-lg border border-secondary bg-primary p-6">
