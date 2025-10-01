@@ -6,10 +6,10 @@ const prisma = new PrismaClient();
 // GET: Get a specific procurement base
 export async function GET(
   req: NextRequest,
-  { params }: { params: { baseId: string } }
+  { params }: { params: Promise<{ baseId: string }> }
 ) {
   try {
-    const { baseId } = params;
+    const { baseId } = await params;
 
     const base = await prisma.fund.findFirst({
       where: {
@@ -100,10 +100,10 @@ export async function GET(
 // DELETE: Delete a procurement base
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { baseId: string } }
+  { params }: { params: Promise<{ baseId: string }> }
 ) {
   try {
-    const { baseId } = params;
+    const { baseId } = await params;
 
     // Check if base exists and is a procurement admin base
     const base = await prisma.fund.findFirst({
