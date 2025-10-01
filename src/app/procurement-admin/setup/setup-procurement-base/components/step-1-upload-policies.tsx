@@ -241,16 +241,6 @@ export const Step1UploadPolicies: React.FC<Step1Props> = ({
                                 <p className="mt-1 text-sm text-success-700">
                                     {formData.policiesAnalysis.documentCount} documents processed
                                 </p>
-                                {formData.policiesAnalysis.keyPolicies && (
-                                    <div className="mt-2">
-                                        <p className="text-xs font-medium text-success-900">Key areas identified:</p>
-                                        <ul className="mt-1 list-disc list-inside text-xs text-success-700">
-                                            {formData.policiesAnalysis.keyPolicies.map((policy: string, i: number) => (
-                                                <li key={i}>{policy}</li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                )}
                             </div>
                         </div>
                     </div>

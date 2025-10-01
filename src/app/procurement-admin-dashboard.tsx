@@ -128,18 +128,6 @@ export const ProcurementAdminSetupDashboard = () => {
                         >
                             Create knowledgebase
                         </Button>
-                        <ButtonUtility
-                            size="md"
-                            iconLeading={Monitor04}
-                            text="Documentation"
-                            disabled
-                        />
-                        <ButtonUtility
-                            size="md"
-                            iconLeading={FilterLines}
-                            text="Filter"
-                            disabled
-                        />
                     </div>
                 </div>
 
