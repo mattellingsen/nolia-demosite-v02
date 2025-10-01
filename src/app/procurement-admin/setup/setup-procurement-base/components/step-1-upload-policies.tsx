@@ -144,7 +144,7 @@ export const Step1UploadPolicies: React.FC<Step1Props> = ({
                             label="Knowledgebase Name"
                             placeholder="e.g., Corporate Procurement Standards 2025"
                             value={formData.baseName || ''}
-                            onChange={handleBaseNameChange}
+                            onChange={(e) => handleBaseNameChange(e.target.value)}
                             error={baseNameError}
                             success={nameAvailable === true}
                             hint={
@@ -174,7 +174,7 @@ export const Step1UploadPolicies: React.FC<Step1Props> = ({
                         label="Description (Optional)"
                         placeholder="Brief description of this knowledgebase"
                         value={formData.description || ''}
-                        onChange={(value) => updateFormData({ description: value })}
+                        onChange={(e) => updateFormData({ description: e.target.value })}
                         hint="Describe the purpose and scope of this knowledgebase"
                     />
                 </div>
@@ -237,7 +237,7 @@ export const Step1UploadPolicies: React.FC<Step1Props> = ({
                         <div className="flex items-start gap-3">
                             <CheckCircle className="size-5 text-success-600 mt-0.5" />
                             <div>
-                                <p className="font-medium text-success-900">Documents analyzed successfully</p>
+                                <p className="font-medium text-success-900">Documents analysed successfully</p>
                                 <p className="mt-1 text-sm text-success-700">
                                     {formData.policiesAnalysis.documentCount} documents processed
                                 </p>
@@ -259,7 +259,7 @@ export const Step1UploadPolicies: React.FC<Step1Props> = ({
                 {isAnalyzing && (
                     <div className="mt-4 flex items-center gap-3 rounded-lg bg-blue-50 p-4">
                         <LoadingIndicator size="sm" />
-                        <p className="text-sm text-blue-700">Analyzing documents...</p>
+                        <p className="text-sm text-blue-700">Analysing documents...</p>
                     </div>
                 )}
             </div>

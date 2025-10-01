@@ -198,7 +198,7 @@ const SetupProcurementBasePage = () => {
                     {/* Helper box for admins */}
                     <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
                         <p className="text-sm text-purple-800">
-                            <span className="font-semibold">Setting up company standards?</span> Upload your organization's procurement documents. These will form the foundation for all procurement activities.
+                            <span className="font-semibold">Setting up company standards?</span> Upload your organisation's procurement documents. These will form the foundation for all procurement activities.
                         </p>
                     </div>
 
@@ -207,8 +207,8 @@ const SetupProcurementBasePage = () => {
                         <div className="flex items-start gap-3">
                             <FeaturedIcon icon={Building02} color="gray" size="md" />
                             <div>
-                                <p className="text-sm font-semibold text-primary">Organization-Wide</p>
-                                <p className="text-xs text-tertiary mt-1">These documents will apply to all procurement processes across your organization</p>
+                                <p className="text-sm font-semibold text-primary">Organisation-Wide</p>
+                                <p className="text-xs text-tertiary mt-1">These documents will apply to all procurement processes across your organisation</p>
                             </div>
                         </div>
 
@@ -216,7 +216,7 @@ const SetupProcurementBasePage = () => {
                             <FeaturedIcon icon={Shield01} color="success" size="md" />
                             <div>
                                 <p className="text-sm font-semibold text-primary">Standards & Compliance</p>
-                                <p className="text-xs text-tertiary mt-1">Ensure all procurement activities meet organizational standards</p>
+                                <p className="text-xs text-tertiary mt-1">Ensure all procurement activities meet organisational standards</p>
                             </div>
                         </div>
 
