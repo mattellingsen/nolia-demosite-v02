@@ -10,6 +10,17 @@ class BackgroundProcessor {
   private isProcessing = false;
 
   /**
+   * Get the base URL for API calls
+   * In production, use the Amplify URL; in development, use localhost
+   */
+  private getBaseUrl(): string {
+    if (process.env.NODE_ENV === 'production') {
+      return process.env.NEXTAUTH_URL || 'https://main.d2l8hlr3sei3te.amplifyapp.com';
+    }
+    return 'http://localhost:3000';
+  }
+
+  /**
    * Start automatic background processing
    */
   start(intervalMs: number = 30000) { // Check every 30 seconds
@@ -102,7 +113,7 @@ class BackgroundProcessor {
 
           try {
             // Trigger job processing via API
-            const response = await fetch('http://localhost:3000/api/jobs/process', {
+            const response = await fetch(`${this.getBaseUrl()}/api/jobs/process`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -137,7 +148,7 @@ class BackgroundProcessor {
 
           try {
             // Use SQS service retry mechanism to reset job to PENDING
-            const response = await fetch(`http://localhost:3000/api/jobs/process`, {
+            const response = await fetch(`${this.getBaseUrl()}/api/jobs/process`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -161,13 +172,13 @@ class BackgroundProcessor {
         }
       }
 
-      // Also check for very old PENDING jobs (> 5 minutes)
+      // Also check for PENDING jobs (> 30 seconds old)
       // Include ALL module types: FUNDING, PROCUREMENT, PROCUREMENT_ADMIN
       const stalePendingJobs = await prisma.backgroundJob.findMany({
         where: {
           status: JobStatus.PENDING,
           createdAt: {
-            lt: new Date(Date.now() - 5 * 60 * 1000) // Created > 5 minutes ago
+            lt: new Date(Date.now() - 30 * 1000) // Created > 30 seconds ago
           }
         },
         include: {
@@ -192,9 +203,9 @@ class BackgroundProcessor {
               // Trigger brain assembly directly for RAG jobs - use module-specific endpoints
               let assemblyUrl;
               if (job.fund?.moduleType === 'PROCUREMENT_ADMIN') {
-                assemblyUrl = `http://localhost:3000/api/procurement-brain/${job.fundId}/assemble`;
+                assemblyUrl = `${this.getBaseUrl()}/api/procurement-brain/${job.fundId}/assemble`;
               } else {
-                assemblyUrl = `http://localhost:3000/api/brain/${job.fundId}/assemble`;
+                assemblyUrl = `${this.getBaseUrl()}/api/brain/${job.fundId}/assemble`;
               }
 
               const response = await fetch(assemblyUrl, {
@@ -212,7 +223,7 @@ class BackgroundProcessor {
               }
             } else {
               // Trigger document processing for other jobs
-              const response = await fetch('http://localhost:3000/api/jobs/process', {
+              const response = await fetch(`${this.getBaseUrl()}/api/jobs/process`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
