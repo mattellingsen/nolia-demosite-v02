@@ -9,15 +9,18 @@ import { JobStatus, JobType } from '@prisma/client';
 // S3 client configuration - matches pattern from other files
 const s3Client = new S3Client({
   region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',
-  ...(process.env.NODE_ENV === 'development' && 
-      process.env.AWS_ACCESS_KEY_ID && 
-      process.env.AWS_SECRET_ACCESS_KEY && 
+  // Only use explicit credentials in development when they are intentionally set
+  ...(process.env.NODE_ENV === 'development' &&
+      process.env.AWS_ACCESS_KEY_ID &&
+      process.env.AWS_SECRET_ACCESS_KEY &&
       !process.env.AWS_ACCESS_KEY_ID.startsWith('ASIA') ? {
     credentials: {
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
     },
-  } : {}),
+  } : {
+    // In production or when ASIA credentials are detected, force IAM Role by not providing credentials
+  }),
 });
 
 const S3_BUCKET = process.env.S3_BUCKET_DOCUMENTS || 'nolia-funding-documents-ap-southeast-2-599065966827';
