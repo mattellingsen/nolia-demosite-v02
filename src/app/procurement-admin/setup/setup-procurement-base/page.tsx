@@ -2,33 +2,19 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "@untitledui/icons";
+import { ArrowLeft, Edit05, Settings01, FileCheck02, Shield01, Building02, BookOpen01 } from "@untitledui/icons";
 import { SidebarNavigationSlim } from "@/components/application/app-navigation/sidebar-navigation/sidebar-slim";
 import { Button } from "@/components/base/buttons/button";
-import { Edit05 } from "@untitledui/icons";
-import { Settings01 } from "@untitledui/icons";
-import { ArrowRight } from "@untitledui/icons";
-import { UploadCloud01 } from "@untitledui/icons";
-import { FileCheck02 } from "@untitledui/icons";
-import { File02 } from "@untitledui/icons";
-import { CheckCircle } from "@untitledui/icons";
-import { Shield01 } from "@untitledui/icons";
-import { Building02 } from "@untitledui/icons";
-import { BookOpen01 } from "@untitledui/icons";
 
 import { Progress } from "@/components/application/progress-steps/progress-steps";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
 
 import { Step1UploadPolicies } from "./components/step-1-upload-policies";
-import { Step2ComplianceDocs } from "./components/step-2-compliance-docs";
-import { Step3StandardTemplates } from "./components/step-3-standard-templates";
-import { Step4GovernanceRules } from "./components/step-4-governance-rules";
 
 // Disable static generation to fix build issues
 export const dynamic = 'force-dynamic';
 
-type FormBuilderStep = 'step1' | 'step2' | 'step3' | 'step4';
 
 interface FormBuilderState {
     baseName?: string;
@@ -53,7 +39,6 @@ interface FormBuilderState {
 
 const SetupProcurementBasePage = () => {
     const router = useRouter();
-    const [currentStep, setCurrentStep] = useState<FormBuilderStep>('step1');
     const [formData, setFormData] = useState<FormBuilderState>({
         policies: [],
         complianceDocs: [],
@@ -67,76 +52,17 @@ const SetupProcurementBasePage = () => {
     // Progress steps data for Untitled UI Progress component
     const progressSteps = [
         {
-            title: 'Upload Policies',
-            description: 'Company procurement policies',
-            status: getCurrentStepStatus('step1'),
+            title: 'Upload Documents',
+            description: 'Policies, rules, templates, standards, etc',
+            status: 'current' as const,
             icon: BookOpen01
-        },
-        {
-            title: 'Compliance Documents',
-            description: 'Regulatory requirements',
-            status: getCurrentStepStatus('step2'),
-            icon: Shield01
-        },
-        {
-            title: 'Standard Templates',
-            description: 'Reusable templates',
-            status: getCurrentStepStatus('step3'),
-            icon: File02
-        },
-        {
-            title: 'Governance Rules',
-            description: 'Approval workflows',
-            status: getCurrentStepStatus('step4'),
-            icon: Settings01
         }
     ] as const;
 
-    function getCurrentStepStatus(step: string) {
-        const stepOrder = ['step1', 'step2', 'step3', 'step4'];
-        const currentIndex = stepOrder.indexOf(currentStep);
-        const stepIndex = stepOrder.indexOf(step);
 
-        if (stepIndex < currentIndex) return 'complete';
-        if (stepIndex === currentIndex) return 'current';
-        return 'incomplete';
-    }
-
-    function getStepIcon(step: typeof progressSteps[0]) {
-        if (step.status === 'complete') {
-            return CheckCircle;
-        }
-        return step.icon;
-    }
-
-    function getStepIconColor(step: typeof progressSteps[0]) {
-        if (step.status === 'complete') {
-            return 'success';
-        }
-        if (step.status === 'current') {
-            return 'brand';
-        }
-        return 'gray';
-    }
 
     const updateFormData = (updates: Partial<FormBuilderState>) => {
         setFormData(prev => ({ ...prev, ...updates }));
-    };
-
-    const handleNextStep = () => {
-        const stepOrder: FormBuilderStep[] = ['step1', 'step2', 'step3', 'step4'];
-        const currentIndex = stepOrder.indexOf(currentStep);
-        if (currentIndex < stepOrder.length - 1) {
-            setCurrentStep(stepOrder[currentIndex + 1]);
-        }
-    };
-
-    const handlePreviousStep = () => {
-        const stepOrder: FormBuilderStep[] = ['step1', 'step2', 'step3', 'step4'];
-        const currentIndex = stepOrder.indexOf(currentStep);
-        if (currentIndex > 0) {
-            setCurrentStep(stepOrder[currentIndex - 1]);
-        }
     };
 
     const handleCreateBase = async () => {
@@ -158,51 +84,15 @@ const SetupProcurementBasePage = () => {
 
             // Prepare base data
             const baseData: any = {
-                name: formData.baseName || 'Untitled Procurement Base',
-                description: formData.description || 'Company-wide procurement standards and templates',
+                name: formData.baseName || 'Untitled Knowledgebase',
+                description: formData.description || 'Company-wide procurement standards and documents',
                 moduleType: 'PROCUREMENT_ADMIN'
             };
 
-            // Add policy files
+            // Add all files as policy files (since we now have just one upload step)
             if (formData.policies?.length > 0) {
                 baseData.policyFiles = await Promise.all(
                     formData.policies.map(async (file: File) => ({
-                        filename: file.name,
-                        mimeType: file.type,
-                        fileSize: file.size,
-                        content: await fileToBase64(file)
-                    }))
-                );
-            }
-
-            // Add compliance docs
-            if (formData.complianceDocs?.length > 0) {
-                baseData.complianceFiles = await Promise.all(
-                    formData.complianceDocs.map(async (file: File) => ({
-                        filename: file.name,
-                        mimeType: file.type,
-                        fileSize: file.size,
-                        content: await fileToBase64(file)
-                    }))
-                );
-            }
-
-            // Add standard templates
-            if (formData.standardTemplates?.length > 0) {
-                baseData.templateFiles = await Promise.all(
-                    formData.standardTemplates.map(async (file: File) => ({
-                        filename: file.name,
-                        mimeType: file.type,
-                        fileSize: file.size,
-                        content: await fileToBase64(file)
-                    }))
-                );
-            }
-
-            // Add governance rules
-            if (formData.governanceRules?.length > 0) {
-                baseData.governanceFiles = await Promise.all(
-                    formData.governanceRules.map(async (file: File) => ({
                         filename: file.name,
                         mimeType: file.type,
                         fileSize: file.size,
@@ -221,7 +111,7 @@ const SetupProcurementBasePage = () => {
             });
 
             if (!response.ok) {
-                throw new Error('Failed to create procurement base');
+                throw new Error('Failed to create knowledgebase');
             }
 
             const result = await response.json();
@@ -230,52 +120,19 @@ const SetupProcurementBasePage = () => {
             router.push(`/procurement-admin/base-created?baseId=${result.base.id}`);
 
         } catch (error) {
-            console.error('Error creating procurement base:', error);
-            alert('Failed to create procurement base. Please try again.');
+            console.error('Error creating knowledgebase:', error);
+            alert('Failed to create knowledgebase. Please try again.');
         }
     };
 
     const renderCurrentStepContent = () => {
-        switch (currentStep) {
-            case 'step1':
-                return (
-                    <Step1UploadPolicies
-                        formData={formData}
-                        updateFormData={updateFormData}
-                        onNext={handleNextStep}
-                    />
-                );
-
-            case 'step2':
-                return (
-                    <Step2ComplianceDocs
-                        formData={formData}
-                        updateFormData={updateFormData}
-                        onNext={handleNextStep}
-                        onPrevious={handlePreviousStep}
-                    />
-                );
-
-            case 'step3':
-                return (
-                    <Step3StandardTemplates
-                        formData={formData}
-                        updateFormData={updateFormData}
-                        onNext={handleNextStep}
-                        onPrevious={handlePreviousStep}
-                    />
-                );
-
-            case 'step4':
-                return (
-                    <Step4GovernanceRules
-                        formData={formData}
-                        updateFormData={updateFormData}
-                        onNext={handleCreateBase} // Create base when completing final step
-                        onPrevious={handlePreviousStep}
-                    />
-                );
-        }
+        return (
+            <Step1UploadPolicies
+                formData={formData}
+                updateFormData={updateFormData}
+                onNext={handleCreateBase}
+            />
+        );
     };
 
     return (
@@ -310,7 +167,7 @@ const SetupProcurementBasePage = () => {
                         </Button>
                         <div className="flex flex-col gap-1 text-center">
                             <p className="text-md font-semibold text-tertiary">Procurement Admin</p>
-                            <p className="text-display-md font-semibold text-primary">Setup Procurement Base</p>
+                            <p className="text-display-md font-semibold text-primary">Setup Knowledgebase</p>
                         </div>
                     </div>
                 </div>
@@ -341,7 +198,7 @@ const SetupProcurementBasePage = () => {
                     {/* Helper box for admins */}
                     <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
                         <p className="text-sm text-purple-800">
-                            <span className="font-semibold">Setting up company standards?</span> Upload your organization's procurement policies, compliance requirements, and standard templates. These will form the foundation for all procurement activities.
+                            <span className="font-semibold">Setting up company standards?</span> Upload your organization's procurement documents. These will form the foundation for all procurement activities.
                         </p>
                     </div>
 
@@ -358,16 +215,16 @@ const SetupProcurementBasePage = () => {
                         <div className="flex items-start gap-3">
                             <FeaturedIcon icon={Shield01} color="success" size="md" />
                             <div>
-                                <p className="text-sm font-semibold text-primary">Compliance Ready</p>
-                                <p className="text-xs text-tertiary mt-1">Ensure all procurement activities meet regulatory requirements</p>
+                                <p className="text-sm font-semibold text-primary">Standards & Compliance</p>
+                                <p className="text-xs text-tertiary mt-1">Ensure all procurement activities meet organizational standards</p>
                             </div>
                         </div>
 
                         <div className="flex items-start gap-3">
                             <FeaturedIcon icon={FileCheck02} color="brand" size="md" />
                             <div>
-                                <p className="text-sm font-semibold text-primary">Reusable Templates</p>
-                                <p className="text-xs text-tertiary mt-1">Standard templates can be used across multiple procurement projects</p>
+                                <p className="text-sm font-semibold text-primary">Global Knowledge</p>
+                                <p className="text-xs text-tertiary mt-1">Documents will be used as reference across all procurement assessments</p>
                             </div>
                         </div>
                     </div>

@@ -135,13 +135,13 @@ export const Step1UploadPolicies: React.FC<Step1Props> = ({
             {/* Base Name Input */}
             <div className="flex flex-col gap-6">
                 <div>
-                    <h3 className="text-lg font-semibold text-primary mb-2">Procurement Base Name</h3>
+                    <h3 className="text-lg font-semibold text-primary mb-2">Knowledgebase Name</h3>
                     <p className="text-sm text-tertiary mb-4">
-                        Choose a unique name for this procurement base configuration
+                        Choose a unique name for this knowledgebase configuration
                     </p>
                     <div className="relative">
                         <InputBase
-                            label="Base Name"
+                            label="Knowledgebase Name"
                             placeholder="e.g., Corporate Procurement Standards 2025"
                             value={formData.baseName || ''}
                             onChange={handleBaseNameChange}
@@ -151,7 +151,7 @@ export const Step1UploadPolicies: React.FC<Step1Props> = ({
                                 isCheckingName ? "Checking availability..." :
                                 nameAvailable === true ? "This name is available" :
                                 nameAvailable === false ? baseNameError :
-                                "Enter a unique name for this procurement base"
+                                "Enter a unique name for this knowledgebase"
                             }
                         />
                         {isCheckingName && (
@@ -172,19 +172,19 @@ export const Step1UploadPolicies: React.FC<Step1Props> = ({
                 <div>
                     <InputBase
                         label="Description (Optional)"
-                        placeholder="Brief description of this procurement base"
+                        placeholder="Brief description of this knowledgebase"
                         value={formData.description || ''}
                         onChange={(value) => updateFormData({ description: value })}
-                        hint="Describe the purpose and scope of this procurement base"
+                        hint="Describe the purpose and scope of this knowledgebase"
                     />
                 </div>
             </div>
 
             {/* Policy Upload Section */}
             <div>
-                <h3 className="text-lg font-semibold text-primary mb-2">Upload Procurement Policies</h3>
+                <h3 className="text-lg font-semibold text-primary mb-2">Upload Documents</h3>
                 <p className="text-sm text-tertiary mb-4">
-                    Upload your organization's procurement policy documents. These will define the standard operating procedures for all procurement activities.
+                    Upload your organisation's global procurement documents. These will define the standard operating procedures for all procurement activities.
                 </p>
 
                 {/* File Upload Component */}
@@ -207,7 +207,7 @@ export const Step1UploadPolicies: React.FC<Step1Props> = ({
                 {/* Uploaded Files List */}
                 {formData.policies?.length > 0 && (
                     <div className="space-y-2">
-                        <h4 className="text-sm font-medium text-primary">Uploaded Policies ({formData.policies.length})</h4>
+                        <h4 className="text-sm font-medium text-primary">Uploaded Documents ({formData.policies.length})</h4>
                         {formData.policies.map((file: File, index: number) => (
                             <div key={index} className="flex items-center justify-between rounded-lg border border-secondary p-3">
                                 <div className="flex items-center gap-3">
@@ -237,7 +237,7 @@ export const Step1UploadPolicies: React.FC<Step1Props> = ({
                         <div className="flex items-start gap-3">
                             <CheckCircle className="size-5 text-success-600 mt-0.5" />
                             <div>
-                                <p className="font-medium text-success-900">Policies analyzed successfully</p>
+                                <p className="font-medium text-success-900">Documents analyzed successfully</p>
                                 <p className="mt-1 text-sm text-success-700">
                                     {formData.policiesAnalysis.documentCount} documents processed
                                 </p>
@@ -259,7 +259,7 @@ export const Step1UploadPolicies: React.FC<Step1Props> = ({
                 {isAnalyzing && (
                     <div className="mt-4 flex items-center gap-3 rounded-lg bg-blue-50 p-4">
                         <LoadingIndicator size="sm" />
-                        <p className="text-sm text-blue-700">Analyzing policy documents...</p>
+                        <p className="text-sm text-blue-700">Analyzing documents...</p>
                     </div>
                 )}
             </div>
@@ -273,7 +273,7 @@ export const Step1UploadPolicies: React.FC<Step1Props> = ({
                     onClick={onNext}
                     disabled={!canProceed || isAnalyzing || isUploading}
                 >
-                    Continue to Compliance Documents
+                    Create Knowledgebase
                 </Button>
             </div>
         </div>
