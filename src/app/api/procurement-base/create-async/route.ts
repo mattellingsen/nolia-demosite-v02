@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { sqsService } from '@/lib/sqs-service';
+import { ensureStartup } from '@/lib/startup';
 import crypto from 'crypto';
 
 const prisma = new PrismaClient();
@@ -25,6 +26,9 @@ const s3Client = new S3Client({
 // POST: Create procurement base asynchronously with document processing
 export async function POST(req: NextRequest) {
   try {
+    // Ensure background processor is started in production
+    ensureStartup();
+
     const body = await req.json();
     const {
       name,

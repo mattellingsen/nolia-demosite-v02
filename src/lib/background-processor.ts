@@ -249,10 +249,12 @@ class BackgroundProcessor {
 
 export const backgroundProcessor = new BackgroundProcessor();
 
-// Auto-start in development
-if (process.env.NODE_ENV === 'development') {
+// Auto-start in both development and production
+// In serverless production, this enables background job processing
+if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'production') {
   // Add a small delay to ensure server is ready
   setTimeout(() => {
     backgroundProcessor.start();
+    console.log(`🤖 Background processor auto-started in ${process.env.NODE_ENV} mode`);
   }, 5000);
 }
