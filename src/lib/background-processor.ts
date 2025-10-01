@@ -189,8 +189,15 @@ class BackgroundProcessor {
             console.log(`🔧 Processing stale ${job.type} job for ${job.fund?.moduleType} module: ${job.fund?.name}`);
 
             if (job.type === 'RAG_PROCESSING') {
-              // Trigger brain assembly directly for RAG jobs
-              const response = await fetch(`http://localhost:3000/api/brain/${job.fundId}/assemble`, {
+              // Trigger brain assembly directly for RAG jobs - use module-specific endpoints
+              let assemblyUrl;
+              if (job.fund?.moduleType === 'PROCUREMENT_ADMIN') {
+                assemblyUrl = `http://localhost:3000/api/procurement-brain/${job.fundId}/assemble`;
+              } else {
+                assemblyUrl = `http://localhost:3000/api/brain/${job.fundId}/assemble`;
+              }
+
+              const response = await fetch(assemblyUrl, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -198,10 +205,10 @@ class BackgroundProcessor {
               });
 
               if (response.ok) {
-                console.log(`✅ Successfully triggered brain assembly for ${job.fund?.moduleType} job ${job.id}`);
+                console.log(`✅ Successfully triggered ${job.fund?.moduleType} brain assembly for job ${job.id}`);
               } else {
                 const errorData = await response.json();
-                console.error(`❌ Failed to trigger brain assembly for ${job.fund?.moduleType} job ${job.id}:`, errorData.error);
+                console.error(`❌ Failed to trigger ${job.fund?.moduleType} brain assembly for job ${job.id}:`, errorData.error);
               }
             } else {
               // Trigger document processing for other jobs
