@@ -7,6 +7,11 @@ import crypto from 'crypto';
 
 const prisma = new PrismaClient();
 
+// CRITICAL: In production, unset AWS_PROFILE to prevent SSO errors
+if (process.env.NODE_ENV === 'production' && process.env.AWS_PROFILE) {
+  delete process.env.AWS_PROFILE;
+}
+
 const s3Client = new S3Client({
   region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',
   // Only use explicit credentials in development when they are intentionally set
