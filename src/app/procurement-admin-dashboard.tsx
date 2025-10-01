@@ -115,7 +115,7 @@ export const ProcurementAdminSetupDashboard = () => {
                 <div className="sticky top-0 z-10 flex flex-col gap-6 border-b border-secondary bg-primary/95 px-4 pb-6 pt-8 backdrop-blur-sm lg:px-8">
                     <div className="flex flex-col gap-1">
                         <p className="text-md font-semibold text-tertiary">Procurement Admin</p>
-                        <p className="text-display-md font-semibold text-primary">Base Configuration</p>
+                        <p className="text-display-md font-semibold text-primary">Global Knowledgebases</p>
                     </div>
 
                     {/* Action buttons */}
@@ -126,7 +126,7 @@ export const ProcurementAdminSetupDashboard = () => {
                             color="primary"
                             size="md"
                         >
-                            Create Procurement Base
+                            Create knowledgebase
                         </Button>
                         <ButtonUtility
                             size="md"
@@ -161,8 +161,8 @@ export const ProcurementAdminSetupDashboard = () => {
                         <div className="flex flex-col items-center gap-4 rounded-lg border border-dashed border-secondary bg-secondary p-12 text-center">
                             <FeaturedIcon icon={Building02} color="gray" size="lg" />
                             <div>
-                                <p className="font-semibold text-primary">No procurement bases yet</p>
-                                <p className="mt-1 text-sm text-tertiary">Create your first procurement base to establish company-wide standards</p>
+                                <p className="font-semibold text-primary">No knowledgebases yet</p>
+                                <p className="mt-1 text-sm text-tertiary">Create your first knowledgebase to establish company-wide standards</p>
                             </div>
                             <Button
                                 href="/procurement-admin/setup/setup-procurement-base"
@@ -171,7 +171,7 @@ export const ProcurementAdminSetupDashboard = () => {
                                 size="md"
                                 className="mt-2"
                             >
-                                Create First Base
+                                Create knowledgebase
                             </Button>
                         </div>
                     ) : (
