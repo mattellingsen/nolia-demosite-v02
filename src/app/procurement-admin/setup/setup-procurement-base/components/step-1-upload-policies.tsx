@@ -105,7 +105,6 @@ export const Step1UploadPolicies: React.FC<Step1Props> = ({
             console.error('Error uploading policies:', error);
             setUploadError('Failed to upload policy documents. Please try again.');
         } finally {
-            setIsAnalyzing(false);
             setIsUploading(false);
         }
     }, [formData.policies, updateFormData]);
@@ -244,7 +243,7 @@ export const Step1UploadPolicies: React.FC<Step1Props> = ({
                     color="primary"
                     iconTrailing={ArrowRight}
                     onClick={onNext}
-                    disabled={!canProceed || isAnalyzing || isUploading}
+                    disabled={!canProceed || isUploading}
                 >
                     Create Knowledgebase
                 </Button>
