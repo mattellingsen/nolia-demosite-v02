@@ -6,6 +6,11 @@ import { analyzeApplicationForm, analyzeSelectionCriteria, extractTextFromFile }
 import { BackgroundJobService } from '@/lib/background-job-service';
 import { JobStatus, JobType } from '@prisma/client';
 
+// CRITICAL: In production, unset AWS_PROFILE to prevent SSO errors
+if (process.env.NODE_ENV === 'production' && process.env.AWS_PROFILE) {
+  delete process.env.AWS_PROFILE;
+}
+
 // S3 client configuration - matches pattern from other files
 const s3Client = new S3Client({
   region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',
