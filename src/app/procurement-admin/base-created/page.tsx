@@ -37,7 +37,7 @@ interface ProcessingStatus {
         governanceRules: number;
     };
     brainBuilding: {
-        status: 'PENDING' | 'ANALYZING' | 'COMPLETE' | 'ERROR';
+        status: 'PENDING' | 'ANALYSING' | 'COMPLETE' | 'ERROR';
         progress: number;
         currentTask?: string;
         estimatedCompletion?: string;
@@ -68,7 +68,7 @@ function BaseCreatedContent() {
             governanceRules: 4
         },
         brainBuilding: {
-            status: 'ANALYZING',
+            status: 'ANALYSING',
             progress: 45,
             currentTask: 'Analyzing compliance requirements...',
             estimatedCompletion: '2 minutes'
@@ -97,11 +97,11 @@ function BaseCreatedContent() {
                 const newProgress = Math.min(prev.brainBuilding.progress + 15, 100);
                 const tasks = [
                     'Processing policy documents...',
-                    'Analyzing compliance requirements...',
-                    'Structuring standard templates...',
+                    'Analysing compliance requirements...',
+                    'Organising standard templates...',
                     'Mapping governance workflows...',
                     'Building knowledge base...',
-                    'Finalizing configuration...'
+                    'Finalising configuration...'
                 ];
                 const taskIndex = Math.floor((newProgress / 100) * tasks.length);
 
@@ -125,7 +125,7 @@ function BaseCreatedContent() {
                 return 'success';
             case 'ERROR':
                 return 'error';
-            case 'ANALYZING':
+            case 'ANALYSING':
                 return 'warning';
             default:
                 return 'gray';
@@ -138,7 +138,7 @@ function BaseCreatedContent() {
                 return CheckCircle;
             case 'ERROR':
                 return AlertTriangle;
-            case 'ANALYZING':
+            case 'ANALYSING':
                 return Clock;
             default:
                 return Clock;
@@ -223,7 +223,7 @@ function BaseCreatedContent() {
                                         </div>
                                         <ProgressBar value={status.brainBuilding.progress} size="md" />
                                         {status.brainBuilding.estimatedCompletion &&
-                                         status.brainBuilding.status === 'ANALYZING' && (
+                                         status.brainBuilding.status === 'ANALYSING' && (
                                             <p className="text-xs text-tertiary mt-2">
                                                 Estimated completion: {status.brainBuilding.estimatedCompletion}
                                             </p>
@@ -314,7 +314,7 @@ function BaseCreatedContent() {
                                         className="w-full justify-center"
                                         disabled={status.brainBuilding.status !== 'COMPLETE'}
                                     >
-                                        Apply to Organization
+                                        Apply to Organisation
                                     </Button>
                                     <Button
                                         size="md"
