@@ -20,7 +20,6 @@ export const Step3StandardTemplates: React.FC<Step3Props> = ({
     onNext,
     onPrevious
 }) => {
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [uploadError, setUploadError] = useState<string>('');
     const [isUploading, setIsUploading] = useState(false);
 
@@ -33,25 +32,12 @@ export const Step3StandardTemplates: React.FC<Step3Props> = ({
             const newTemplates = [...(formData.standardTemplates || []), ...files];
             updateFormData({ standardTemplates: newTemplates });
 
-            // Simulate analysis
-            setIsAnalyzing(true);
-            await new Promise(resolve => setTimeout(resolve, 1500));
-
-            // Update with mock analysis results
+            // Real analysis will happen via background processing after creation
+            // Just show success state immediately for uploaded files
             updateFormData({
                 standardTemplatesAnalysis: {
                     documentCount: newTemplates.length,
-                    templateTypes: [
-                        'Request for Proposal (RFP)',
-                        'Request for Quote (RFQ)',
-                        'Purchase Order Template',
-                        'Vendor Agreement Template',
-                        'Service Level Agreement (SLA)',
-                        'Non-Disclosure Agreement (NDA)'
-                    ],
-                    fieldsIdentified: 42,
-                    reusableComponents: 18,
-                    status: 'analyzed'
+                    status: 'uploaded'
                 }
             });
 
@@ -59,7 +45,6 @@ export const Step3StandardTemplates: React.FC<Step3Props> = ({
             console.error('Error uploading templates:', error);
             setUploadError('Failed to upload template documents. Please try again.');
         } finally {
-            setIsAnalyzing(false);
             setIsUploading(false);
         }
     }, [formData.standardTemplates, updateFormData]);
@@ -176,13 +161,6 @@ export const Step3StandardTemplates: React.FC<Step3Props> = ({
                 </div>
             )}
 
-            {isAnalyzing && (
-                <div className="flex items-center gap-3 rounded-lg bg-blue-50 p-4">
-                    <LoadingIndicator size="sm" />
-                    <p className="text-sm text-blue-700">Analyzing template structures...</p>
-                </div>
-            )}
-
             {/* Helper Information */}
             <div className="rounded-lg bg-gray-50 p-4">
                 <h4 className="text-sm font-medium text-primary mb-2">Common Template Types</h4>
@@ -231,7 +209,7 @@ export const Step3StandardTemplates: React.FC<Step3Props> = ({
                         color="primary"
                         iconTrailing={ArrowRight}
                         onClick={onNext}
-                        disabled={(!canProceed && !canSkip) || isAnalyzing || isUploading}
+                        disabled={(!canProceed && !canSkip) || isUploading}
                     >
                         Continue to Governance
                     </Button>
