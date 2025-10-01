@@ -74,6 +74,9 @@ function BaseCreatedContent() {
                 throw new Error(data.error || 'Failed to fetch job status');
             }
 
+            // Get the current processing job (DOCUMENT_ANALYSIS or RAG_PROCESSING)
+            const currentJob = data.jobs && data.jobs.length > 0 ? data.jobs[0] : null;
+
             // Map API response to our interface
             const mappedStatus: ProcessingStatus = {
                 baseId: data.baseId,
@@ -81,14 +84,14 @@ function BaseCreatedContent() {
                 baseDescription: data.baseDescription,
                 status: mapBaseStatus(data.baseStatus, data.overallStatus),
                 documentsUploaded: data.documentsUploaded,
-                brainBuilding: data.brainBuilding ? {
-                    status: mapJobStatus(data.brainBuilding.status),
-                    progress: data.brainBuilding.progress || 0,
-                    currentTask: data.brainBuilding.currentTask || 'Waiting to start...',
-                    estimatedCompletion: data.brainBuilding.estimatedCompletion,
-                    processedDocuments: data.brainBuilding.processedDocuments,
-                    totalDocuments: data.brainBuilding.totalDocuments,
-                    errorMessage: data.brainBuilding.errorMessage
+                brainBuilding: currentJob ? {
+                    status: mapJobStatus(currentJob.status),
+                    progress: currentJob.progress || 0,
+                    currentTask: getCurrentTask(currentJob),
+                    estimatedCompletion: currentJob.estimatedCompletion,
+                    processedDocuments: currentJob.processedDocuments,
+                    totalDocuments: currentJob.totalDocuments,
+                    errorMessage: currentJob.errorMessage
                 } : {
                     status: 'PENDING',
                     progress: 0,
@@ -134,6 +137,26 @@ function BaseCreatedContent() {
             case 'COMPLETED': return 'COMPLETED';
             case 'FAILED': return 'FAILED';
             default: return 'PENDING';
+        }
+    };
+
+    const getCurrentTask = (job: any): string => {
+        if (!job) return 'Waiting to start...';
+
+        switch (job.status) {
+            case 'PROCESSING':
+                if (job.type === 'DOCUMENT_ANALYSIS') {
+                    return `Analyzing documents... (${job.processedDocuments || 0}/${job.totalDocuments || 0})`;
+                } else if (job.type === 'RAG_PROCESSING') {
+                    return 'Building knowledge base...';
+                }
+                return 'Processing...';
+            case 'COMPLETED':
+                return 'Brain assembly completed';
+            case 'FAILED':
+                return 'Processing failed';
+            default:
+                return 'Waiting to start...';
         }
     };
 
