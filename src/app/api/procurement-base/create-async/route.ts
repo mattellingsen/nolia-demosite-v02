@@ -4,13 +4,12 @@ import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { sqsService } from '@/lib/sqs-service';
 import { ensureStartup } from '@/lib/startup';
 import crypto from 'crypto';
+import { forceIAMRole } from '@/lib/force-iam-role';
 
 const prisma = new PrismaClient();
 
-// CRITICAL: In production, unset AWS_PROFILE to prevent SSO errors
-if (process.env.NODE_ENV === 'production' && process.env.AWS_PROFILE) {
-  delete process.env.AWS_PROFILE;
-}
+// CRITICAL: Force IAM role usage in production (prevents SSO errors)
+forceIAMRole();
 
 const s3Client = new S3Client({
   region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',

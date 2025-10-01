@@ -5,11 +5,10 @@ import { sqsService } from '@/lib/sqs-service';
 import { analyzeApplicationForm, analyzeSelectionCriteria, extractTextFromFile } from '@/utils/server-document-analyzer';
 import { BackgroundJobService } from '@/lib/background-job-service';
 import { JobStatus, JobType } from '@prisma/client';
+import { forceIAMRole } from '@/lib/force-iam-role';
 
-// CRITICAL: In production, unset AWS_PROFILE to prevent SSO errors
-if (process.env.NODE_ENV === 'production' && process.env.AWS_PROFILE) {
-  delete process.env.AWS_PROFILE;
-}
+// CRITICAL: Force IAM role usage in production (prevents SSO errors)
+forceIAMRole();
 
 // S3 client configuration - matches pattern from other files
 const s3Client = new S3Client({

@@ -2,11 +2,10 @@ import { SQSClient, SendMessageCommand, SendMessageBatchCommand } from '@aws-sdk
 import { prisma } from './database-s3';
 import { JobType, JobStatus } from '@prisma/client';
 import crypto from 'crypto';
+import { forceIAMRole } from './force-iam-role';
 
-// CRITICAL: In production, unset AWS_PROFILE to prevent SSO errors
-if (process.env.NODE_ENV === 'production' && process.env.AWS_PROFILE) {
-  delete process.env.AWS_PROFILE;
-}
+// CRITICAL: Force IAM role usage in production (prevents SSO errors)
+forceIAMRole();
 
 // SQS client configuration - matches S3 client pattern from database-s3.ts
 const sqsClient = new SQSClient({
