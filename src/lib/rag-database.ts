@@ -135,6 +135,10 @@ async function processDocumentsWithTimeout(fund: any, timeoutMs: number): Promis
  */
 async function extractTextFromS3Document(s3Key: string): Promise<string> {
   try {
+    // CRITICAL: Force IAM role usage in production (prevents SSO errors)
+    const { forceIAMRole } = await import('./force-iam-role');
+    forceIAMRole();
+
     // Download from S3
     const { S3Client, GetObjectCommand } = await import('@aws-sdk/client-s3');
     const s3Client = new S3Client({

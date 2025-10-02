@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFundWithDocuments, prisma } from '@/lib/database-s3';
 import { DeleteObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { forceIAMRole } from '@/lib/force-iam-role';
+
+// CRITICAL: Force IAM role usage in production (prevents SSO errors)
+forceIAMRole();
 
 // S3 client for deleting documents
 const s3Client = new S3Client({

@@ -6,6 +6,10 @@
  */
 
 import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
+import { forceIAMRole } from '@/lib/force-iam-role';
+
+// CRITICAL: Force IAM role usage in production (prevents SSO errors)
+forceIAMRole();
 
 // Initialize Bedrock client
 const bedrock = new BedrockRuntimeClient({

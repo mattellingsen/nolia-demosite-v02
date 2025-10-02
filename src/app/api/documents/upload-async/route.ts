@@ -5,6 +5,10 @@ import { prisma } from '@/lib/database-s3';
 import { sqsService } from '@/lib/sqs-service';
 import { DocumentType } from '@prisma/client';
 import crypto from 'crypto';
+import { forceIAMRole } from '@/lib/force-iam-role';
+
+// CRITICAL: Force IAM role usage in production (prevents SSO errors)
+forceIAMRole();
 
 // S3 client configuration - matches pattern from database-s3.ts
 const s3Client = new S3Client({
