@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database-s3';
 import { sqsService } from '@/lib/sqs-service';
 import { ensureStartup } from '@/lib/startup';
+import { BackgroundJobService } from '@/lib/background-job-service';
 
 interface RouteParams {
   params: {
@@ -113,58 +114,87 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       }
     });
 
+    // Get actual document count
+    const documentCount = procurementBase.documents.length;
+
+    console.log(`🚀 Starting RAG processing for procurement base ${baseId} with ${documentCount} documents`);
+
+    // Actually process the RAG job to generate embeddings and store in OpenSearch
     let brainJob;
-    if (existingRagJob) {
-      // Update existing job to completed
-      brainJob = await prisma.backgroundJob.update({
-        where: { id: existingRagJob.id },
+    if (existingRagJob && existingRagJob.status === 'PENDING') {
+      // Job exists and is pending - process it now
+      console.log(`Processing existing PENDING RAG job ${existingRagJob.id}`);
+      brainJob = existingRagJob;
+
+      // Process in background (non-blocking)
+      BackgroundJobService.processRAGJob(existingRagJob.id)
+        .then(() => {
+          console.log(`✅ RAG processing completed for job ${existingRagJob.id}`);
+          // Update fund status to ACTIVE after RAG completes
+          return prisma.fund.update({
+            where: { id: baseId },
+            data: {
+              status: 'ACTIVE',
+              openSearchIndex: `procurement-admin-documents` // Store index name
+            }
+          });
+        })
+        .catch(error => {
+          console.error(`❌ RAG processing failed for job ${existingRagJob.id}:`, error);
+        });
+    } else if (existingRagJob && existingRagJob.status === 'COMPLETED') {
+      // Already completed
+      console.log(`RAG job already completed: ${existingRagJob.id}`);
+      brainJob = existingRagJob;
+
+      // Update status to ACTIVE if not already
+      await prisma.fund.update({
+        where: { id: baseId },
         data: {
-          status: 'COMPLETED',
-          progress: 100,
-          processedDocuments: 1,
-          metadata: {
-            ...(existingRagJob.metadata as any),
-            brainVersion: updatedBase.brainVersion,
-            assembledAt: new Date().toISOString(),
-            componentsUsed: ['policies', 'procedures', 'templates', 'standards'].filter(key =>
-              procurementAnalyses[key as keyof typeof procurementAnalyses]
-            )
-          },
-          completedAt: new Date(),
+          status: 'ACTIVE',
+          openSearchIndex: `procurement-admin-documents`
         }
       });
-      console.log(`Updated existing RAG_PROCESSING job ${existingRagJob.id} to completed`);
     } else {
-      // Create new brain assembly job record for tracking
+      // No job exists - create one and process it
+      console.log(`Creating new RAG_PROCESSING job for ${baseId}`);
       brainJob = await prisma.backgroundJob.create({
         data: {
           fundId: baseId,
           type: 'RAG_PROCESSING',
-          status: 'COMPLETED',
-          progress: 100,
-          totalDocuments: 1,
-          processedDocuments: 1,
+          status: 'PENDING',
+          progress: 0,
+          totalDocuments: documentCount,
+          processedDocuments: 0,
           moduleType: 'PROCUREMENT_ADMIN',
           metadata: {
             brainVersion: updatedBase.brainVersion,
-            assembledAt: new Date().toISOString(),
-            componentsUsed: ['policies', 'procedures', 'templates', 'standards'].filter(key =>
-              procurementAnalyses[key as keyof typeof procurementAnalyses]
-            )
-          },
-          startedAt: new Date(),
-          completedAt: new Date(),
+            createdAt: new Date().toISOString(),
+          }
         }
       });
-      console.log(`Created new RAG_PROCESSING job ${brainJob.id}`);
+
+      console.log(`Processing new RAG job ${brainJob.id}`);
+
+      // Process in background (non-blocking)
+      BackgroundJobService.processRAGJob(brainJob.id)
+        .then(() => {
+          console.log(`✅ RAG processing completed for job ${brainJob.id}`);
+          // Update fund status to ACTIVE after RAG completes
+          return prisma.fund.update({
+            where: { id: baseId },
+            data: {
+              status: 'ACTIVE',
+              openSearchIndex: `procurement-admin-documents`
+            }
+          });
+        })
+        .catch(error => {
+          console.error(`❌ RAG processing failed for job ${brainJob.id}:`, error);
+        });
     }
 
-    // Update procurement base status to ACTIVE when brain assembly is complete
-    await prisma.fund.update({
-      where: { id: baseId },
-      data: { status: 'ACTIVE' }
-    });
-    console.log(`Procurement base ${baseId} status updated to ACTIVE`);
+    console.log(`Procurement brain assembly initiated for ${baseId}`);
 
     return NextResponse.json({
       success: true,

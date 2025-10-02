@@ -2,7 +2,7 @@
 import { prisma } from './database-s3';
 import { extractTextFromFile } from '../utils/server-document-analyzer';
 import { claudeService, ClaudeService } from './claude-service';
-import { storeDocumentVector, generateEmbedding } from './aws-opensearch';
+import { storeDocumentVector, generateEmbedding, initializeOpenSearchIndex } from './aws-opensearch';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { forceIAMRole } from './force-iam-role';
 
@@ -123,16 +123,21 @@ export class BackgroundJobService {
       
       // First, perform document analysis if not already done
       await this.performDocumentAnalysis(fund.id);
-      
+
+      // Initialize OpenSearch index for this module type
+      const moduleType = fund.moduleType as 'FUNDING' | 'PROCUREMENT' | 'PROCUREMENT_ADMIN';
+      console.log(`Initializing OpenSearch index for module: ${moduleType}`);
+      await initializeOpenSearchIndex(moduleType);
+
       const documents = fund.documents;
       const totalDocuments = documents.length;
-      
+
       await this.updateJob(jobId, {
         totalDocuments,
         progress: 5
       });
-      
-      console.log(`Processing ${totalDocuments} documents for RAG indexing`);
+
+      console.log(`Processing ${totalDocuments} documents for RAG indexing (${moduleType})`);
       
       // Process each document
       for (let i = 0; i < documents.length; i++) {
@@ -161,6 +166,7 @@ export class BackgroundJobService {
             filename: document.filename,
             content: documentText,
             embedding,
+            moduleType: fund.moduleType as 'FUNDING' | 'PROCUREMENT' | 'PROCUREMENT_ADMIN',
             metadata: {
               uploadedAt: document.uploadedAt.toISOString(),
               fileSize: document.fileSize,
