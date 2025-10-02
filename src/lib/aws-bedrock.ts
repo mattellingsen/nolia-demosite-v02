@@ -1,25 +1,12 @@
 // AWS Bedrock Claude integration for RAG-powered AI assessment
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
-import { forceIAMRole } from './force-iam-role';
+import { getAWSCredentials, AWS_REGION } from './aws-credentials';
 
-// CRITICAL: Force IAM role usage in production (prevents SSO errors)
-// This MUST happen before any AWS SDK client initialization
-forceIAMRole();
-
-// Initialize Bedrock client
+// Initialize Bedrock client with EXPLICIT IAM role credentials
+// This bypasses ALL configuration files and SSO settings
 const bedrockClient = new BedrockRuntimeClient({
-  region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',
-  // Only use explicit credentials in development when they are intentionally set
-  ...(process.env.NODE_ENV === 'development' &&
-      process.env.AWS_ACCESS_KEY_ID &&
-      process.env.AWS_SECRET_ACCESS_KEY &&
-      !process.env.AWS_ACCESS_KEY_ID.startsWith('ASIA') ? {
-    credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    },
-  } : {}),
-  // In production, omit credentials to use IAM role automatically
+  region: AWS_REGION,
+  credentials: getAWSCredentials(),
 });
 
 // Claude model configuration - Updated to use Claude 3.5 Sonnet v2 (working model)
