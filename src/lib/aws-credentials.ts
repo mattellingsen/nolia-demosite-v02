@@ -11,23 +11,26 @@
  * - The SDK never checks configuration files when credentials are explicitly provided
  */
 
-import { fromInstanceMetadata, fromEnv } from '@aws-sdk/credential-providers';
+import { fromInstanceMetadata, fromEnv, fromContainerMetadata, fromNodeProviderChain } from '@aws-sdk/credential-providers';
 import type { AwsCredentialIdentityProvider } from '@aws-sdk/types';
 
 /**
  * Get AWS credentials provider based on environment
  *
- * Production: Forces IAM role credentials (ignores all config files)
+ * Production: Forces IAM role credentials via custom chain (bypasses SSO config files)
  * Development: Uses environment variables (from export-aws-creds.sh)
  */
 export function getAWSCredentials(): AwsCredentialIdentityProvider | undefined {
   if (process.env.NODE_ENV === 'production') {
-    // CRITICAL: Explicitly use IAM role credentials in production
-    // This bypasses ALL configuration files and SSO settings
-    console.log('🔒 Using IAM role credentials (production mode)');
-    return fromInstanceMetadata({
-      timeout: 1000,
-      maxRetries: 3,
+    // CRITICAL: Use custom credential chain that skips config files
+    // Amplify serverless functions run in containers with IAM role credentials
+    // We must check: env vars → container metadata → instance metadata
+    // This bypasses ~/.aws/config and ~/.aws/sso/cache/ entirely
+    console.log('🔒 Using custom credential chain for Amplify (production mode)');
+
+    return fromNodeProviderChain({
+      // Explicitly ignore shared credentials and config files
+      ignoreCache: true,
     });
   } else {
     // Development: Use environment variables from export-aws-creds.sh
