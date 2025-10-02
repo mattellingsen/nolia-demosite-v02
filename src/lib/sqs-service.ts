@@ -3,6 +3,7 @@ import { prisma } from './database-s3';
 import { JobType, JobStatus } from '@prisma/client';
 import crypto from 'crypto';
 import { getAWSCredentials, AWS_REGION } from './aws-credentials';
+import { BackgroundJobService } from './background-job-service';
 
 // Initialize SQS client with EXPLICIT IAM role credentials
 // This bypasses ALL configuration files and SSO settings
@@ -186,41 +187,19 @@ export class SQSService {
 
     // If document analysis is complete, trigger brain assembly
     if (isComplete && job.type === JobType.DOCUMENT_ANALYSIS) {
-      await this.queueBrainAssembly(job.fundId, 'DOCUMENT_COMPLETE');
+      const ragJob = await this.queueBrainAssembly(job.fundId, 'DOCUMENT_COMPLETE');
 
-      // In serverless environments, immediately attempt to trigger brain assembly
-      // This works because the RAG job was just created and is immediately available
-      if (process.env.NODE_ENV === 'production') {
-        console.log('🚀 Immediately triggering brain assembly after document completion...');
+      // Immediately trigger RAG processing by calling the service directly
+      // This eliminates unreliable HTTP fetch calls between serverless functions
+      console.log('🚀 Immediately triggering brain assembly after document completion...');
 
-        // Small delay to ensure database write is committed
-        await new Promise(resolve => setTimeout(resolve, 1000));
+      // Small delay to ensure database write is committed
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
-        try {
-          const baseUrl = process.env.NEXTAUTH_URL || 'https://main.d2l8hlr3sei3te.amplifyapp.com';
-
-          // Directly call the trigger-pending endpoint which will process the RAG job
-          const response = await fetch(`${baseUrl}/api/jobs/trigger-pending`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              immediate: true,
-              fundId: job.fundId
-            })
-          });
-
-          if (response.ok) {
-            const result = await response.json();
-            console.log('✅ Successfully triggered brain assembly:', result.message);
-          } else {
-            console.error('❌ Failed to trigger brain assembly immediately:', response.status);
-            // Not fatal - client polling will catch this
-          }
-        } catch (error) {
-          console.error('⚠️ Could not immediately trigger brain assembly (will be caught by polling):', error);
-          // Not fatal - the client-side polling will pick this up
-        }
-      }
+      // Direct function call instead of HTTP fetch - non-blocking
+      BackgroundJobService.processRAGJob(ragJob.id)
+        .then(() => console.log('✅ Successfully triggered brain assembly for job', ragJob.id))
+        .catch(error => console.error('⚠️ Could not immediately trigger brain assembly:', error));
     }
 
     return { progress, isComplete };
