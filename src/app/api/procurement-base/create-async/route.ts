@@ -17,10 +17,25 @@ const s3Client = new S3Client({
 // POST: Create procurement base asynchronously with document processing
 export async function POST(req: NextRequest) {
   try {
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('🔍 DEBUG: API Route /api/procurement-base/create-async called');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
     // Ensure background processor is started in production
     ensureStartup();
 
     const body = await req.json();
+    console.log('📦 DEBUG: Request body keys:', Object.keys(body));
+    console.log('📦 DEBUG: Request body structure:', JSON.stringify({
+      name: body.name,
+      description: body.description,
+      moduleType: body.moduleType,
+      policyFilesCount: body.policyFiles?.length || 0,
+      complianceFilesCount: body.complianceFiles?.length || 0,
+      templateFilesCount: body.templateFiles?.length || 0,
+      governanceFilesCount: body.governanceFiles?.length || 0
+    }, null, 2));
+
     const {
       name,
       description,
@@ -94,9 +109,43 @@ export async function POST(req: NextRequest) {
 
     console.log(`📁 Processing ${allFiles.length} files for upload`);
 
+    // DEBUG: Log AWS credentials being used
+    console.log('🔐 DEBUG: Checking AWS SDK credentials...');
+    console.log('🔐 DEBUG: NODE_ENV:', process.env.NODE_ENV);
+    console.log('🔐 DEBUG: AWS_REGION:', AWS_REGION);
+    console.log('🔐 DEBUG: S3_BUCKET:', S3_BUCKET);
+    console.log('🔐 DEBUG: S3_BUCKET_DOCUMENTS:', process.env.S3_BUCKET_DOCUMENTS);
+
+    // Test AWS credentials before uploading files
+    try {
+      const testCredentials = await s3Client.config.credentials();
+      console.log('🔐 DEBUG: AWS credentials resolved successfully:', {
+        accessKeyId: testCredentials?.accessKeyId ? `${testCredentials.accessKeyId.substring(0, 8)}...` : 'NONE',
+        hasSecretKey: !!testCredentials?.secretAccessKey,
+        hasSessionToken: !!testCredentials?.sessionToken
+      });
+    } catch (credError) {
+      console.error('🔐 DEBUG: Failed to resolve AWS credentials:', credError);
+      return NextResponse.json(
+        {
+          error: 'AWS credentials not configured correctly',
+          details: credError instanceof Error ? credError.message : String(credError)
+        },
+        { status: 500 }
+      );
+    }
+
     for (const file of allFiles) {
       try {
         console.log(`📄 Processing file: ${file.filename} (${file.documentType})`);
+        console.log(`📄 DEBUG: File properties:`, {
+          filename: file.filename,
+          mimeType: file.mimeType,
+          fileSize: file.fileSize,
+          hasContent: !!file.content,
+          contentLength: file.content?.length || 0,
+          contentPreview: file.content ? `${file.content.substring(0, 50)}...` : 'NONE'
+        });
 
         // Validate file has required properties
         if (!file.content) {
@@ -113,18 +162,36 @@ export async function POST(req: NextRequest) {
         const documentKey = `procurement-admin/${base.id}/${crypto.randomUUID()}-${file.filename}`;
 
         // Convert base64 to buffer
-        const fileBuffer = Buffer.from(file.content, 'base64');
+        let fileBuffer;
+        try {
+          fileBuffer = Buffer.from(file.content, 'base64');
+          console.log(`📤 DEBUG: Converted to buffer, size: ${fileBuffer.length} bytes`);
+        } catch (bufferError) {
+          console.error(`❌ DEBUG: Failed to convert base64 to buffer:`, bufferError);
+          throw bufferError;
+        }
+
         console.log(`📤 Uploading ${file.filename} to S3 key: ${documentKey}`);
+        console.log(`📤 DEBUG: S3 PutObject params:`, {
+          Bucket: process.env.S3_BUCKET_DOCUMENTS,
+          Key: documentKey,
+          BodySize: fileBuffer.length,
+          ContentType: file.mimeType
+        });
 
         // Upload to S3
-        await s3Client.send(new PutObjectCommand({
+        const putObjectCommand = new PutObjectCommand({
           Bucket: process.env.S3_BUCKET_DOCUMENTS!,
           Key: documentKey,
           Body: fileBuffer,
           ContentType: file.mimeType,
-        }));
+        });
 
-        console.log(`✅ S3 upload successful for ${file.filename}`);
+        const s3Response = await s3Client.send(putObjectCommand);
+        console.log(`✅ S3 upload successful for ${file.filename}`, {
+          ETag: s3Response.ETag,
+          VersionId: s3Response.VersionId
+        });
 
         // Create document record
         const document = await prisma.fundDocument.create({
