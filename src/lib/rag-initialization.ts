@@ -2,7 +2,7 @@
 import { initializeOpenSearchIndex } from './aws-opensearch';
 import { BedrockRuntimeClient } from '@aws-sdk/client-bedrock-runtime';
 import { prisma } from './database-s3';
-import { forceIAMRole } from './force-iam-role';
+import { getAWSCredentials, AWS_REGION } from './aws-credentials';
 
 /**
  * Initialize the RAG system components
@@ -48,11 +48,9 @@ export async function initializeRAGSystem(): Promise<{
 
   // Test AWS Bedrock connection
   try {
-    // CRITICAL: Force IAM role usage in production (prevents SSO errors)
-    forceIAMRole();
-
     const bedrockClient = new BedrockRuntimeClient({
-      region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',
+      region: AWS_REGION,
+      credentials: getAWSCredentials(),
     });
 
     // Simple connectivity test (list models is not available, so we'll test with a minimal invoke)
@@ -117,11 +115,9 @@ export async function ragHealthCheck(): Promise<{
 
   // Test Bedrock (simplified check)
   try {
-    // CRITICAL: Force IAM role usage in production (prevents SSO errors)
-    forceIAMRole();
-
     const bedrockClient = new BedrockRuntimeClient({
-      region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',
+      region: AWS_REGION,
+      credentials: getAWSCredentials(),
     });
     services.bedrock = 'up'; // If client creation succeeds, consider it up
   } catch (error) {

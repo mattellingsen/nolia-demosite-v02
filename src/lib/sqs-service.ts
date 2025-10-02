@@ -2,26 +2,13 @@ import { SQSClient, SendMessageCommand, SendMessageBatchCommand } from '@aws-sdk
 import { prisma } from './database-s3';
 import { JobType, JobStatus } from '@prisma/client';
 import crypto from 'crypto';
-import { forceIAMRole } from './force-iam-role';
+import { getAWSCredentials, AWS_REGION } from './aws-credentials';
 
-// CRITICAL: Force IAM role usage in production (prevents SSO errors)
-forceIAMRole();
-
-// SQS client configuration - matches S3 client pattern from database-s3.ts
+// Initialize SQS client with EXPLICIT IAM role credentials
+// This bypasses ALL configuration files and SSO settings
 const sqsClient = new SQSClient({
-  region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',
-  // Only use explicit credentials in development when they are intentionally set
-  ...(process.env.NODE_ENV === 'development' &&
-      process.env.AWS_ACCESS_KEY_ID &&
-      process.env.AWS_SECRET_ACCESS_KEY &&
-      !process.env.AWS_ACCESS_KEY_ID.startsWith('ASIA') ? {
-    credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    },
-  } : {
-    // In production or when ASIA credentials are detected, force IAM Role by not providing credentials
-  }),
+  region: AWS_REGION,
+  credentials: getAWSCredentials(),
 });
 
 // Queue URLs from environment variables

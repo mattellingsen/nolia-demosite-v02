@@ -1,21 +1,12 @@
 // AWS OpenSearch integration for vector database and semantic search
 import { OpenSearchClient } from '@aws-sdk/client-opensearch';
-import { forceIAMRole } from './force-iam-role';
+import { getAWSCredentials, AWS_REGION } from './aws-credentials';
 
-// CRITICAL: Force IAM role usage in production (prevents SSO errors)
-// This MUST happen before any AWS SDK client initialization
-forceIAMRole();
-
-// Initialize OpenSearch client
+// Initialize OpenSearch client with EXPLICIT IAM role credentials
+// This bypasses ALL configuration files and SSO settings
 const openSearchClient = new OpenSearchClient({
-  region: 'ap-southeast-2', // OpenSearch is specifically in ap-southeast-2
-  // Use explicit credentials if available (local dev), otherwise use IAM Role (production)
-  ...(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY ? {
-    credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    },
-  } : {}),
+  region: AWS_REGION,
+  credentials: getAWSCredentials(),
 });
 
 // OpenSearch configuration
