@@ -4,27 +4,14 @@ import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { sqsService } from '@/lib/sqs-service';
 import { ensureStartup } from '@/lib/startup';
 import crypto from 'crypto';
-import { forceIAMRole } from '@/lib/force-iam-role';
+import { getAWSCredentials, AWS_REGION, S3_BUCKET } from '@/lib/aws-credentials';
 
 const prisma = new PrismaClient();
 
-// CRITICAL: Force IAM role usage in production (prevents SSO errors)
-forceIAMRole();
-
+// S3 client with EXPLICIT IAM role credentials
 const s3Client = new S3Client({
-  region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',
-  // Only use explicit credentials in development when they are intentionally set
-  ...(process.env.NODE_ENV === 'development' &&
-      process.env.AWS_ACCESS_KEY_ID &&
-      process.env.AWS_SECRET_ACCESS_KEY &&
-      !process.env.AWS_ACCESS_KEY_ID.startsWith('ASIA') ? {
-    credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    },
-  } : {
-    // In production or when ASIA credentials are detected, force IAM Role by not providing credentials
-  }),
+  region: AWS_REGION,
+  credentials: getAWSCredentials(),
 });
 
 // POST: Create procurement base asynchronously with document processing

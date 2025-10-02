@@ -6,25 +6,13 @@
  */
 
 import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
-import { forceIAMRole } from './force-iam-role';
+import { getAWSCredentials, AWS_REGION } from './aws-credentials';
 
-// CRITICAL: Force IAM role usage in production (prevents SSO errors)
-forceIAMRole();
-
-// Initialize Bedrock client with same credential pattern as working S3 client
+// Initialize Bedrock client with EXPLICIT IAM role credentials
+// This bypasses ALL configuration files and SSO settings
 const bedrock = new BedrockRuntimeClient({
-  region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',
-  ...(process.env.NODE_ENV === 'development' &&
-      process.env.AWS_ACCESS_KEY_ID &&
-      process.env.AWS_SECRET_ACCESS_KEY &&
-      !process.env.AWS_ACCESS_KEY_ID.startsWith('ASIA') ? {
-    credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    },
-  } : {
-    // In production or when ASIA credentials are detected, force IAM Role by not providing credentials
-  }),
+  region: AWS_REGION,
+  credentials: getAWSCredentials(),
 });
 
 export interface ClaudeRequest {
