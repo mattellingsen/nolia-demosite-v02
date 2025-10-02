@@ -1,5 +1,10 @@
 // AWS OpenSearch integration for vector database and semantic search
 import { OpenSearchClient } from '@aws-sdk/client-opensearch';
+import { forceIAMRole } from './force-iam-role';
+
+// CRITICAL: Force IAM role usage in production (prevents SSO errors)
+// This MUST happen before any AWS SDK client initialization
+forceIAMRole();
 
 // Initialize OpenSearch client
 const openSearchClient = new OpenSearchClient({
