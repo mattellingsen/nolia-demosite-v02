@@ -71,6 +71,20 @@ const SetupProcurementBasePage = () => {
 
     const handleCreateBase = async () => {
         try {
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.log('🚀 DEBUG: handleCreateBase() called');
+            console.log('🚀 DEBUG: formData.baseName:', formData.baseName);
+            console.log('🚀 DEBUG: formData.policies:', formData.policies);
+            console.log('🚀 DEBUG: Number of files:', formData.policies?.length || 0);
+            if (formData.policies?.length > 0) {
+                console.log('🚀 DEBUG: File details:', formData.policies.map((f: File) => ({
+                    name: f.name,
+                    size: f.size,
+                    type: f.type
+                })));
+            }
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
             setIsCreating(true);
             setCreationStep('Preparing documents...');
             setCreationProgress(10);
@@ -84,9 +98,13 @@ const SetupProcurementBasePage = () => {
                         const result = reader.result as string;
                         // Remove data:mime/type;base64, prefix
                         const base64 = result.split(',')[1];
+                        console.log(`📄 DEBUG: Converted ${file.name} to base64, length: ${base64?.length || 0}`);
                         resolve(base64);
                     };
-                    reader.onerror = reject;
+                    reader.onerror = (error) => {
+                        console.error(`❌ DEBUG: Failed to read ${file.name}:`, error);
+                        reject(error);
+                    };
                 });
             };
 
@@ -99,6 +117,12 @@ const SetupProcurementBasePage = () => {
                 description: formData.description || 'Company-wide procurement standards and documents',
                 moduleType: 'PROCUREMENT_ADMIN'
             };
+
+            console.log('📦 DEBUG: Base data prepared:', {
+                name: baseData.name,
+                description: baseData.description,
+                moduleType: baseData.moduleType
+            });
 
             // Add all files as policy files (since we now have just one upload step)
             if (formData.policies?.length > 0) {
@@ -122,6 +146,20 @@ const SetupProcurementBasePage = () => {
             setCreationStep('Uploading to cloud...');
             setCreationProgress(70);
 
+            console.log('📤 DEBUG: About to send API request');
+            console.log('📤 DEBUG: Payload summary:', {
+                name: baseData.name,
+                description: baseData.description,
+                moduleType: baseData.moduleType,
+                policyFilesCount: baseData.policyFiles?.length || 0
+            });
+            console.log('📤 DEBUG: First file sample:', baseData.policyFiles?.[0] ? {
+                filename: baseData.policyFiles[0].filename,
+                mimeType: baseData.policyFiles[0].mimeType,
+                fileSize: baseData.policyFiles[0].fileSize,
+                contentLength: baseData.policyFiles[0].content?.length || 0
+            } : 'No files');
+
             // Call async base creation API
             const response = await fetch('/api/procurement-base/create-async', {
                 method: 'POST',
@@ -131,14 +169,19 @@ const SetupProcurementBasePage = () => {
                 body: JSON.stringify(baseData),
             });
 
+            console.log('📥 DEBUG: API response status:', response.status, response.statusText);
+
             if (!response.ok) {
-                throw new Error('Failed to create knowledgebase');
+                const errorData = await response.json();
+                console.error('❌ DEBUG: API error response:', errorData);
+                throw new Error(`Failed to create knowledgebase: ${errorData.error || response.statusText}`);
             }
 
             setCreationStep('Finalizing knowledgebase...');
             setCreationProgress(90);
 
             const result = await response.json();
+            console.log('✅ DEBUG: API success response:', result);
 
             setCreationStep('Complete!');
             setCreationProgress(100);
