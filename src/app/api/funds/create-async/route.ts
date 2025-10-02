@@ -117,7 +117,11 @@ export async function POST(request: NextRequest) {
 
     // Upload to S3
     const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3');
+    const { forceIAMRole } = await import('@/lib/force-iam-role');
     const crypto = await import('crypto');
+
+    // CRITICAL: Force IAM role usage in production (prevents SSO errors)
+    forceIAMRole();
 
     const s3Client = new S3Client({
       region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',
