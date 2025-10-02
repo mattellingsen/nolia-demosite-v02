@@ -1,5 +1,10 @@
 // AWS Bedrock Claude integration for RAG-powered AI assessment
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
+import { forceIAMRole } from './force-iam-role';
+
+// CRITICAL: Force IAM role usage in production (prevents SSO errors)
+// This MUST happen before any AWS SDK client initialization
+forceIAMRole();
 
 // Initialize Bedrock client
 const bedrockClient = new BedrockRuntimeClient({

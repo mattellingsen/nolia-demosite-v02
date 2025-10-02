@@ -2,6 +2,11 @@ import { PrismaClient } from '@prisma/client';
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import crypto from 'crypto';
+import { forceIAMRole } from './force-iam-role';
+
+// CRITICAL: Force IAM role usage in production (prevents SSO errors)
+// This MUST happen before any AWS SDK client initialization
+forceIAMRole();
 
 // Global variable to prevent multiple Prisma instances in development
 const globalForPrisma = globalThis as unknown as {
