@@ -4,7 +4,7 @@ import { extractTextFromFile } from '../utils/server-document-analyzer';
 import { claudeService, ClaudeService } from './claude-service';
 import { storeDocumentVector, generateEmbedding, initializeOpenSearchIndex } from './aws-opensearch';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
-import { forceIAMRole } from './force-iam-role';
+import { getAWSCredentials, AWS_REGION, S3_BUCKET } from './aws-credentials';
 
 // Job types
 export type JobType = 'RAG_PROCESSING' | 'DOCUMENT_ANALYSIS';
@@ -470,25 +470,14 @@ export class BackgroundJobService {
    * Extract text from S3 document
    */
   private static async extractTextFromS3Document(s3Key: string): Promise<string> {
-    // CRITICAL: Force IAM role usage in production (prevents SSO errors)
-    forceIAMRole();
-
+    // S3 client with EXPLICIT IAM role credentials
     const s3Client = new S3Client({
-      region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',
-      // Only use explicit credentials in development when they are intentionally set
-      ...(process.env.NODE_ENV === 'development' &&
-          process.env.AWS_ACCESS_KEY_ID &&
-          process.env.AWS_SECRET_ACCESS_KEY &&
-          !process.env.AWS_ACCESS_KEY_ID.startsWith('ASIA') ? {
-        credentials: {
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-        },
-      } : {}),
+      region: AWS_REGION,
+      credentials: getAWSCredentials(),
     });
 
     const command = new GetObjectCommand({
-      Bucket: process.env.S3_BUCKET_DOCUMENTS,
+      Bucket: S3_BUCKET,
       Key: s3Key,
     });
     

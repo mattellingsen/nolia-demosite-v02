@@ -2,11 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import crypto from 'crypto';
-import { forceIAMRole } from './force-iam-role';
-
-// CRITICAL: Force IAM role usage in production (prevents SSO errors)
-// This MUST happen before any AWS SDK client initialization
-forceIAMRole();
+import { getAWSCredentials, AWS_REGION, S3_BUCKET } from './aws-credentials';
 
 // Global variable to prevent multiple Prisma instances in development
 const globalForPrisma = globalThis as unknown as {
@@ -44,24 +40,14 @@ export const prisma =
 // Prevent multiple instances in development
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
-// S3 client configuration - force IAM Role in production, explicit credentials in development
+// S3 client configuration - EXPLICIT IAM role credentials in production
+// This bypasses ALL configuration files and SSO settings
 const s3Client = new S3Client({
-  region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',
-  // Only use explicit credentials in development when they are intentionally set
-  ...(process.env.NODE_ENV === 'development' && 
-      process.env.AWS_ACCESS_KEY_ID && 
-      process.env.AWS_SECRET_ACCESS_KEY && 
-      !process.env.AWS_ACCESS_KEY_ID.startsWith('ASIA') ? {
-    credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    },
-  } : {
-    // In production or when ASIA credentials are detected, force IAM Role by not providing credentials
-  }),
+  region: AWS_REGION,
+  credentials: getAWSCredentials(),
 });
 
-const S3_BUCKET = process.env.S3_BUCKET_DOCUMENTS || 'nolia-funding-documents-ap-southeast-2-599065966827';
+// S3_BUCKET is now imported from aws-credentials.ts
 
 /**
  * Upload file to S3 and return the key
