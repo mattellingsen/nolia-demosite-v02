@@ -5,26 +5,13 @@ import { prisma } from '@/lib/database-s3';
 import { sqsService } from '@/lib/sqs-service';
 import { DocumentType } from '@prisma/client';
 import crypto from 'crypto';
-import { forceIAMRole } from '@/lib/force-iam-role';
+import { getAWSCredentials, AWS_REGION, S3_BUCKET } from '@/lib/aws-credentials';
 
-// CRITICAL: Force IAM role usage in production (prevents SSO errors)
-forceIAMRole();
-
-// S3 client configuration - matches pattern from database-s3.ts
+// S3 client with EXPLICIT IAM role credentials
 const s3Client = new S3Client({
-  region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',
-  ...(process.env.NODE_ENV === 'development' && 
-      process.env.AWS_ACCESS_KEY_ID && 
-      process.env.AWS_SECRET_ACCESS_KEY && 
-      !process.env.AWS_ACCESS_KEY_ID.startsWith('ASIA') ? {
-    credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    },
-  } : {}),
+  region: AWS_REGION,
+  credentials: getAWSCredentials(),
 });
-
-const S3_BUCKET = process.env.S3_BUCKET_DOCUMENTS || 'nolia-funding-documents-ap-southeast-2-599065966827';
 
 interface UploadRequest {
   fundId: string;

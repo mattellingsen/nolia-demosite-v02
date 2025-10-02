@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/database-s3';
 import { JobStatus } from '@prisma/client';
-import { forceIAMRole } from '@/lib/force-iam-role';
-
-// CRITICAL: Force IAM role usage in production (prevents SSO errors)
-forceIAMRole();
 
 /**
  * Serverless-compatible endpoint to process stale PENDING jobs
