@@ -135,25 +135,13 @@ async function processDocumentsWithTimeout(fund: any, timeoutMs: number): Promis
  */
 async function extractTextFromS3Document(s3Key: string): Promise<string> {
   try {
-    // CRITICAL: Force IAM role usage in production (prevents SSO errors)
-    const { forceIAMRole } = await import('./force-iam-role');
-    forceIAMRole();
-
     // Download from S3
     const { S3Client, GetObjectCommand } = await import('@aws-sdk/client-s3');
+    const { getAWSCredentials, AWS_REGION } = await import('./aws-credentials');
+
     const s3Client = new S3Client({
-      region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',
-      // Only use explicit credentials in development when they are intentionally set
-      ...(process.env.NODE_ENV === 'development' &&
-          process.env.AWS_ACCESS_KEY_ID &&
-          process.env.AWS_SECRET_ACCESS_KEY &&
-          !process.env.AWS_ACCESS_KEY_ID.startsWith('ASIA') ? {
-        credentials: {
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-        },
-      } : {}),
-      // In production, omit credentials to use IAM role automatically
+      region: AWS_REGION,
+      credentials: getAWSCredentials(),
     });
     
     const command = new GetObjectCommand({

@@ -117,26 +117,13 @@ export async function POST(request: NextRequest) {
 
     // Upload to S3
     const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3');
-    const { forceIAMRole } = await import('@/lib/force-iam-role');
+    const { getAWSCredentials, AWS_REGION, S3_BUCKET } = await import('@/lib/aws-credentials');
     const crypto = await import('crypto');
 
-    // CRITICAL: Force IAM role usage in production (prevents SSO errors)
-    forceIAMRole();
-
     const s3Client = new S3Client({
-      region: process.env.NOLIA_AWS_REGION || process.env.AWS_REGION || 'ap-southeast-2',
-      ...(process.env.NODE_ENV === 'development' && 
-          process.env.AWS_ACCESS_KEY_ID && 
-          process.env.AWS_SECRET_ACCESS_KEY && 
-          !process.env.AWS_ACCESS_KEY_ID.startsWith('ASIA') ? {
-        credentials: {
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-        },
-      } : {}),
+      region: AWS_REGION,
+      credentials: getAWSCredentials(),
     });
-
-    const S3_BUCKET = process.env.S3_BUCKET_DOCUMENTS || 'nolia-funding-documents-ap-southeast-2-599065966827';
     const documentRecords = [];
 
     for (const doc of documentsToProcess) {
