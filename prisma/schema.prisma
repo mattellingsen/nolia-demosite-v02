@@ -23,6 +23,7 @@ model Fund {
   brainVersion              Int             @default(1)
   fundBrain                 Json?
   outputTemplatesAnalysis   Json?
+  openSearchIndex           String?         // OpenSearch index name for RAG embeddings
   backgroundJobs            BackgroundJob[]
   documents                 FundDocument[]
   assessments               Assessment[]

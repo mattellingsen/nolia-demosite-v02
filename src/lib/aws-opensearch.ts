@@ -15,7 +15,16 @@ const openSearchClient = new OpenSearchClient({
 
 // OpenSearch configuration
 const OPENSEARCH_ENDPOINT = process.env.OPENSEARCH_ENDPOINT || 'https://search-nolia-funding-rag.us-east-1.es.amazonaws.com';
-const INDEX_NAME = 'funding-documents';
+
+// Generate index name based on module type
+function getIndexName(moduleType: 'FUNDING' | 'PROCUREMENT' | 'PROCUREMENT_ADMIN' = 'FUNDING'): string {
+  const indexMap = {
+    'FUNDING': 'funding-documents',
+    'PROCUREMENT': 'procurement-documents',
+    'PROCUREMENT_ADMIN': 'procurement-admin-documents'
+  };
+  return indexMap[moduleType];
+}
 
 export interface DocumentVector {
   id: string;
@@ -24,6 +33,7 @@ export interface DocumentVector {
   filename: string;
   content: string;
   embedding: number[];
+  moduleType?: 'FUNDING' | 'PROCUREMENT' | 'PROCUREMENT_ADMIN'; // For index routing
   metadata: {
     uploadedAt: string;
     fileSize: number;
@@ -45,7 +55,8 @@ export interface SearchResult {
  */
 export async function storeDocumentVector(document: DocumentVector): Promise<void> {
   try {
-    const response = await fetch(`${OPENSEARCH_ENDPOINT}/${INDEX_NAME}/_doc/${document.id}`, {
+    const indexName = getIndexName(document.moduleType || 'FUNDING');
+    const response = await fetch(`${OPENSEARCH_ENDPOINT}/${indexName}/_doc/${document.id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -57,17 +68,19 @@ export async function storeDocumentVector(document: DocumentVector): Promise<voi
         filename: document.filename,
         content: document.content,
         embedding: document.embedding,
+        moduleType: document.moduleType || 'FUNDING',
         metadata: document.metadata,
         timestamp: new Date().toISOString(),
       }),
     });
-    
+
     if (!response.ok) {
-      throw new Error(`Failed to store document: ${response.statusText}`);
+      const errorText = await response.text();
+      throw new Error(`Failed to store document: ${response.statusText} - ${errorText}`);
     }
-    
-    console.log(`Stored document vector: ${document.id}`);
-    
+
+    console.log(`Stored document vector in ${indexName}: ${document.id}`);
+
   } catch (error) {
     console.error('Error storing document vector:', error);
     throw error;
@@ -81,7 +94,8 @@ export async function searchRelevantDocuments(
   queryEmbedding: number[],
   fundId: string,
   documentTypes?: string[],
-  limit: number = 5
+  limit: number = 5,
+  moduleType: 'FUNDING' | 'PROCUREMENT' | 'PROCUREMENT_ADMIN' = 'FUNDING'
 ): Promise<SearchResult[]> {
   try {
     const mustClauses = [
@@ -116,7 +130,8 @@ export async function searchRelevantDocuments(
       _source: ['fundId', 'documentType', 'filename', 'content', 'metadata']
     };
     
-    const response = await fetch(`${OPENSEARCH_ENDPOINT}/${INDEX_NAME}/_search`, {
+    const indexName = getIndexName(moduleType);
+    const response = await fetch(`${OPENSEARCH_ENDPOINT}/${indexName}/_search`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -173,8 +188,9 @@ export async function getFundGoodExamples(fundId: string): Promise<SearchResult[
 /**
  * Initialize OpenSearch index with proper mappings
  */
-export async function initializeOpenSearchIndex(): Promise<void> {
+export async function initializeOpenSearchIndex(moduleType: 'FUNDING' | 'PROCUREMENT' | 'PROCUREMENT_ADMIN' = 'FUNDING'): Promise<void> {
   try {
+    const indexName = getIndexName(moduleType);
     const indexMapping = {
       mappings: {
         properties: {
@@ -186,6 +202,7 @@ export async function initializeOpenSearchIndex(): Promise<void> {
             type: 'knn_vector',
             dimension: 1536, // OpenAI embedding dimension
           },
+          moduleType: { type: 'keyword' },
           metadata: {
             properties: {
               uploadedAt: { type: 'date' },
@@ -203,8 +220,8 @@ export async function initializeOpenSearchIndex(): Promise<void> {
         }
       }
     };
-    
-    const response = await fetch(`${OPENSEARCH_ENDPOINT}/${INDEX_NAME}`, {
+
+    const response = await fetch(`${OPENSEARCH_ENDPOINT}/${indexName}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -212,13 +229,14 @@ export async function initializeOpenSearchIndex(): Promise<void> {
       },
       body: JSON.stringify(indexMapping),
     });
-    
+
     if (!response.ok && response.status !== 400) { // 400 = index already exists
-      throw new Error(`Failed to create index: ${response.statusText}`);
+      const errorText = await response.text();
+      throw new Error(`Failed to create index ${indexName}: ${response.statusText} - ${errorText}`);
     }
-    
-    console.log('OpenSearch index initialized successfully');
-    
+
+    console.log(`OpenSearch index ${indexName} initialized successfully`);
+
   } catch (error) {
     console.error('Error initializing OpenSearch index:', error);
     throw error;
