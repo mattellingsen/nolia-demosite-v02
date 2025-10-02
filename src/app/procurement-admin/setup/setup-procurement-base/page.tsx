@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Edit05, Settings01, FileCheck02, Shield01, Building02, BookOpen01 } from "@untitledui/icons";
+import { ArrowLeft, Edit05, Settings01, FileCheck02, Shield01, Building02, BookOpen01, UploadCloud01, CheckCircle, Database02 } from "@untitledui/icons";
 import { SidebarNavigationSlim } from "@/components/application/app-navigation/sidebar-navigation/sidebar-slim";
 import { Button } from "@/components/base/buttons/button";
 
 import { Progress } from "@/components/application/progress-steps/progress-steps";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
+import { ProgressBar } from "@/components/base/progress-indicators/progress-indicators";
 
 import { Step1UploadPolicies } from "./components/step-1-upload-policies";
 
@@ -39,6 +40,9 @@ interface FormBuilderState {
 
 const SetupProcurementBasePage = () => {
     const router = useRouter();
+    const [isCreating, setIsCreating] = useState(false);
+    const [creationStep, setCreationStep] = useState('');
+    const [creationProgress, setCreationProgress] = useState(0);
     const [formData, setFormData] = useState<FormBuilderState>({
         policies: [],
         complianceDocs: [],
@@ -67,6 +71,10 @@ const SetupProcurementBasePage = () => {
 
     const handleCreateBase = async () => {
         try {
+            setIsCreating(true);
+            setCreationStep('Preparing documents...');
+            setCreationProgress(10);
+
             // Convert files to base64 for API
             const fileToBase64 = (file: File): Promise<string> => {
                 return new Promise((resolve, reject) => {
@@ -82,6 +90,9 @@ const SetupProcurementBasePage = () => {
                 });
             };
 
+            setCreationStep('Converting documents...');
+            setCreationProgress(25);
+
             // Prepare base data
             const baseData: any = {
                 name: formData.baseName || 'Untitled Knowledgebase',
@@ -91,15 +102,25 @@ const SetupProcurementBasePage = () => {
 
             // Add all files as policy files (since we now have just one upload step)
             if (formData.policies?.length > 0) {
+                const totalFiles = formData.policies.length;
                 baseData.policyFiles = await Promise.all(
-                    formData.policies.map(async (file: File) => ({
-                        filename: file.name,
-                        mimeType: file.type,
-                        fileSize: file.size,
-                        content: await fileToBase64(file)
-                    }))
+                    formData.policies.map(async (file: File, index: number) => {
+                        const content = await fileToBase64(file);
+                        const progress = 25 + Math.floor((index + 1) / totalFiles * 40);
+                        setCreationStep(`Processing document ${index + 1} of ${totalFiles}...`);
+                        setCreationProgress(progress);
+                        return {
+                            filename: file.name,
+                            mimeType: file.type,
+                            fileSize: file.size,
+                            content
+                        };
+                    })
                 );
             }
+
+            setCreationStep('Uploading to cloud...');
+            setCreationProgress(70);
 
             // Call async base creation API
             const response = await fetch('/api/procurement-base/create-async', {
@@ -114,13 +135,23 @@ const SetupProcurementBasePage = () => {
                 throw new Error('Failed to create knowledgebase');
             }
 
+            setCreationStep('Finalizing knowledgebase...');
+            setCreationProgress(90);
+
             const result = await response.json();
+
+            setCreationStep('Complete!');
+            setCreationProgress(100);
+
+            // Small delay to show completion state
+            await new Promise(resolve => setTimeout(resolve, 500));
 
             // Redirect to base completion page
             router.push(`/procurement-admin/base-created?baseId=${result.base.id}`);
 
         } catch (error) {
             console.error('Error creating knowledgebase:', error);
+            setIsCreating(false);
             alert('Failed to create knowledgebase. Please try again.');
         }
     };
@@ -136,22 +167,63 @@ const SetupProcurementBasePage = () => {
     };
 
     return (
-        <div className="flex flex-col bg-primary lg:flex-row">
-            <SidebarNavigationSlim
-                activeUrl="/procurement-admin/setup"
-                items={[
-                    {
-                        label: "Setup",
-                        href: "/procurement-admin/setup",
-                        icon: Edit05,
-                    },
-                    {
-                        label: "Settings",
-                        href: "/procurement-admin/settings",
-                        icon: Settings01,
-                    },
-                ]}
-            />
+        <>
+            {/* Creation Progress Modal */}
+            {isCreating && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                    <div className="w-full max-w-md rounded-lg border border-secondary bg-primary p-8 shadow-xl">
+                        <div className="flex flex-col items-center gap-6">
+                            <FeaturedIcon
+                                size="xl"
+                                color="brand"
+                                theme="light"
+                                icon={creationProgress === 100 ? CheckCircle : UploadCloud01}
+                                className={creationProgress < 100 ? "animate-pulse" : ""}
+                            />
+
+                            <div className="w-full space-y-3">
+                                <h3 className="text-center text-lg font-semibold text-primary">
+                                    {creationProgress === 100 ? 'Knowledgebase Created!' : 'Creating Knowledgebase'}
+                                </h3>
+                                <p className="text-center text-sm text-secondary">
+                                    {creationStep}
+                                </p>
+
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between text-sm">
+                                        <span className="text-tertiary">Progress</span>
+                                        <span className="font-medium text-primary">{creationProgress}%</span>
+                                    </div>
+                                    <ProgressBar value={creationProgress} className="h-2" />
+                                </div>
+                            </div>
+
+                            {creationProgress < 100 && (
+                                <p className="text-center text-xs text-tertiary">
+                                    Please wait while we process your documents and set up the knowledge base...
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <div className="flex flex-col bg-primary lg:flex-row">
+                <SidebarNavigationSlim
+                    activeUrl="/procurement-admin/setup"
+                    items={[
+                        {
+                            label: "Setup",
+                            href: "/procurement-admin/setup",
+                            icon: Edit05,
+                        },
+                        {
+                            label: "Settings",
+                            href: "/procurement-admin/settings",
+                            icon: Settings01,
+                        },
+                    ]}
+                />
             <main className="flex min-w-0 flex-1 flex-col gap-8 pt-8 pb-12">
                 {/* Header */}
                 <div className="px-4 lg:px-8">
@@ -231,6 +303,7 @@ const SetupProcurementBasePage = () => {
                 </div>
             </div>
         </div>
+        </>
     );
 };
 
