@@ -74,8 +74,11 @@ function BaseCreatedContent() {
                 throw new Error(data.error || 'Failed to fetch job status');
             }
 
-            // Get the current processing job (DOCUMENT_ANALYSIS or RAG_PROCESSING)
-            const currentJob = data.jobs && data.jobs.length > 0 ? data.jobs[0] : null;
+            // Get the RAG_PROCESSING job (prioritize over DOCUMENT_ANALYSIS)
+            // RAG_PROCESSING is the actual brain building job we care about
+            const currentJob = data.jobs?.find((job: any) => job.type === 'RAG_PROCESSING') ||
+                              data.jobs?.[0] ||
+                              null;
 
             // Map API response to our interface
             const mappedStatus: ProcessingStatus = {
