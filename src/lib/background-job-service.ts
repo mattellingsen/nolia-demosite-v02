@@ -197,8 +197,17 @@ export class BackgroundJobService {
         progress: 100,
         completedAt: new Date()
       });
-      
-      console.log(`RAG job ${jobId} completed successfully`);
+
+      // Update fund status to ACTIVE when RAG processing completes
+      await prisma.fund.update({
+        where: { id: job.fundId },
+        data: {
+          status: 'ACTIVE',
+          brainAssembledAt: new Date()
+        }
+      });
+
+      console.log(`RAG job ${jobId} completed successfully - Fund ${job.fundId} status updated to ACTIVE`);
       
     } catch (error) {
       console.error(`RAG job ${jobId} failed:`, error);
@@ -284,15 +293,24 @@ export class BackgroundJobService {
       
       // Update fund with analysis results (fetch from database records)
       await this.updateFundAnalysisFromDocuments(job.fundId);
-      
+
       // Mark job as completed
       await this.updateJob(jobId, {
         status: 'COMPLETED',
         progress: 100,
         completedAt: new Date()
       });
-      
-      console.log(`Async job ${jobId} completed successfully`);
+
+      // Update fund status to ACTIVE when RAG processing completes
+      await prisma.fund.update({
+        where: { id: job.fundId },
+        data: {
+          status: 'ACTIVE',
+          brainAssembledAt: new Date()
+        }
+      });
+
+      console.log(`Async job ${jobId} completed successfully - Fund ${job.fundId} status updated to ACTIVE`);
       
     } catch (error) {
       console.error(`Async job ${jobId} failed:`, error);
