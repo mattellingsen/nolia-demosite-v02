@@ -39,6 +39,25 @@ export async function GET(
       governanceRules: documentCounts.find(d => d.documentType === 'OUTPUT_TEMPLATES')?._count.id || 0,
     };
 
+    // Get individual document details for display
+    const documents = await prisma.fundDocument.findMany({
+      where: {
+        fundId: baseId,
+        moduleType: 'PROCUREMENT_ADMIN'
+      },
+      select: {
+        id: true,
+        filename: true,
+        fileSize: true,
+        mimeType: true,
+        documentType: true,
+        uploadedAt: true
+      },
+      orderBy: {
+        uploadedAt: 'asc'
+      }
+    });
+
     // Check if base has a brain already
     const base = await prisma.fund.findUnique({
       where: { id: baseId },
@@ -123,6 +142,14 @@ export async function GET(
       baseDescription: base.description,
       baseStatus: base.status,
       documentsUploaded,
+      documents: documents.map(doc => ({
+        id: doc.id,
+        filename: doc.filename,
+        fileSize: doc.fileSize,
+        mimeType: doc.mimeType,
+        documentType: doc.documentType,
+        uploadedAt: doc.uploadedAt.toISOString()
+      })),
       jobs: jobs.map(job => ({
         id: job.id,
         type: job.type,

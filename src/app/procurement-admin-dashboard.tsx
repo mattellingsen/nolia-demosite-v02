@@ -165,65 +165,61 @@ export const ProcurementAdminSetupDashboard = () => {
                     ) : (
                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                             {bases.map((base: any, index: number) => (
-                                <div
-                                    key={base.id}
-                                    onClick={() => handleBaseCardClick(base.id)}
-                                    className="relative cursor-pointer rounded-lg border border-secondary bg-primary p-6 transition-all hover:shadow-lg"
-                                >
-                                    {/* Gradient header */}
-                                    <div
-                                        className={cx(
-                                            "absolute inset-x-0 top-0 h-24 rounded-t-lg bg-gradient-to-br opacity-20",
-                                            generateGradient(index)
-                                        )}
-                                    />
+                                <div key={base.id} className="w-full h-50 relative flex cursor-pointer hover:opacity-90 transition-opacity" onClick={() => handleBaseCardClick(base.id)}>
+                                    <div className={`w-full h-full relative overflow-hidden rounded-2xl p-4 bg-linear-to-b ${generateGradient(index)} before:pointer-events-none before:absolute before:inset-0 before:z-1 before:rounded-[inherit] before:mask-linear-135 before:mask-linear-to-white/20 before:ring-1 before:ring-white/30 before:ring-inset`}>
+                                        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-5/6 bg-gray-800 rounded-b-2xl"></div>
 
-                                    <div className="relative">
-                                        <div className="flex items-start justify-between">
-                                            <div>
-                                                <h3 className="font-semibold text-primary">{base.name}</h3>
-                                                <p className="mt-1 text-sm text-tertiary">
+                                        <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-3">
+                                            <div className="flex min-w-0 flex-col">
+                                                <div className="text-md leading-[normal] font-semibold text-white mb-1">{base.name}</div>
+                                                <p className="text-xs text-white/70 mb-3">
                                                     {base.documentsCount || 0} documents
                                                 </p>
+                                                {base.description && (
+                                                    <p className="text-xs leading-snug font-light text-white mb-5 line-clamp-2" style={{wordBreak: "break-word"}}>
+                                                        {base.description}
+                                                    </p>
+                                                )}
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                                        base.status === 'ACTIVE' ? 'bg-green-500/20 text-green-200' :
+                                                        base.status === 'DRAFT' ? 'bg-yellow-500/20 text-yellow-200' :
+                                                        'bg-gray-500/20 text-gray-200'
+                                                    }`}>
+                                                        {base.status}
+                                                    </span>
+                                                    <span className="text-xs text-white/70">
+                                                        {formatDate(new Date(base.createdAt).getTime())}
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <div className="flex gap-2">
-                                                <ButtonUtility
-                                                    size="sm"
-                                                    iconLeading={Trash01}
-                                                    onClick={(e) => handleDeleteBase(base.id, e)}
-                                                    color="error"
-                                                />
-                                            </div>
+                                            <ButtonUtility
+                                                size="xs"
+                                                color="tertiary"
+                                                tooltip="Delete"
+                                                icon={Trash01}
+                                                className="text-white hover:text-gray-200 !bg-transparent !border-0"
+                                                onClick={(e) => handleDeleteBase(base.id, e)}
+                                                isDisabled={deleteProcurementBase.isPending}
+                                            />
                                         </div>
-
-                                        <div className="mt-4 flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <span
-                                                    className={cx(
-                                                        "inline-flex items-center rounded-full px-2 py-1 text-xs font-medium",
-                                                        base.status === 'ACTIVE'
-                                                            ? "bg-success-50 text-success-700"
-                                                            : base.status === 'DRAFT'
-                                                            ? "bg-warning-50 text-warning-700"
-                                                            : "bg-gray-50 text-gray-700"
-                                                    )}
-                                                >
-                                                    {base.status}
-                                                </span>
-                                            </div>
-                                            <p className="text-xs text-tertiary">
-                                                {formatDate(new Date(base.createdAt).getTime())}
-                                            </p>
-                                        </div>
-
-                                        {base.description && (
-                                            <p className="mt-3 line-clamp-2 text-sm text-tertiary">
-                                                {base.description}
-                                            </p>
-                                        )}
                                     </div>
                                 </div>
                             ))}
+
+                            {/* Setup new global knowledgebase card */}
+                            <a href="/procurement-admin/setup/setup-procurement-base" className="w-full h-50 relative flex cursor-pointer hover:opacity-90 transition-opacity">
+                                <div className="w-full h-full flex flex-col justify-center items-center overflow-hidden rounded-2xl p-4 bg-gray-800">
+                                    <div className="flex flex-col items-center justify-center gap-3 text-center">
+                                        <div className="rounded-full bg-white bg-opacity-20 p-3">
+                                            <Plus className="w-8 h-8 text-gray-800" />
+                                        </div>
+                                        <p className="text-sm font-semibold text-white">
+                                            Setup new Global Knowledgebase
+                                        </p>
+                                    </div>
+                                </div>
+                            </a>
                         </div>
                     )}
                 </div>

@@ -36,6 +36,14 @@ interface ProcessingStatus {
         standardTemplates: number;
         governanceRules: number;
     };
+    documents: Array<{
+        id: string;
+        filename: string;
+        fileSize: number;
+        mimeType: string;
+        documentType: string;
+        uploadedAt: string;
+    }>;
     brainBuilding: {
         status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
         progress: number;
@@ -74,11 +82,89 @@ function BaseCreatedContent() {
                 throw new Error(data.error || 'Failed to fetch job status');
             }
 
-            // Get the RAG_PROCESSING job (prioritize over DOCUMENT_ANALYSIS)
-            // RAG_PROCESSING is the actual brain building job we care about
-            const currentJob = data.jobs?.find((job: any) => job.type === 'RAG_PROCESSING') ||
-                              data.jobs?.[0] ||
-                              null;
+            // Get both job types to calculate overall progress
+            const docAnalysisJob = data.jobs?.find((job: any) => job.type === 'DOCUMENT_ANALYSIS');
+            const ragJob = data.jobs?.find((job: any) => job.type === 'RAG_PROCESSING');
+
+            // Calculate multi-phase progress (Upload: 20%, Analysis: 40%, RAG: 40%)
+            const calculateOverallProgress = (): number => {
+                // Phase 1: Documents uploaded (20%)
+                const uploadProgress = data.jobs?.length > 0 ? 20 : 0;
+
+                // Phase 2: Document Analysis (20-60%, contributes 40%)
+                let analysisProgress = 0;
+                if (docAnalysisJob?.status === 'COMPLETED') {
+                    analysisProgress = 40;
+                } else if (docAnalysisJob?.status === 'PROCESSING') {
+                    // Estimate progress based on processed documents
+                    const docProgress = docAnalysisJob.processedDocuments && docAnalysisJob.totalDocuments
+                        ? (docAnalysisJob.processedDocuments / docAnalysisJob.totalDocuments)
+                        : 0;
+                    analysisProgress = docProgress * 40;
+                }
+
+                // Phase 3: RAG Processing (60-100%, contributes 40%)
+                let ragProgress = 0;
+                if (ragJob?.status === 'COMPLETED') {
+                    ragProgress = 40;
+                } else if (ragJob?.status === 'PROCESSING') {
+                    const ragPercent = ragJob.progress || 0;
+                    ragProgress = (ragPercent / 100) * 40;
+                }
+
+                return Math.round(uploadProgress + analysisProgress + ragProgress);
+            };
+
+            // Determine current phase and task message
+            const getCurrentPhase = (): { task: string; status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' } => {
+                // Check for failures first
+                if (docAnalysisJob?.status === 'FAILED') {
+                    return { task: 'Document analysis failed', status: 'FAILED' };
+                }
+                if (ragJob?.status === 'FAILED') {
+                    return { task: 'Knowledge base building failed', status: 'FAILED' };
+                }
+
+                // Phase 3: RAG Processing
+                if (ragJob?.status === 'COMPLETED') {
+                    return { task: 'Knowledge base completed', status: 'COMPLETED' };
+                }
+                if (ragJob?.status === 'PROCESSING') {
+                    const processed = ragJob.processedDocuments || 0;
+                    const total = ragJob.totalDocuments || 0;
+                    return {
+                        task: `Building knowledge base... (${processed}/${total} documents)`,
+                        status: 'PROCESSING'
+                    };
+                }
+
+                // Phase 2: Document Analysis
+                if (docAnalysisJob?.status === 'COMPLETED') {
+                    return { task: 'Documents analyzed, starting knowledge base...', status: 'PROCESSING' };
+                }
+                if (docAnalysisJob?.status === 'PROCESSING') {
+                    const processed = docAnalysisJob.processedDocuments || 0;
+                    const total = docAnalysisJob.totalDocuments || 0;
+                    return {
+                        task: `Analyzing documents... (${processed}/${total} processed)`,
+                        status: 'PROCESSING'
+                    };
+                }
+
+                // Phase 1: Upload complete, waiting for analysis
+                if (data.jobs?.length > 0) {
+                    return { task: 'Documents uploaded successfully, preparing analysis...', status: 'PROCESSING' };
+                }
+
+                // Initial state
+                return { task: 'Waiting to start...', status: 'PENDING' };
+            };
+
+            const currentPhase = getCurrentPhase();
+            const overallProgress = calculateOverallProgress();
+
+            // Get error message from either job
+            const errorMessage = docAnalysisJob?.errorMessage || ragJob?.errorMessage;
 
             // Map API response to our interface
             const mappedStatus: ProcessingStatus = {
@@ -87,18 +173,15 @@ function BaseCreatedContent() {
                 baseDescription: data.baseDescription,
                 status: mapBaseStatus(data.baseStatus, data.overallStatus),
                 documentsUploaded: data.documentsUploaded,
-                brainBuilding: currentJob ? {
-                    status: mapJobStatus(currentJob.status),
-                    progress: currentJob.progress || 0,
-                    currentTask: getCurrentTask(currentJob),
-                    estimatedCompletion: currentJob.estimatedCompletion,
-                    processedDocuments: currentJob.processedDocuments,
-                    totalDocuments: currentJob.totalDocuments,
-                    errorMessage: currentJob.errorMessage
-                } : {
-                    status: 'PENDING',
-                    progress: 0,
-                    currentTask: 'Waiting to start...'
+                documents: data.documents || [],
+                brainBuilding: {
+                    status: currentPhase.status,
+                    progress: overallProgress,
+                    currentTask: currentPhase.task,
+                    estimatedCompletion: ragJob?.estimatedCompletion,
+                    processedDocuments: ragJob?.processedDocuments || docAnalysisJob?.processedDocuments,
+                    totalDocuments: ragJob?.totalDocuments || docAnalysisJob?.totalDocuments,
+                    errorMessage: errorMessage
                 },
                 createdAt: data.createdAt
             };
@@ -143,25 +226,6 @@ function BaseCreatedContent() {
         }
     };
 
-    const getCurrentTask = (job: any): string => {
-        if (!job) return 'Waiting to start...';
-
-        switch (job.status) {
-            case 'PROCESSING':
-                if (job.type === 'DOCUMENT_ANALYSIS') {
-                    return `Analyzing documents... (${job.processedDocuments || 0}/${job.totalDocuments || 0})`;
-                } else if (job.type === 'RAG_PROCESSING') {
-                    return 'Building knowledge base...';
-                }
-                return 'Processing...';
-            case 'COMPLETED':
-                return 'Brain assembly completed';
-            case 'FAILED':
-                return 'Processing failed';
-            default:
-                return 'Waiting to start...';
-        }
-    };
 
     const getStatusColor = () => {
         if (!status) return 'gray';
@@ -334,62 +398,23 @@ function BaseCreatedContent() {
                             {/* Documents Uploaded */}
                             <div className="rounded-lg border border-secondary bg-primary p-6">
                                 <h3 className="text-lg font-semibold text-primary mb-4">
-                                    Documents Uploaded ({Object.values(status.documentsUploaded).reduce((sum, count) => sum + count, 0)})
+                                    Documents Uploaded ({status.documents.length})
                                 </h3>
-                                {Object.values(status.documentsUploaded).reduce((sum, count) => sum + count, 0) > 0 ? (
+                                {status.documents.length > 0 ? (
                                     <div className="space-y-2">
-                                        {status.documentsUploaded.policies > 0 && (
-                                            <div className="flex items-center justify-between rounded-lg border border-secondary p-3">
+                                        {status.documents.map((doc) => (
+                                            <div key={doc.id} className="flex items-center justify-between rounded-lg border border-secondary p-3">
                                                 <div className="flex items-center gap-3">
                                                     <File02 className="size-5 text-tertiary" />
                                                     <div>
-                                                        <p className="text-sm font-medium text-primary">
-                                                            {status.documentsUploaded.policies} Policy Document{status.documentsUploaded.policies > 1 ? 's' : ''}
+                                                        <p className="text-sm font-medium text-primary">{doc.filename}</p>
+                                                        <p className="text-xs text-tertiary">
+                                                            {(doc.fileSize / 1024).toFixed(1)} KB
                                                         </p>
-                                                        <p className="text-xs text-tertiary">Processed and indexed</p>
                                                     </div>
                                                 </div>
                                             </div>
-                                        )}
-                                        {status.documentsUploaded.complianceDocs > 0 && (
-                                            <div className="flex items-center justify-between rounded-lg border border-secondary p-3">
-                                                <div className="flex items-center gap-3">
-                                                    <File02 className="size-5 text-tertiary" />
-                                                    <div>
-                                                        <p className="text-sm font-medium text-primary">
-                                                            {status.documentsUploaded.complianceDocs} Compliance Document{status.documentsUploaded.complianceDocs > 1 ? 's' : ''}
-                                                        </p>
-                                                        <p className="text-xs text-tertiary">Processed and indexed</p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-                                        {status.documentsUploaded.standardTemplates > 0 && (
-                                            <div className="flex items-center justify-between rounded-lg border border-secondary p-3">
-                                                <div className="flex items-center gap-3">
-                                                    <File02 className="size-5 text-tertiary" />
-                                                    <div>
-                                                        <p className="text-sm font-medium text-primary">
-                                                            {status.documentsUploaded.standardTemplates} Standard Template{status.documentsUploaded.standardTemplates > 1 ? 's' : ''}
-                                                        </p>
-                                                        <p className="text-xs text-tertiary">Processed and indexed</p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-                                        {status.documentsUploaded.governanceRules > 0 && (
-                                            <div className="flex items-center justify-between rounded-lg border border-secondary p-3">
-                                                <div className="flex items-center gap-3">
-                                                    <File02 className="size-5 text-tertiary" />
-                                                    <div>
-                                                        <p className="text-sm font-medium text-primary">
-                                                            {status.documentsUploaded.governanceRules} Governance Document{status.documentsUploaded.governanceRules > 1 ? 's' : ''}
-                                                        </p>
-                                                        <p className="text-xs text-tertiary">Processed and indexed</p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
+                                        ))}
                                     </div>
                                 ) : (
                                     <p className="text-sm text-tertiary">No documents uploaded yet</p>
