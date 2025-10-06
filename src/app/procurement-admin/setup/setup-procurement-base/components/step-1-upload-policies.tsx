@@ -132,7 +132,7 @@ export const Step1UploadPolicies: React.FC<Step1Props> = ({
                             value={formData.baseName || ''}
                             onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleBaseNameChange(e.target.value)}
                             error={baseNameError}
-                            success={nameAvailable === true}
+                            success={nameAvailable === true ? true : undefined}
                             hint={
                                 isCheckingName ? "Checking availability..." :
                                 nameAvailable === true ? "This name is available" :

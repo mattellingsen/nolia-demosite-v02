@@ -189,7 +189,7 @@ const ApplicationsUploadPage = () => {
                 return (
                     <AssessmentProcessor
                         files={uploadedFiles}
-                        selectedTender={selectedTender}
+                        selectedFund={selectedTender}
                         onAssessmentComplete={handleAssessmentComplete}
                     />
                 );

@@ -1,12 +1,10 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { UploadCloud01, Target01, ArrowRight, ArrowLeft, CheckCircle, AlertCircle, Trash01, Plus, Award01 } from "@untitledui/icons";
+import { UploadCloud01, Target01, ArrowRight, ArrowLeft, CheckCircle, AlertCircle, Trash01, Plus, File02 } from "@untitledui/icons";
 import { Button } from "@/components/base/buttons/button";
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
 import { FileUpload } from "@/components/application/file-upload/file-upload-base";
-import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
-import { analyzeGoodExamplesViaAPI } from "@/lib/api-client";
 
 interface Step3Props {
     formData: any;
@@ -15,59 +13,18 @@ interface Step3Props {
     onPrevious: () => void;
 }
 
-interface ExampleAnalysis {
-    examplesAnalyzed: number;
-    averageScore: number;
-    qualityIndicators: {
-        name: string;
-        score: number;
-        description: string;
-    }[];
-    writingPatterns: string[];
-    commonStrengths: string[];
-}
-
-export const Step3GoodExamples: React.FC<Step3Props> = ({ 
-    formData, 
-    updateFormData, 
+export const Step3GoodExamples: React.FC<Step3Props> = ({
+    formData,
+    updateFormData,
     onNext,
     onPrevious
 }) => {
-    const [isDragActive, setIsDragActive] = useState(false);
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [analysis, setAnalysis] = useState<ExampleAnalysis | null>(null);
     const [uploadError, setUploadError] = useState<string>('');
-
-    const analyzeExamples = async (files: File[]) => {
-        setIsAnalyzing(true);
-        setUploadError('');
-        
-        try {
-            // Use real API to analyze good examples
-            const analysisResult = await analyzeGoodExamplesViaAPI(files);
-            
-            // Map the API response to our component's expected format
-            const mappedAnalysis: ExampleAnalysis = {
-                examplesAnalyzed: analysisResult.examplesAnalyzed || files.length,
-                averageScore: analysisResult.averageScore || 75,
-                qualityIndicators: analysisResult.qualityIndicators || [],
-                writingPatterns: analysisResult.writingPatterns || [],
-                commonStrengths: analysisResult.commonStrengths || []
-            };
-            
-            setAnalysis(mappedAnalysis);
-            updateFormData({ goodExamplesAnalysis: mappedAnalysis });
-        } catch (error) {
-            console.error('Good examples analysis error:', error);
-            setUploadError('Failed to analyze good examples. Please try again.');
-        } finally {
-            setIsAnalyzing(false);
-        }
-    };
+    const [isUploading, setIsUploading] = useState(false);
 
     const handleFileUpload = useCallback(async (files: FileList) => {
         const fileArray = Array.from(files);
-        
+
         // Validate file types
         const allowedTypes = [
             'application/pdf',
@@ -82,28 +39,34 @@ export const Step3GoodExamples: React.FC<Step3Props> = ({
             return;
         }
 
-        // Validate file sizes (15MB limit each for examples)
-        const oversizedFiles = fileArray.filter(file => file.size > 15 * 1024 * 1024);
+        // Validate file sizes (10MB limit each)
+        const oversizedFiles = fileArray.filter(file => file.size > 10 * 1024 * 1024);
         if (oversizedFiles.length > 0) {
-            setUploadError('Some files exceed 15MB limit. Please reduce file sizes.');
+            setUploadError('Some files exceed 10MB limit. Please reduce file sizes.');
             return;
         }
 
-        const existingFiles = formData.goodExamples || [];
-        const updatedFiles = [...existingFiles, ...fileArray];
-        updateFormData({ goodExamples: updatedFiles });
-        await analyzeExamples(updatedFiles);
+        setIsUploading(true);
+        try {
+            const existingFiles = formData.goodExamples || [];
+            const updatedFiles = [...existingFiles, ...fileArray];
+            updateFormData({
+                goodExamples: updatedFiles,
+                goodExamplesAnalysis: {
+                    status: 'uploaded'
+                }
+            });
+        } catch (error) {
+            console.error('Error uploading documents:', error);
+            setUploadError('Failed to upload documents. Please try again.');
+        } finally {
+            setIsUploading(false);
+        }
     }, [formData.goodExamples, updateFormData]);
 
     const removeFile = (index: number) => {
         const updatedFiles = formData.goodExamples.filter((_: any, i: number) => i !== index);
         updateFormData({ goodExamples: updatedFiles });
-        
-        if (updatedFiles.length === 0) {
-            setAnalysis(null);
-        } else {
-            analyzeExamples(updatedFiles);
-        }
     };
 
     const handleDragEnter = useCallback((e: React.DragEvent) => {
@@ -149,11 +112,11 @@ export const Step3GoodExamples: React.FC<Step3Props> = ({
             <div className="text-center space-y-4">
                 <div>
                     <h2 className="text-display-sm font-semibold text-primary mb-2">
-                        Upload Good Examples
+                        Upload Supporting Documents
                     </h2>
                     <p className="text-lg text-secondary max-w-2xl mx-auto">
-                        Upload examples of high-quality applications that meet your standards. The AI will 
-                        learn from these to set quality expectations and guide applicants.
+                        Upload supporting RFP documentation such as scoring rubrics, evaluation frameworks,
+                        clarification documents (Q&A), response forms, and budget guidelines.
                     </p>
                 </div>
             </div>
@@ -161,12 +124,12 @@ export const Step3GoodExamples: React.FC<Step3Props> = ({
             {/* Current Files */}
             {hasFiles && (
                 <div className="bg-gray-50 rounded-lg p-6 space-y-4">
-                    <h3 className="text-md font-semibold text-primary">Uploaded Example Applications</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <h3 className="text-md font-semibold text-primary">Uploaded Supporting Documents</h3>
+                    <div className="space-y-3">
                         {formData.goodExamples.map((file: File, index: number) => (
                             <div key={index} className="flex items-center justify-between bg-white p-4 rounded-lg border border-gray-200">
                                 <div className="flex items-center gap-3">
-                                    <FeaturedIcon size="sm" color="success" theme="light" icon={Award01} />
+                                    <FeaturedIcon size="sm" color="gray" theme="light" icon={File02} />
                                     <div>
                                         <p className="text-sm font-medium text-primary">{file.name}</p>
                                         <p className="text-xs text-secondary">{Math.round(file.size / 1024)} KB</p>
@@ -186,125 +149,18 @@ export const Step3GoodExamples: React.FC<Step3Props> = ({
                 </div>
             )}
 
-            {/* Analysis Results */}
-            {analysis && hasFiles && (
-                <div className="bg-gray-50 rounded-lg p-6 space-y-6">
-                    {/* Show warning if fallback analysis was used */}
-                    {(analysis as any).analysisMode === 'BASIC_FALLBACK' && (
-                        <div className="bg-warning-50 rounded-lg p-4 border border-warning-300 mb-6">
-                            <div className="flex items-start gap-3">
-                                <AlertCircle className="w-5 h-5 text-warning-600 mt-0.5 flex-shrink-0" />
-                                <div className="space-y-2">
-                                    <p className="text-sm font-semibold text-warning-800">
-                                        ⚠️ Limited AI Analysis - Quality May Be Reduced
-                                    </p>
-                                    <p className="text-sm text-warning-700">
-                                        {(analysis as any).analysisWarning || 'The AI analysis encountered an issue and used basic fallback processing. Your fund will still work, but the assessment quality may be reduced.'}
-                                    </p>
-                                    <p className="text-sm text-warning-700">
-                                        <strong>Recommendation:</strong> Consider re-uploading your good examples or trying different files to get full AI analysis.
-                                    </p>
-                                    <Button
-                                        size="sm"
-                                        color="warning"
-                                        onClick={() => {
-                                            // Clear analysis and re-analyze
-                                            setAnalysis(null);
-                                            if (formData.goodExamples) {
-                                                analyzeExamples(formData.goodExamples);
-                                            }
-                                        }}
-                                        className="mt-3"
-                                    >
-                                        Retry AI Analysis
-                                    </Button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
+            {/* Upload Success */}
+            {formData.goodExamplesAnalysis && hasFiles && (
+                <div className="bg-success-50 rounded-lg p-4 border border-success-200">
                     <div className="flex items-center gap-3">
-                        <FeaturedIcon
-                            size="md"
-                            color={(analysis as any).analysisMode === 'BASIC_FALLBACK' ? "warning" : "success"}
-                            theme="light"
-                            icon={(analysis as any).analysisMode === 'BASIC_FALLBACK' ? AlertCircle : CheckCircle}
-                        />
-                        <h3 className="text-lg font-semibold text-primary">
-                            Example Analysis {(analysis as any).analysisMode === 'BASIC_FALLBACK' ? 'Complete (With Warnings)' : 'Complete'}
-                        </h3>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="bg-white rounded-lg p-4 border border-gray-200">
-                            <p className="text-2xl font-bold text-success-600 mb-1">{analysis.examplesAnalyzed}</p>
-                            <p className="text-sm text-secondary">Examples Analyzed</p>
+                        <FeaturedIcon size="md" color="brand" theme="light" icon={CheckCircle} />
+                        <div>
+                            <h3 className="text-lg font-semibold text-success-800">Supporting Documents Uploaded</h3>
+                            <p className="text-sm text-success-600">
+                                {formData.goodExamples.length} document{formData.goodExamples.length !== 1 ? 's' : ''} uploaded successfully.
+                                These will be processed when your tender is created.
+                            </p>
                         </div>
-                        
-                        <div className="bg-white rounded-lg p-4 border border-gray-200">
-                            <p className="text-2xl font-bold text-success-600 mb-1">{analysis.averageScore}%</p>
-                            <p className="text-sm text-secondary">Average Quality Score</p>
-                        </div>
-                        
-                        <div className="bg-white rounded-lg p-4 border border-gray-200">
-                            <p className="text-2xl font-bold text-success-600 mb-1">{analysis.qualityIndicators.length}</p>
-                            <p className="text-sm text-secondary">Quality Metrics</p>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* Quality Indicators */}
-                        <div className="space-y-4">
-                            <p className="text-sm font-medium text-primary">Quality Indicators:</p>
-                            <div className="space-y-3">
-                                {analysis.qualityIndicators.map((indicator, index) => (
-                                    <div key={index} className="bg-white p-4 rounded-lg border border-gray-200">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <p className="text-sm font-medium text-primary">{indicator.name}</p>
-                                            <span className={`px-2 py-1 text-xs font-medium rounded ${
-                                                indicator.score >= 90 ? 'bg-success-50 text-success-700' :
-                                                indicator.score >= 80 ? 'bg-warning-50 text-warning-700' :
-                                                'bg-error-50 text-error-700'
-                                            }`}>
-                                                {indicator.score}%
-                                            </span>
-                                        </div>
-                                        <p className="text-xs text-secondary">{indicator.description}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Writing Patterns */}
-                        <div className="space-y-4">
-                            <p className="text-sm font-medium text-primary">Writing Patterns Identified:</p>
-                            <div className="bg-white p-4 rounded-lg border border-gray-200 space-y-2">
-                                {analysis.writingPatterns.map((pattern, index) => (
-                                    <div key={index} className="flex items-start gap-2">
-                                        <span className="w-1.5 h-1.5 bg-brand-600 rounded-full mt-2 shrink-0"></span>
-                                        <p className="text-sm text-secondary">{pattern}</p>
-                                    </div>
-                                ))}
-                            </div>
-
-                            <p className="text-sm font-medium text-primary">Common Strengths:</p>
-                            <div className="bg-white p-4 rounded-lg border border-gray-200">
-                                <div className="flex flex-wrap gap-2">
-                                    {analysis.commonStrengths.map((strength, index) => (
-                                        <span key={index} className="px-3 py-1 bg-success-50 text-success-700 text-xs font-medium rounded-full">
-                                            {strength}
-                                        </span>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                        <p className="text-sm text-blue-800">
-                            <strong>AI Learning Complete:</strong> The system has analyzed your examples and will now 
-                            use these quality standards to guide applicants and validate submissions automatically.
-                        </p>
                     </div>
                 </div>
             )}
@@ -312,45 +168,63 @@ export const Step3GoodExamples: React.FC<Step3Props> = ({
             {/* Upload Area */}
             <div className="flex justify-center">
                 <div className="w-full max-w-2xl">
-                    {/* Quality Tip */}
+                    {/* Pro Tip */}
                     <div className="bg-warning-50 rounded-lg p-4 border border-warning-200 mb-5">
                         <p className="text-sm text-warning-800">
-                            <strong>Quality matters:</strong> Upload your best applications - those that scored highly 
-                            and met all criteria. Nolia will learn from these to help future applicants create 
-                            better submissions and reduce your assessment workload.
+                            <strong>Pro tip:</strong> Upload supporting documents that provide additional context
+                            for tender evaluation. These help ensure consistent and comprehensive assessment of proposals.
                         </p>
                     </div>
                     <FileUpload.Root>
                         <FileUpload.DropZone
-                            hint="PDF, Word documents, or Text files (max. 15MB each)"
+                            hint="PDF, Word documents, or Text files (max. 10MB each)"
                             accept=".pdf,.doc,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,text/plain"
                             allowsMultiple={true}
-                            maxSize={15 * 1024 * 1024} // 15MB
+                            maxSize={10 * 1024 * 1024} // 10MB
                             onDropFiles={handleFileUpload}
                             onDropUnacceptedFiles={(files) => {
                                 setUploadError('Please upload PDF, Word, or text files only.');
                             }}
                             onSizeLimitExceed={(files) => {
-                                setUploadError('File size must be less than 15MB.');
+                                setUploadError('File size must be less than 10MB.');
                             }}
                             className="!bg-white !border !border-brand-secondary-600 min-h-64 py-12 !flex !items-center !justify-center !rounded-lg upload-dropzone-custom"
                         />
-                        
-                        {isAnalyzing && (
-                            <div className="flex justify-center py-6">
-                                <LoadingIndicator 
-                                    type="dot-circle" 
-                                    size="md" 
-                                    label="Analyzing example applications..." 
-                                />
-                            </div>
-                        )}
+
                     </FileUpload.Root>
                     <style jsx global>{`
                         .upload-dropzone-custom {
                             box-shadow: 0 0 0 8px #F2FAFC !important;
                         }
                     `}</style>
+                </div>
+            </div>
+
+            {/* Example Document Types */}
+            <div className="bg-gray-50 rounded-lg p-6">
+                <h3 className="text-md font-semibold text-primary mb-4">Example Document Types</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200">
+                        <FeaturedIcon size="sm" color="gray" theme="light" icon={File02} />
+                        <div>
+                            <p className="text-sm font-medium text-primary">RFP Response Form</p>
+                            <p className="text-xs text-secondary">Submission template</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200">
+                        <FeaturedIcon size="sm" color="gray" theme="light" icon={File02} />
+                        <div>
+                            <p className="text-sm font-medium text-primary">Evaluation Scorecard</p>
+                            <p className="text-xs text-secondary">Criteria framework</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200">
+                        <FeaturedIcon size="sm" color="gray" theme="light" icon={File02} />
+                        <div>
+                            <p className="text-sm font-medium text-primary">Questions & Answers</p>
+                            <p className="text-xs text-secondary">Clarifications</p>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -371,19 +245,19 @@ export const Step3GoodExamples: React.FC<Step3Props> = ({
                         iconLeading={ArrowLeft}
                         onClick={onPrevious}
                     >
-                        Back to Selection Criteria
+                        Back to RFP Document
                     </Button>
                     <div className="text-sm text-secondary">
                         Step 3 of 4
                     </div>
                 </div>
-                
+
                 <Button
                     size="lg"
                     color="primary"
                     iconTrailing={ArrowRight}
                     onClick={onNext}
-                    isDisabled={!hasFiles || isAnalyzing || !analysis}
+                    isDisabled={!hasFiles || isUploading}
                 >
                     Continue to Output Templates
                 </Button>
