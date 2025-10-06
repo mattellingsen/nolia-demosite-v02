@@ -117,7 +117,15 @@ export const NavAccountMenu = ({
             </div>
 
             <div className="pt-1 pb-1.5">
-                <NavAccountCardMenuItem label="Sign out" icon={LogOut01} shortcut="⌥⇧Q" />
+                <NavAccountCardMenuItem
+                    label="Log out"
+                    icon={LogOut01}
+                    shortcut="⌥⇧Q"
+                    onClick={async () => {
+                        await fetch('/api/auth/logout', { method: 'POST' });
+                        window.location.href = '/login';
+                    }}
+                />
             </div>
         </AriaDialog>
     );
