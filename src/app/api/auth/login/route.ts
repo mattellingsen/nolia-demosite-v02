@@ -15,6 +15,19 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { username, password } = body;
 
+    // Debug logging for staging
+    console.log('🔐 Login attempt:', {
+      receivedUsername: username,
+      expectedUsername: AUTH_USERNAME,
+      usernameMatch: username === AUTH_USERNAME,
+      passwordMatch: password === AUTH_PASSWORD,
+      envVarsPresent: {
+        AUTH_USERNAME: !!AUTH_USERNAME,
+        AUTH_PASSWORD: !!AUTH_PASSWORD,
+        AUTH_SECRET: !!AUTH_SECRET,
+      }
+    });
+
     // Validate credentials against environment variables
     if (username === AUTH_USERNAME && password === AUTH_PASSWORD) {
       // Create JWT token (7 days expiry)
