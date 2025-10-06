@@ -78,6 +78,29 @@ async function handleFundBasedAssessment(file: File, fundId: string) {
         const outputTemplatesAnalysis = fund.outputTemplatesAnalysis as any;
         const fundBrain = fund.fundBrain as any;
 
+        // **NEW: For PROCUREMENT module, also get global procurement base brain**
+        let globalProcurementBrain = null;
+        if (fund.moduleType === 'PROCUREMENT') {
+            console.log('📚 Retrieving global procurement base for combined brain assessment...');
+            const procurementBase = await prisma.fund.findFirst({
+                where: { moduleType: 'PROCUREMENT_ADMIN' },
+                orderBy: { createdAt: 'desc' }
+            });
+
+            if (procurementBase) {
+                console.log(`✅ Found global procurement base: ${procurementBase.name}`);
+                globalProcurementBrain = {
+                    baseName: procurementBase.name,
+                    baseId: procurementBase.id,
+                    applicationFormAnalysis: procurementBase.applicationFormAnalysis as any,
+                    fundBrain: procurementBase.fundBrain as any,
+                    guidelines: procurementBase.applicationFormAnalysis || null
+                };
+            } else {
+                console.log('⚠️  No global procurement base found - using tender brain only');
+            }
+        }
+
         // Build complete fund brain using existing analysis
         const completeFundBrain = {
             fundName: fund.name,
@@ -109,8 +132,13 @@ async function handleFundBasedAssessment(file: File, fundId: string) {
             // Assembled Brain Intelligence (if available)
             brainIntelligence: fundBrain || null,
 
+            // **NEW: Global Procurement Base Brain (for PROCUREMENT module only)**
+            globalProcurementBrain: globalProcurementBrain,
+
             // Assessment Instructions
-            assessmentInstructions: `Assess this application for ${fund.name} using the complete fund brain intelligence including application form understanding, selection criteria, good examples patterns, and output template requirements.`
+            assessmentInstructions: globalProcurementBrain
+                ? `Assess this application for ${fund.name} using BOTH the tender-specific brain (selection criteria, output template, supporting documents) AND the global procurement base guidelines (${globalProcurementBrain.baseName}). Use the combined knowledge to provide a comprehensive assessment.`
+                : `Assess this application for ${fund.name} using the complete fund brain intelligence including application form understanding, selection criteria, good examples patterns, and output template requirements.`
         };
 
         console.log('🧠 Using resilient assessment service with single-stage template reasoning...');

@@ -9,8 +9,11 @@ const openSearchClient = new OpenSearchClient({
   credentials: getAWSCredentials(),
 });
 
-// OpenSearch configuration
-const OPENSEARCH_ENDPOINT = process.env.OPENSEARCH_ENDPOINT || 'https://search-nolia-funding-rag.us-east-1.es.amazonaws.com';
+// OpenSearch configuration - REQUIRED (no fallback)
+const OPENSEARCH_ENDPOINT = process.env.OPENSEARCH_ENDPOINT;
+if (!OPENSEARCH_ENDPOINT) {
+  throw new Error('OPENSEARCH_ENDPOINT environment variable is required. Please configure OpenSearch in .env.local or .env.production');
+}
 
 // Generate index name based on module type
 function getIndexName(moduleType: 'FUNDING' | 'PROCUREMENT' | 'PROCUREMENT_ADMIN' = 'FUNDING'): string {
@@ -243,15 +246,13 @@ export async function initializeOpenSearchIndex(moduleType: 'FUNDING' | 'PROCURE
  * Generate AWS signature for OpenSearch authentication
  */
 async function getOpenSearchAuth(): Promise<string> {
-  if (process.env.OPENSEARCH_USERNAME && process.env.OPENSEARCH_PASSWORD) {
-    // Use basic auth with master user
-    const credentials = Buffer.from(`${process.env.OPENSEARCH_USERNAME}:${process.env.OPENSEARCH_PASSWORD}`).toString('base64');
-    return `Basic ${credentials}`;
+  if (!process.env.OPENSEARCH_USERNAME || !process.env.OPENSEARCH_PASSWORD) {
+    throw new Error('OpenSearch credentials not configured. Set OPENSEARCH_USERNAME and OPENSEARCH_PASSWORD in .env.local or .env.production');
   }
-  
-  // Fallback to IAM-based auth (requires AWS SDK v3 signature)
-  // For now, using basic auth - in production, implement AWS Signature v4
-  return 'Basic ' + Buffer.from('admin:admin').toString('base64');
+
+  // Use basic auth with master user
+  const credentials = Buffer.from(`${process.env.OPENSEARCH_USERNAME}:${process.env.OPENSEARCH_PASSWORD}`).toString('base64');
+  return `Basic ${credentials}`;
 }
 
 /**
@@ -281,10 +282,9 @@ export async function generateEmbedding(text: string): Promise<number[]> {
     
     const data = await response.json();
     return data.data[0].embedding;
-    
+
   } catch (error) {
     console.error('Error generating embedding:', error);
-    // Return dummy embedding for development
-    return new Array(1536).fill(0).map(() => Math.random() - 0.5);
+    throw new Error(`Failed to generate embedding: ${error instanceof Error ? error.message : 'Unknown error'}. Ensure OPENAI_API_KEY is configured.`);
   }
 }

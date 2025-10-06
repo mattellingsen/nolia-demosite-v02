@@ -5,8 +5,11 @@ import { DocumentAnalysis, CriteriaAnalysis } from './browser-document-analyzer'
 
 /**
  * Extract text content from different file types (server-side with real parsing)
+ *
+ * @param file - The file object to extract text from
+ * @param s3Key - Optional S3 key if file is already uploaded (required for PDF processing)
  */
-export async function extractTextFromFile(file: any): Promise<string> {
+export async function extractTextFromFile(file: any, s3Key?: string): Promise<string> {
     try {
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
@@ -14,11 +17,23 @@ export async function extractTextFromFile(file: any): Promise<string> {
         if (file.type === 'text/plain') {
             return await file.text();
         } else if (file.type === 'application/pdf') {
-            // PDF processing is temporarily unavailable due to server compatibility issues
+            // Use AWS Textract for PDF text extraction
             console.log(`📄 PDF upload detected: ${file.name}, size: ${buffer.length} bytes`);
-            
-            // Provide clear feedback to user about PDF limitations
-            throw new Error(`PDF processing is temporarily unavailable. Please convert "${file.name}" to a Word document (.docx) and try again. We're working to restore PDF support soon.`);
+
+            if (!s3Key) {
+                throw new Error(`PDF processing requires the file to be uploaded to S3 first. S3 key not provided for "${file.name}".`);
+            }
+
+            console.log(`📄 Processing PDF via AWS Textract: ${file.name}`);
+            const { extractTextFromPDF } = await import('../lib/aws-textract');
+            const text = await extractTextFromPDF(s3Key);
+
+            if (!text || text.trim().length === 0) {
+                throw new Error(`PDF "${file.name}" appears to be empty or contains only images without extractable text`);
+            }
+
+            console.log(`📄 Textract extraction successful: ${text.length} characters`);
+            return text.trim();
         } else if (
             file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
             file.type === 'application/msword'

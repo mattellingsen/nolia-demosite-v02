@@ -49,8 +49,10 @@ export const InputBase = ({
     tooltipClassName,
     inputClassName,
     iconClassName,
-    // Omit this prop to avoid invalid HTML attribute warning
+    // Omit these props to avoid invalid HTML attribute warnings
     isRequired: _isRequired,
+    success: _success,
+    error: _error,
     ...inputProps
 }: Omit<InputBaseProps, "label" | "hint">) => {
     // Check if the input has a leading icon or tooltip

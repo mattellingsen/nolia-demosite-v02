@@ -374,7 +374,8 @@ async function processDocument(document: any) {
       // Try Claude analysis first, fallback to pattern matching if failed
       try {
         console.log('🧠 Attempting Claude AI analysis for application form in background processing... [FORCED RECOMPILE]');
-        const textContent = await extractTextFromFile(fileObject as File);
+        // Pass S3 key for PDF processing via Textract
+        const textContent = await extractTextFromFile(fileObject as File, document.s3Key);
         const documentContext = {
           filename: document.filename,
           content: textContent,
@@ -403,7 +404,8 @@ async function processDocument(document: any) {
       // Try Claude analysis first, fallback to pattern matching if failed
       try {
         console.log('🧠 Attempting Claude AI analysis for selection criteria in background processing...');
-        const textContent = await extractTextFromFile(fileObject as File);
+        // Pass S3 key for PDF processing via Textract
+        const textContent = await extractTextFromFile(fileObject as File, document.s3Key);
         const documentContexts = [{
           filename: document.filename,
           content: textContent,
@@ -433,7 +435,8 @@ async function processDocument(document: any) {
       // Try Claude analysis first, fallback to basic analysis if failed
       try {
         console.log('🧠 Attempting Claude AI analysis for good examples in background processing...');
-        const textContent = await extractTextFromFile(fileObject as File);
+        // Pass S3 key for PDF processing via Textract
+        const textContent = await extractTextFromFile(fileObject as File, document.s3Key);
         const documentContexts = [{
           filename: document.filename,
           content: textContent,
@@ -463,7 +466,8 @@ async function processDocument(document: any) {
       // Analyze output template structure for dynamic formatting
       try {
         console.log('🧠 Attempting Claude AI analysis for output template in background processing...');
-        const textContent = await extractTextFromFile(fileObject as File);
+        // Pass S3 key for PDF processing via Textract
+        const textContent = await extractTextFromFile(fileObject as File, document.s3Key);
 
         analysisResult = await BackgroundJobService.analyzeOutputTemplateDocument(textContent, document.filename);
 

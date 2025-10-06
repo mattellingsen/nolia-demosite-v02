@@ -498,12 +498,12 @@ export class BackgroundJobService {
       Bucket: S3_BUCKET,
       Key: s3Key,
     });
-    
+
     const response = await s3Client.send(command);
     if (!response.Body) {
       throw new Error('No content in S3 object');
     }
-    
+
     // Convert stream to buffer (Node.js stream handling)
     const chunks: Buffer[] = [];
 
@@ -513,13 +513,14 @@ export class BackgroundJobService {
     }
 
     const buffer = Buffer.concat(chunks);
-    
+
     // Create a File-like object for the document analyzer
     const fileBlob = new File([buffer], s3Key.split('/').pop() || 'document', {
       type: response.ContentType || 'application/octet-stream'
     });
-    
-    return await extractTextFromFile(fileBlob);
+
+    // Pass S3 key for PDF processing (Textract requires S3 location)
+    return await extractTextFromFile(fileBlob, s3Key);
   }
   
   /**

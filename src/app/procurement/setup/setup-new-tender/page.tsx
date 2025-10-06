@@ -63,6 +63,9 @@ interface FormBuilderState {
 const SetupNewTenderPage = () => {
     const router = useRouter();
     const [currentStep, setCurrentStep] = useState<FormBuilderStep>('step1');
+    const [isCreating, setIsCreating] = useState(false);
+    const [creationStep, setCreationStep] = useState('');
+    const [creationProgress, setCreationProgress] = useState(0);
     const [formData, setFormData] = useState<FormBuilderState>({
         selectionCriteria: [],
         outputTemplates: [],
@@ -75,26 +78,26 @@ const SetupNewTenderPage = () => {
     // Progress steps data for Untitled UI Progress component
     const progressSteps = [
         {
-            title: 'Upload Form',
-            description: 'Upload current submission form',
+            title: 'Pre-RFP Documents',
+            description: 'Upload business case & context',
             status: getCurrentStepStatus('step1'),
             icon: UploadCloud01
         },
         {
-            title: 'Selection Criteria',
-            description: 'Upload assessment criteria',
+            title: 'RFP Document',
+            description: 'Upload the RFP itself',
             status: getCurrentStepStatus('step2'),
             icon: FileCheck02
         },
         {
-            title: 'Good Examples',
-            description: 'Upload example submissions',
+            title: 'Supporting Documents',
+            description: 'Upload rubrics, Q&A, forms',
             status: getCurrentStepStatus('step3'),
             icon: Target01
         },
         {
             title: 'Output Templates',
-            description: 'Upload output templates',
+            description: 'Upload assessment templates',
             status: getCurrentStepStatus('step4'),
             icon: File02
         }
@@ -149,6 +152,26 @@ const SetupNewTenderPage = () => {
 
     const handleCreateFund = async () => {
         try {
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.log('🚀 DEBUG: handleCreateFund() called');
+            console.log('🚀 DEBUG: formData.tenderName:', formData.tenderName);
+            console.log('🚀 DEBUG: formData.submissionForm:', formData.submissionForm);
+            console.log('🚀 DEBUG: formData.selectionCriteria:', formData.selectionCriteria?.length || 0, 'files');
+            console.log('🚀 DEBUG: formData.goodExamples:', formData.goodExamples?.length || 0, 'files');
+            console.log('🚀 DEBUG: formData.outputTemplates:', formData.outputTemplates?.length || 0, 'files');
+
+            const totalFiles = (formData.submissionForm ? 1 : 0) +
+                             (formData.selectionCriteria?.length || 0) +
+                             (formData.goodExamples?.length || 0) +
+                             (formData.outputTemplates?.length || 0);
+
+            console.log('🚀 DEBUG: Total files to upload:', totalFiles);
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+            setIsCreating(true);
+            setCreationStep('Preparing documents...');
+            setCreationProgress(10);
+
             // Convert files to base64 for API
             const fileToBase64 = (file: File): Promise<string> => {
                 return new Promise((resolve, reject) => {
@@ -158,64 +181,116 @@ const SetupNewTenderPage = () => {
                         const result = reader.result as string;
                         // Remove data:mime/type;base64, prefix
                         const base64 = result.split(',')[1];
+                        console.log(`📄 DEBUG: Converted ${file.name} to base64, length: ${base64?.length || 0}`);
                         resolve(base64);
                     };
-                    reader.onerror = reject;
+                    reader.onerror = (error) => {
+                        console.error(`❌ DEBUG: Failed to read ${file.name}:`, error);
+                        reject(error);
+                    };
                 });
             };
 
-            // Prepare tender data
+            setCreationStep('Converting documents...');
+            setCreationProgress(25);
+
+            // Prepare tender data (4-step structure matching API)
             const tenderData: any = {
                 name: formData.tenderName || 'Untitled Tender',
-                description: 'AI-powered tender created through setup wizard'
+                description: 'Project-specific tender knowledgebase',
+                moduleType: 'PROCUREMENT' // Critical: Must be PROCUREMENT
             };
 
-            // Add submission form if available
+            console.log('📦 DEBUG: Tender data prepared:', {
+                name: tenderData.name,
+                description: tenderData.description,
+                moduleType: tenderData.moduleType
+            });
+
+            let currentProgress = 25;
+            const progressIncrement = totalFiles > 0 ? (45 / totalFiles) : 0;
+
+            // Step 1: Pre-RFP documents (business case, etc.) → APPLICATION_FORM
             if (formData.submissionForm) {
+                setCreationStep('Processing Pre-RFP documents...');
                 const content = await fileToBase64(formData.submissionForm);
-                tenderData.submissionFormFile = {
+                tenderData.preRfpFiles = [{
                     filename: formData.submissionForm.name,
                     mimeType: formData.submissionForm.type,
                     fileSize: formData.submissionForm.size,
                     content
-                };
+                }];
+                currentProgress += progressIncrement;
+                setCreationProgress(Math.round(currentProgress));
             }
 
-            // Add selection criteria files
+            // Step 2: RFP document itself → SELECTION_CRITERIA
             if (formData.selectionCriteria?.length > 0) {
-                tenderData.selectionCriteriaFiles = await Promise.all(
-                    formData.selectionCriteria.map(async (file: File) => ({
-                        filename: file.name,
-                        mimeType: file.type,
-                        fileSize: file.size,
-                        content: await fileToBase64(file)
-                    }))
+                setCreationStep(`Processing RFP documents (${formData.selectionCriteria.length} files)...`);
+                tenderData.rfpFiles = await Promise.all(
+                    formData.selectionCriteria.map(async (file: File, index: number) => {
+                        const content = await fileToBase64(file);
+                        currentProgress += progressIncrement;
+                        setCreationProgress(Math.round(currentProgress));
+                        return {
+                            filename: file.name,
+                            mimeType: file.type,
+                            fileSize: file.size,
+                            content
+                        };
+                    })
                 );
             }
 
-            // Add good examples files
+            // Step 3: Supporting RFP docs (rubrics, Q&A, etc.) → GOOD_EXAMPLES
             if (formData.goodExamples?.length > 0) {
-                tenderData.goodExamplesFiles = await Promise.all(
-                    formData.goodExamples.map(async (file: File) => ({
-                        filename: file.name,
-                        mimeType: file.type,
-                        fileSize: file.size,
-                        content: await fileToBase64(file)
-                    }))
+                setCreationStep(`Processing supporting documents (${formData.goodExamples.length} files)...`);
+                tenderData.supportingFiles = await Promise.all(
+                    formData.goodExamples.map(async (file: File) => {
+                        const content = await fileToBase64(file);
+                        currentProgress += progressIncrement;
+                        setCreationProgress(Math.round(currentProgress));
+                        return {
+                            filename: file.name,
+                            mimeType: file.type,
+                            fileSize: file.size,
+                            content
+                        };
+                    })
                 );
             }
 
-            // Add output templates files
+            // Step 4: Output templates → OUTPUT_TEMPLATES
             if (formData.outputTemplates?.length > 0) {
+                setCreationStep(`Processing output templates (${formData.outputTemplates.length} files)...`);
                 tenderData.outputTemplatesFiles = await Promise.all(
-                    formData.outputTemplates.map(async (file: File) => ({
-                        filename: file.name,
-                        mimeType: file.type,
-                        fileSize: file.size,
-                        content: await fileToBase64(file)
-                    }))
+                    formData.outputTemplates.map(async (file: File) => {
+                        const content = await fileToBase64(file);
+                        currentProgress += progressIncrement;
+                        setCreationProgress(Math.round(currentProgress));
+                        return {
+                            filename: file.name,
+                            mimeType: file.type,
+                            fileSize: file.size,
+                            content
+                        };
+                    })
                 );
             }
+
+            setCreationStep('Uploading to cloud...');
+            setCreationProgress(70);
+
+            console.log('📤 DEBUG: About to send API request');
+            console.log('📤 DEBUG: Payload summary:', {
+                name: tenderData.name,
+                description: tenderData.description,
+                moduleType: tenderData.moduleType,
+                preRfpFilesCount: tenderData.preRfpFiles?.length || 0,
+                rfpFilesCount: tenderData.rfpFiles?.length || 0,
+                supportingFilesCount: tenderData.supportingFiles?.length || 0,
+                outputTemplatesFilesCount: tenderData.outputTemplatesFiles?.length || 0
+            });
 
             // Call async tender creation API
             const response = await fetch('/api/tenders/create-async', {
@@ -226,17 +301,32 @@ const SetupNewTenderPage = () => {
                 body: JSON.stringify(tenderData),
             });
 
+            console.log('📥 DEBUG: API response status:', response.status, response.statusText);
+
             if (!response.ok) {
-                throw new Error('Failed to create tender');
+                const errorData = await response.json();
+                console.error('❌ DEBUG: API error response:', errorData);
+                throw new Error(`Failed to create tender: ${errorData.error || response.statusText}`);
             }
 
+            setCreationStep('Finalizing tender...');
+            setCreationProgress(90);
+
             const result = await response.json();
-            
+            console.log('✅ DEBUG: API success response:', result);
+
+            setCreationStep('Complete!');
+            setCreationProgress(100);
+
+            // Small delay to show completion state
+            await new Promise(resolve => setTimeout(resolve, 500));
+
             // Redirect to tender completion page
             router.push(`/procurement/tender-created?tenderId=${result.tender.id}`);
 
         } catch (error) {
             console.error('Error creating tender:', error);
+            setIsCreating(false);
             alert('Failed to create tender. Please try again.');
         }
     };
@@ -285,8 +375,49 @@ const SetupNewTenderPage = () => {
     };
 
     return (
-        <div className="flex flex-col bg-primary lg:flex-row">
-            <SidebarNavigationSlim
+        <>
+            {/* Creation Progress Modal */}
+            {isCreating && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                    <div className="w-full max-w-md rounded-lg border border-secondary bg-primary p-8 shadow-xl">
+                        <div className="flex flex-col items-center gap-6">
+                            <FeaturedIcon
+                                size="xl"
+                                color="brand"
+                                theme="light"
+                                icon={creationProgress === 100 ? CheckCircle : UploadCloud01}
+                                className={creationProgress < 100 ? "animate-pulse" : ""}
+                            />
+
+                            <div className="w-full space-y-3">
+                                <h3 className="text-center text-lg font-semibold text-primary">
+                                    {creationProgress === 100 ? 'Tender Created!' : 'Creating Tender'}
+                                </h3>
+                                <p className="text-center text-sm text-secondary">
+                                    {creationStep}
+                                </p>
+
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between text-sm">
+                                        <span className="text-tertiary">Progress</span>
+                                        <span className="font-medium text-primary">{creationProgress}%</span>
+                                    </div>
+                                    <ProgressBar value={creationProgress} className="h-2" />
+                                </div>
+                            </div>
+
+                            {creationProgress < 100 && (
+                                <p className="text-center text-xs text-tertiary">
+                                    Please wait while we process your documents and set up the tender knowledge base...
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <div className="flex flex-col bg-primary lg:flex-row">
+                <SidebarNavigationSlim
                 activeUrl="/procurement/setup"
                 items={[
                     {
@@ -363,6 +494,7 @@ const SetupNewTenderPage = () => {
                 </div>
             </div>
         </div>
+        </>
     );
 };
 

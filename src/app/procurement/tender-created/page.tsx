@@ -7,30 +7,25 @@ import {
     Clock,
     ArrowLeft,
     FileCheck02,
-    Target01,
+    Shield01,
     File02,
-    UploadCloud01,
-    Beaker02,
-    Zap,
-    ClipboardCheck,
-    Plus,
+    BookOpen01,
+    Flash,
     AlertTriangle,
     RefreshCw05,
     ArrowRight,
-    CheckDone01,
     Edit05,
-    Send01,
-    TrendUp02,
-    Flash,
-    MessageSmileSquare,
-    BarChart01
+    Settings01,
+    Building02,
+    Database02,
+    CheckDone01,
+    Send01
 } from "@untitledui/icons";
 import { Button } from "@/components/base/buttons/button";
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
 import { ProgressBar } from "@/components/base/progress-indicators/progress-indicators";
 import { Badge } from "@/components/base/badges/badges";
 import { SidebarNavigationSlim } from "@/components/application/app-navigation/sidebar-navigation/sidebar-slim";
-import { TableRowActionsDropdown } from "@/components/application/table/table";
 
 interface ProcessingStatus {
     tenderId: string;
@@ -38,620 +33,356 @@ interface ProcessingStatus {
     tenderDescription?: string;
     status: 'CREATED' | 'PROCESSING' | 'ACTIVE' | 'ERROR';
     documentsUploaded: {
-        submissionForm: boolean;
-        selectionCriteria: number;
-        goodExamples: number;
+        preRfpDocs: number;
+        rfpDocs: number;
+        supportingDocs: number;
         outputTemplates: number;
     };
+    documents: Array<{
+        id: string;
+        filename: string;
+        fileSize: number;
+        mimeType: string;
+        documentType: string;
+        uploadedAt: string;
+    }>;
     brainBuilding: {
-        status: 'PENDING' | 'ANALYZING' | 'COMPLETE' | 'ERROR';
+        status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
         progress: number;
         currentTask?: string;
         estimatedCompletion?: string;
+        processedDocuments?: number;
+        totalDocuments?: number;
+        errorMessage?: string;
     };
     createdAt: string;
     analysisWarnings?: Array<{
-        type: 'GOOD_EXAMPLES' | 'SELECTION_CRITERIA' | 'SUBMISSION_FORM';
+        type: 'PRE_RFP' | 'RFP' | 'SUPPORTING' | 'TEMPLATES';
         message: string;
-        analysisMode: string;
         requiresReview: boolean;
     }>;
 }
-
 
 function TenderCreatedContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const tenderId = searchParams.get('tenderId');
-    
+
     const [status, setStatus] = useState<ProcessingStatus | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string>('');
-    const [isProcessingManually, setIsProcessingManually] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     // Fetch real job status from API
-    useEffect(() => {
-        if (!tenderId) {
-            setError('No tender ID provided');
-            setLoading(false);
-            return;
-        }
+    const fetchJobStatus = async () => {
+        if (!tenderId) return;
 
-        let intervalId: NodeJS.Timeout;
-
-        const fetchStatus = async () => {
-            try {
-                const response = await fetch(`/api/tenders/${tenderId}/job-status`);
-                if (!response.ok) {
-                    throw new Error('Failed to fetch status');
-                }
-
-                const data = await response.json();
-
-                // Fetch tender details for name and analysis warnings
-                const tenderResponse = await fetch(`/api/tenders/${tenderId}`);
-                const tenderData = tenderResponse.ok ? await tenderResponse.json() : null;
-
-                // Check for analysis warnings in tender data
-                const analysisWarnings = [];
-                if (tenderData?.tender) {
-                    const tender = tenderData.tender;
-
-                    // Check good examples analysis
-                    if (tender.goodExamplesAnalysis?.analysisMode === 'BASIC_FALLBACK') {
-                        analysisWarnings.push({
-                            type: 'GOOD_EXAMPLES',
-                            message: tender.goodExamplesAnalysis.analysisWarning || 'AI analysis failed for good examples - using basic fallback analysis.',
-                            analysisMode: tender.goodExamplesAnalysis.analysisMode,
-                            requiresReview: tender.goodExamplesAnalysis.requiresReview || false
-                        });
-                    }
-
-                    // Check selection criteria analysis
-                    if (tender.selectionCriteriaAnalysis?.analysisMode === 'BASIC_FALLBACK') {
-                        analysisWarnings.push({
-                            type: 'SELECTION_CRITERIA',
-                            message: tender.selectionCriteriaAnalysis.analysisWarning || 'AI analysis failed for selection criteria - using basic fallback analysis.',
-                            analysisMode: tender.selectionCriteriaAnalysis.analysisMode,
-                            requiresReview: tender.selectionCriteriaAnalysis.requiresReview || false
-                        });
-                    }
-
-                    // Check submission form analysis
-                    if (tender.submissionFormAnalysis?.analysisMode === 'BASIC_FALLBACK') {
-                        analysisWarnings.push({
-                            type: 'SUBMISSION_FORM',
-                            message: tender.submissionFormAnalysis.analysisWarning || 'AI analysis failed for submission form - using basic fallback analysis.',
-                            analysisMode: tender.submissionFormAnalysis.analysisMode,
-                            requiresReview: tender.submissionFormAnalysis.requiresReview || false
-                        });
-                    }
-                }
-                
-                // Transform API response to our ProcessingStatus format
-                const ragJob = data.ragProcessing;
-                const overallStatus = data.overallStatus;
-                
-                // Use actual document counts from API
-                const documents = data.documentsUploaded || {
-                    submissionForm: false,
-                    selectionCriteria: 0,
-                    goodExamples: 0,
-                    outputTemplates: 0
-                };
-                
-                const transformedStatus: ProcessingStatus = {
-                    tenderId: data.tenderId,
-                    tenderName: tenderData?.tender?.name || "Procurement Tender",
-                    tenderDescription: tenderData?.tender?.description,
-                    status: overallStatus === 'completed' ? 'ACTIVE' :
-                           overallStatus === 'failed' ? 'ERROR' :
-                           overallStatus === 'processing' ? 'PROCESSING' : 'CREATED',
-                    documentsUploaded: documents,
-                    brainBuilding: {
-                        status: ragJob ? 
-                               (ragJob.status === 'COMPLETED' ? 'COMPLETE' : 
-                                ragJob.status === 'FAILED' ? 'ERROR' : 
-                                ragJob.status === 'PROCESSING' ? 'ANALYZING' : 'PENDING') : 
-                               'PENDING',
-                        progress: ragJob?.progress || 0,
-                        currentTask: ragJob?.status === 'PROCESSING' ? 
-                                   'Building knowledge base from documents' : 
-                                   ragJob?.status === 'COMPLETED' ? 
-                                   'Analysis complete' : 
-                                   'Waiting to start',
-                        estimatedCompletion: ragJob?.status === 'PROCESSING' ? '2-3 minutes' : undefined
-                    },
-                    createdAt: data.jobs[0]?.createdAt || new Date().toISOString(),
-                    analysisWarnings
-                };
-                
-                setStatus(transformedStatus);
-                setLoading(false);
-                
-                // Stop polling if complete or error
-                if (overallStatus === 'completed' || overallStatus === 'failed') {
-                    if (intervalId) clearInterval(intervalId);
-                }
-            } catch (err) {
-                console.error('Error fetching status:', err);
-                
-                // Fallback to mock data if API fails
-                const mockStatus: ProcessingStatus = {
-                    tenderId: tenderId,
-                    tenderName: "Procurement Tender",
-                    tenderDescription: "Procure innovative businesses to provide high-quality services for our summer internship program.",
-                    status: 'PROCESSING',
-                    documentsUploaded: {
-                        submissionForm: true,
-                        selectionCriteria: 3,
-                        goodExamples: 2,
-                        outputTemplates: 1
-                    },
-                    brainBuilding: {
-                        status: 'ANALYZING',
-                        progress: 45,
-                        currentTask: 'Analyzing selection criteria documents',
-                        estimatedCompletion: '2-3 minutes'
-                    },
-                    createdAt: new Date().toISOString()
-                };
-                
-                setStatus(mockStatus);
-                setLoading(false);
-            }
-        };
-        
-        // Initial fetch
-        fetchStatus();
-        
-        // Poll every 3 seconds
-        intervalId = setInterval(fetchStatus, 3000);
-        
-        return () => {
-            if (intervalId) clearInterval(intervalId);
-        };
-    }, [tenderId]);
-
-    // Manual processing trigger
-    const handleProcessNow = async () => {
-        if (!tenderId || isProcessingManually) return;
-        
-        setIsProcessingManually(true);
-        
         try {
-            const response = await fetch('/api/jobs/process', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
+            const response = await fetch(`/api/tenders/${tenderId}/job-status`);
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to fetch job status');
+            }
+
+            // Get both job types to calculate overall progress
+            const docAnalysisJob = data.jobs?.find((job: any) => job.type === 'DOCUMENT_ANALYSIS');
+            const ragJob = data.jobs?.find((job: any) => job.type === 'RAG_PROCESSING');
+
+            // Calculate multi-phase progress (Upload: 20%, Analysis: 40%, RAG: 40%)
+            const calculateOverallProgress = (): number => {
+                // Phase 1: Documents uploaded (20%)
+                const uploadProgress = data.jobs?.length > 0 ? 20 : 0;
+
+                // Phase 2: Document Analysis (20-60%, contributes 40%)
+                let analysisProgress = 0;
+                if (docAnalysisJob?.status === 'COMPLETED') {
+                    analysisProgress = 40;
+                } else if (docAnalysisJob?.status === 'PROCESSING') {
+                    const docProgress = docAnalysisJob.processedDocuments && docAnalysisJob.totalDocuments
+                        ? (docAnalysisJob.processedDocuments / docAnalysisJob.totalDocuments)
+                        : 0;
+                    analysisProgress = docProgress * 40;
+                }
+
+                // Phase 3: RAG Processing (60-100%, contributes 40%)
+                let ragProgress = 0;
+                if (ragJob?.status === 'COMPLETED') {
+                    ragProgress = 40;
+                } else if (ragJob?.status === 'PROCESSING') {
+                    const ragPercent = ragJob.progress || 0;
+                    ragProgress = (ragPercent / 100) * 40;
+                }
+
+                return Math.round(uploadProgress + analysisProgress + ragProgress);
+            };
+
+            // Determine current phase and task message
+            const getCurrentPhase = (): { task: string; status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' } => {
+                if (docAnalysisJob?.status === 'FAILED') {
+                    return { task: 'Document analysis failed', status: 'FAILED' };
+                }
+                if (ragJob?.status === 'FAILED') {
+                    return { task: 'Knowledge base building failed', status: 'FAILED' };
+                }
+
+                if (ragJob?.status === 'COMPLETED') {
+                    return { task: 'Tender knowledgebase completed', status: 'COMPLETED' };
+                }
+                if (ragJob?.status === 'PROCESSING') {
+                    const processed = ragJob.processedDocuments || 0;
+                    const total = ragJob.totalDocuments || 0;
+                    return {
+                        task: `Building tender knowledgebase... (${processed}/${total} documents)`,
+                        status: 'PROCESSING'
+                    };
+                }
+
+                if (docAnalysisJob?.status === 'COMPLETED') {
+                    return { task: 'Documents analyzed, starting knowledgebase...', status: 'PROCESSING' };
+                }
+                if (docAnalysisJob?.status === 'PROCESSING') {
+                    const processed = docAnalysisJob.processedDocuments || 0;
+                    const total = docAnalysisJob.totalDocuments || 0;
+                    return {
+                        task: `Analyzing tender documents... (${processed}/${total} processed)`,
+                        status: 'PROCESSING'
+                    };
+                }
+
+                // Phase 1: Upload complete, waiting for analysis
+                if (data.jobs?.length > 0) {
+                    return { task: 'Documents uploaded successfully, preparing analysis...', status: 'PROCESSING' };
+                }
+
+                // Initial state
+                return { task: 'Waiting to start...', status: 'PENDING' };
+            };
+
+            const currentPhase = getCurrentPhase();
+            const overallProgress = calculateOverallProgress();
+            const errorMessage = docAnalysisJob?.errorMessage || ragJob?.errorMessage;
+
+            const mappedStatus: ProcessingStatus = {
+                tenderId: data.tenderId,
+                tenderName: data.tenderName || 'Untitled Tender',
+                tenderDescription: data.tenderDescription,
+                status: mapTenderStatus(data.tenderStatus, data.overallStatus),
+                documentsUploaded: data.documentsUploaded,
+                documents: data.documents || [],
+                brainBuilding: {
+                    status: currentPhase.status,
+                    progress: overallProgress,
+                    currentTask: currentPhase.task,
+                    estimatedCompletion: ragJob?.estimatedCompletion,
+                    processedDocuments: ragJob?.processedDocuments || docAnalysisJob?.processedDocuments,
+                    totalDocuments: ragJob?.totalDocuments || docAnalysisJob?.totalDocuments,
+                    errorMessage: errorMessage
                 },
-                body: JSON.stringify({ force: true }),
-            });
-            
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to trigger processing');
-            }
-            
-            const result = await response.json();
-            console.log('Manual processing triggered:', result);
-            
-            // Clear any existing error and trigger a fresh status fetch
-            setError('');
-            
-            // Trigger an immediate status check
-            setTimeout(() => {
-                setIsProcessingManually(false);
-                // The useEffect will continue polling
-            }, 2000);
-            
+                createdAt: data.createdAt
+            };
+
+            setStatus(mappedStatus);
+            setError(null);
         } catch (err) {
-            console.error('Error triggering manual processing:', err);
-            setError(`Failed to trigger processing: ${err instanceof Error ? err.message : 'Unknown error'}`);
-            setIsProcessingManually(false);
+            console.error('Error fetching job status:', err);
+            setError(err instanceof Error ? err.message : 'Failed to load job status');
+        } finally {
+            setIsLoading(false);
         }
     };
 
-    // Retry AI processing after failure
-    const handleRetryProcessing = async () => {
-        if (!tenderId || isProcessingManually) return;
+    useEffect(() => {
+        fetchJobStatus();
 
-        setIsProcessingManually(true);
-        setError('');
-
-        try {
-            const response = await fetch(`/api/tenders/${tenderId}/retry-processing`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to retry processing');
+        const interval = setInterval(() => {
+            if (status?.brainBuilding.status === 'PROCESSING') {
+                fetchJobStatus();
             }
+        }, 3000);
 
-            const result = await response.json();
-            console.log('Retry processing triggered:', result);
+        return () => clearInterval(interval);
+    }, [tenderId, status?.brainBuilding.status]);
 
-            // Trigger an immediate status check
-            setTimeout(() => {
-                setIsProcessingManually(false);
-                // The useEffect will continue polling
-            }, 2000);
+    const mapTenderStatus = (tenderStatus: string, overallStatus: string): 'CREATED' | 'PROCESSING' | 'ACTIVE' | 'ERROR' => {
+        if (overallStatus === 'failed') return 'ERROR';
+        if (overallStatus === 'completed') return 'ACTIVE';
+        if (overallStatus === 'processing') return 'PROCESSING';
+        return 'CREATED';
+    };
 
-        } catch (err) {
-            console.error('Error retrying processing:', err);
-            setError(`Failed to retry processing: ${err instanceof Error ? err.message : 'Unknown error'}`);
-            setIsProcessingManually(false);
+    const getStatusColor = () => {
+        if (!status) return 'gray';
+        switch (status.brainBuilding.status) {
+            case 'COMPLETED': return 'success';
+            case 'FAILED': return 'error';
+            case 'PROCESSING': return 'warning';
+            default: return 'gray';
         }
     };
 
-    if (loading) {
+    if (isLoading) {
         return (
-            <div className="min-h-screen bg-primary flex items-center justify-center">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600 mx-auto mb-4"></div>
-                    <p className="text-secondary">Loading tender status...</p>
-                </div>
+            <div className="flex h-screen items-center justify-center">
+                <div className="text-tertiary">Loading tender status...</div>
             </div>
         );
     }
 
     if (error || !status) {
         return (
-            <div className="min-h-screen bg-primary flex items-center justify-center">
-                <div className="text-center max-w-md">
-                    <div className="mb-4">
-                        <FeaturedIcon size="lg" color="error" theme="light" icon={CheckCircle} />
-                    </div>
-                    <h1 className="text-xl font-semibold text-primary mb-2">Error Loading Tender</h1>
-                    <p className="text-secondary mb-6">{error || 'Tender not found'}</p>
-                    <Button
-                        color="primary"
-                        onClick={() => router.push('/procurement/setup')}
-                    >
-                        Back to Setup
-                    </Button>
+            <div className="flex flex-col items-center gap-4 rounded-lg border border-error-300 bg-error-50 p-8 text-center">
+                <FeaturedIcon icon={AlertTriangle} color="error" size="lg" />
+                <div>
+                    <p className="font-semibold text-primary">Failed to load tender status</p>
+                    <p className="mt-1 text-sm text-tertiary">{error || 'Unknown error occurred'}</p>
                 </div>
+                <Button size="sm" color="primary" onClick={() => window.location.reload()}>Retry</Button>
             </div>
         );
     }
 
-    const getStatusBadge = () => {
-        switch (status.status) {
-            case 'CREATED':
-                return <Badge color="gray">Created</Badge>;
-            case 'PROCESSING':
-                return <Badge color="warning">Processing</Badge>;
-            case 'ACTIVE':
-                return <Badge color="success">Active</Badge>;
-            case 'ERROR':
-                return <Badge color="error">Error</Badge>;
-        }
-    };
-
-    const getBrainStatusIcon = () => {
-        switch (status.brainBuilding.status) {
-            case 'PENDING':
-                return <Clock className="w-5 h-5 text-gray-400" />;
-            case 'ANALYZING':
-                return <Beaker02 className="w-5 h-5 text-warning-600 animate-pulse" />;
-            case 'COMPLETE':
-                return <CheckCircle className="w-5 h-5 text-success-600" />;
-            case 'ERROR':
-                return <CheckCircle className="w-5 h-5 text-error-600" />;
-        }
-    };
-
-    const totalDocuments = (status.documentsUploaded.submissionForm ? 1 : 0) + status.documentsUploaded.selectionCriteria +
-                          status.documentsUploaded.goodExamples +
-                          status.documentsUploaded.outputTemplates;
+    if (!tenderId) {
+        return (
+            <div className="flex flex-col items-center gap-4 rounded-lg border border-error-300 bg-error-50 p-8 text-center">
+                <FeaturedIcon icon={AlertTriangle} color="error" size="lg" />
+                <div>
+                    <p className="font-semibold text-primary">Invalid tender</p>
+                    <p className="mt-1 text-sm text-tertiary">No tender ID provided</p>
+                </div>
+                <Button size="sm" color="primary" href="/procurement/setup">Go Back</Button>
+            </div>
+        );
+    }
 
     return (
         <div className="flex flex-col bg-primary lg:flex-row">
             <SidebarNavigationSlim
                 activeUrl="/procurement/setup"
                 items={[
-                    {
-                        label: "Setup",
-                        href: "/procurement/setup",
-                        icon: Edit05,
-                    },
-                    {
-                        label: "Apply",
-                        href: "/procurement/apply",
-                        icon: Send01,
-                    },
-                    {
-                        label: "Assess",
-                        href: "/procurement/assess",
-                        icon: CheckDone01,
-                    },
-                    {
-                        label: "Analytics",
-                        href: "/procurement/analytics",
-                        icon: TrendUp02,
-                    },
+                    { label: "Setup", href: "/procurement/setup", icon: Edit05 },
+                    { label: "Apply", href: "/procurement/apply", icon: Send01 },
+                    { label: "Assess", href: "/procurement/assess", icon: CheckDone01 },
+                    { label: "Settings", href: "/procurement/settings", icon: Settings01 },
                 ]}
             />
-            <main className="flex min-w-0 flex-1 flex-col gap-8 pt-8 pb-12 px-4 lg:px-8">
-                {/* Header */}
-                <div className="text-center space-y-4 mb-8">
-                    <div className="flex justify-center mb-4">
-                        <FeaturedIcon 
-                            size="xl" 
-                            color="success" 
-                            theme="light" 
-                            icon={status.status === 'ACTIVE' ? CheckCircle : Clock} 
-                        />
-                    </div>
-                    <div>
-                        <h1 className="text-display-sm font-semibold text-primary mb-2">
-                            {status.tenderName}
-                        </h1>
-                        <p className="text-lg text-secondary max-w-2xl mx-auto">
-                            {status.tenderDescription || 'Procure innovative businesses to provide high-quality services for our summer internship program.'}
-                        </p>
+            <main className="flex min-w-0 flex-1 flex-col gap-8 pt-8 pb-12">
+                <div className="px-4 lg:px-8">
+                    <div className="flex flex-col gap-4">
+                        <Button size="sm" color="tertiary" iconLeading={ArrowLeft} href="/procurement/setup" className="self-start [&_svg]:!text-brand-600">
+                            Back to Dashboard
+                        </Button>
+                        <div className="flex flex-col gap-1">
+                            <p className="text-md font-semibold text-tertiary">Procurement Tender</p>
+                            <p className="text-display-md font-semibold text-primary">{status.tenderName}</p>
+                            {status.tenderDescription && (
+                                <p className="text-md text-tertiary mt-2">{status.tenderDescription}</p>
+                            )}
+                        </div>
                     </div>
                 </div>
 
-                {/* Analysis Warnings - Show when there are fallback analyses */}
-                {status.analysisWarnings && status.analysisWarnings.length > 0 && (
-                    <div className="bg-warning-50 border border-warning-200 rounded-lg p-6 mb-8">
-                        <div className="flex items-start gap-4">
-                            <FeaturedIcon size="md" color="warning" theme="light" icon={AlertTriangle} />
-                            <div className="flex-1">
-                                <h3 className="text-lg font-semibold text-warning-900 mb-2">
-                                    Analysis Warnings Detected
-                                </h3>
-                                <p className="text-sm text-warning-800 mb-4">
-                                    Some document analyses encountered issues and used basic fallback processing.
-                                    Your tender is still functional, but assessment quality may be reduced.
-                                </p>
-                                <div className="space-y-3 mb-4">
-                                    {status.analysisWarnings.map((warning, index) => (
-                                        <div key={index} className="bg-warning-100 rounded-md p-3">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <AlertTriangle className="w-4 h-4 text-warning-600" />
-                                                <span className="text-sm font-medium text-warning-900">
-                                                    {warning.type.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())} Analysis
-                                                </span>
+                <div className="px-4 lg:px-8">
+                    <div className="grid gap-6 lg:grid-cols-3">
+                        <div className="lg:col-span-2 space-y-6">
+                            <div className="rounded-lg border border-secondary bg-primary p-6">
+                                <div className="flex items-start justify-between mb-6">
+                                    <div>
+                                        <h3 className="text-lg font-semibold text-primary">Tender Configuration Status</h3>
+                                        <p className="text-sm text-tertiary mt-1">Building your project-specific tender knowledgebase</p>
+                                    </div>
+                                    <Badge color={getStatusColor()}>{status.brainBuilding.status}</Badge>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <div>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <p className="text-sm font-medium text-primary">{status.brainBuilding.currentTask}</p>
+                                            <span className="text-sm text-tertiary">{status.brainBuilding.progress}%</span>
+                                        </div>
+                                        <ProgressBar value={status.brainBuilding.progress} />
+                                        {status.brainBuilding.estimatedCompletion && status.brainBuilding.status === 'PROCESSING' && (
+                                            <p className="text-xs text-tertiary mt-2">Estimated completion: {status.brainBuilding.estimatedCompletion}</p>
+                                        )}
+                                        {status.brainBuilding.status === 'FAILED' && status.brainBuilding.errorMessage && (
+                                            <div className="mt-2 text-xs text-error-600">Error: {status.brainBuilding.errorMessage}</div>
+                                        )}
+                                        {status.brainBuilding.processedDocuments !== undefined && status.brainBuilding.totalDocuments !== undefined && (
+                                            <p className="text-xs text-tertiary mt-2">Processed {status.brainBuilding.processedDocuments} of {status.brainBuilding.totalDocuments} documents</p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="rounded-lg border border-secondary bg-primary p-6">
+                                <h3 className="text-lg font-semibold text-primary mb-4">Tender Documents Uploaded ({status.documents.length})</h3>
+                                {status.documents.length > 0 ? (
+                                    <div className="space-y-2">
+                                        {status.documents.map((doc) => (
+                                            <div key={doc.id} className="flex items-center justify-between rounded-lg border border-secondary p-3">
+                                                <div className="flex items-center gap-3">
+                                                    <File02 className="size-5 text-tertiary" />
+                                                    <div>
+                                                        <p className="text-sm font-medium text-primary">{doc.filename}</p>
+                                                        <p className="text-xs text-tertiary">{(doc.fileSize / 1024).toFixed(1)} KB</p>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <p className="text-sm text-warning-800 ml-6">
-                                                {warning.message}
-                                            </p>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                <div className="flex flex-col sm:flex-row gap-3">
-                                    <Button
-                                        size="sm"
-                                        color="warning"
-                                        iconLeading={RefreshCw05}
-                                        onClick={() => {
-                                            // Force a re-fetch to trigger reprocessing
-                                            window.location.reload();
-                                        }}
-                                    >
-                                        Retry Analysis
-                                    </Button>
-                                    <Button
-                                        size="sm"
-                                        color="tertiary"
-                                        onClick={() => router.push('/procurement/setup')}
-                                    >
-                                        Upload New Documents
-                                    </Button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* Fund Info Card */}
-                <div className="bg-white rounded-lg border border-gray-200 p-6 mb-8">
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-lg font-semibold text-primary">Documents Uploaded</h2>
-                        {getStatusBadge()}
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Documents Summary */}
-                        <div>
-                            <div className="space-y-2">
-                                <div className="flex items-center gap-3">
-                                    <FeaturedIcon size="sm" color="success" theme="light" icon={UploadCloud01} />
-                                    <span className="text-sm text-secondary">
-                                        Submission Form ({status.documentsUploaded.submissionForm ? '1' : '0'} file)
-                                    </span>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <FeaturedIcon size="sm" color="success" theme="light" icon={FileCheck02} />
-                                    <span className="text-sm text-secondary">
-                                        Selection Criteria ({status.documentsUploaded.selectionCriteria} files)
-                                    </span>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <FeaturedIcon size="sm" color="success" theme="light" icon={Target01} />
-                                    <span className="text-sm text-secondary">
-                                        Good Examples ({status.documentsUploaded.goodExamples} files)
-                                    </span>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <FeaturedIcon size="sm" color="success" theme="light" icon={File02} />
-                                    <span className="text-sm text-secondary">
-                                        Output Templates ({status.documentsUploaded.outputTemplates} files)
-                                    </span>
-                                </div>
-                            </div>
-                            <div className="mt-3 text-xs text-tertiary">
-                                Total: {totalDocuments} documents processed
-                            </div>
-                        </div>
-
-                        {/* Brain Building Status */}
-                        <div>
-                            <h3 className="text-md font-medium text-primary mb-3">AI Brain Status</h3>
-                            <div className="space-y-4">
-                                <div className="flex items-center gap-3">
-                                    {getBrainStatusIcon()}
-                                    <div className="flex-1">
-                                        <div className="flex items-center justify-between mb-1">
-                                            <span className="text-sm font-medium text-primary">
-                                                {status.brainBuilding.status === 'COMPLETE' ? 'Complete' : 'Building Knowledge Base'}
-                                            </span>
-                                            <span className="text-sm text-secondary">
-                                                {Math.round(status.brainBuilding.progress)}%
-                                            </span>
-                                        </div>
-                                        <ProgressBar 
-                                            value={status.brainBuilding.progress} 
-                                            className="h-2"
-                                        />
+                                        ))}
                                     </div>
-                                </div>
-                                
-                                {status.brainBuilding.currentTask && (
-                                    <div className="text-sm text-secondary">
-                                        <strong>Current task:</strong> {status.brainBuilding.currentTask}
-                                    </div>
-                                )}
-                                
-                                {status.brainBuilding.estimatedCompletion && (
-                                    <div className="text-sm text-tertiary">
-                                        Estimated completion: {status.brainBuilding.estimatedCompletion}
-                                    </div>
+                                ) : (
+                                    <p className="text-sm text-tertiary">No documents uploaded yet</p>
                                 )}
                             </div>
+
+                            {status.analysisWarnings && status.analysisWarnings.length > 0 && (
+                                <div className="rounded-lg border border-warning-200 bg-warning-50 p-4">
+                                    <div className="flex items-start gap-3">
+                                        <AlertTriangle className="size-5 text-warning-600 mt-0.5" />
+                                        <div>
+                                            <p className="font-medium text-warning-900">Review Recommended</p>
+                                            <ul className="mt-2 space-y-1">
+                                                {status.analysisWarnings.map((warning, index) => (
+                                                    <li key={index} className="text-sm text-warning-700">• {warning.message}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="space-y-6">
+                            <Button href={`/procurement/setup/setup-new-tender?edit=${tenderId}`} iconLeading={Edit05} color="primary" size="md" className="w-full">
+                                Edit Configuration
+                            </Button>
+
+                            <div className="rounded-lg border border-secondary bg-primary p-6">
+                                <h3 className="text-lg font-semibold text-primary mb-4">Tender Information</h3>
+                                <div className="space-y-3">
+                                    <div>
+                                        <p className="text-xs text-tertiary">Tender ID</p>
+                                        <p className="text-sm font-mono text-primary">{status.tenderId}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-tertiary">Created</p>
+                                        <p className="text-sm text-primary">{new Date(status.createdAt).toLocaleString()}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-tertiary">Module Type</p>
+                                        <Badge color="brand">PROCUREMENT</Badge>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="rounded-lg bg-gray-50 p-4">
+                                <h4 className="text-sm font-medium text-primary mb-2">Need Help?</h4>
+                                <p className="text-xs text-tertiary mb-3">Learn more about configuring tender knowledgebases</p>
+                                <Button size="sm" color="tertiary" className="w-full">View Documentation</Button>
+                            </div>
                         </div>
                     </div>
                 </div>
-
-
-                {/* Next Steps */}
-                <div className="bg-gray-50 rounded-lg p-6 mb-8">
-                    <h3 className="text-lg font-semibold text-primary mb-4">What's Next?</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="flex items-start gap-3">
-                            <FeaturedIcon size="sm" color="brand" theme="light" icon={Zap} />
-                            <div>
-                                <h4 className="text-sm font-medium text-primary">Start Accepting Submissions</h4>
-                                <p className="text-sm text-secondary">
-                                    Share your submission form and begin receiving submissions.
-                                </p>
-                            </div>
-                        </div>
-                        <div className="flex items-start gap-3">
-                            <FeaturedIcon size="sm" color="brand" theme="light" icon={ClipboardCheck} />
-                            <div>
-                                <h4 className="text-sm font-medium text-primary">Assess Submissions</h4>
-                                <p className="text-sm text-secondary">
-                                    Review and evaluate submitted submissions using your AI-powered assessment.
-                                </p>
-                            </div>
-                        </div>
-                        <div className="flex items-start gap-3">
-                            <FeaturedIcon size="sm" color="brand" theme="light" icon={Plus} />
-                            <div>
-                                <h4 className="text-sm font-medium text-primary">Set Up Another Tender</h4>
-                                <p className="text-sm text-secondary">
-                                    Create additional procurement tenders with different criteria and requirements.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                    <Button
-                        size="lg"
-                        color="tertiary"
-                        iconLeading={ArrowLeft}
-                        onClick={() => router.push('/procurement/setup')}
-                    >
-                        Back to Setup
-                    </Button>
-                    
-                    {status.status === 'PROCESSING' && (
-                        <Button
-                            size="lg"
-                            color="secondary"
-                            isDisabled
-                        >
-                            Processing... ({Math.round(status.brainBuilding.progress)}%)
-                        </Button>
-                    )}
-                    
-                    {status.brainBuilding.status === 'ERROR' && (
-                        <Button
-                            size="lg"
-                            color="primary"
-                            iconLeading={RefreshCw05}
-                            onClick={handleRetryProcessing}
-                            isDisabled={isProcessingManually}
-                        >
-                            {isProcessingManually ? 'Retrying AI Analysis...' : 'Retry AI Processing'}
-                        </Button>
-                    )}
-
-                    {(status.status === 'PROCESSING' && status.brainBuilding.progress === 0) && (
-                        <Button
-                            size="lg"
-                            color="primary"
-                            iconLeading={Zap}
-                            onClick={handleProcessNow}
-                            isDisabled={isProcessingManually}
-                        >
-                            {isProcessingManually ? 'Processing...' : 'Process Now'}
-                        </Button>
-                    )}
-                </div>
-
             </main>
-
-            {/* Right Sidebar */}
-            <div className="sticky top-0 hidden h-screen w-98 flex-col gap-8 overflow-auto border-l border-secondary bg-primary pb-12 lg:flex">
-                <div className="flex flex-col gap-5 px-6 pt-8">
-                    <div className="flex items-start justify-between">
-                        <p className="text-lg font-semibold text-primary">Actions</p>
-                        <TableRowActionsDropdown />
-                    </div>
-                    <div className="flex flex-col gap-3">
-                        <a href="/procurement/apply" className="flex items-center gap-3 rounded-xl bg-utility-green-50 p-4 hover:bg-utility-green-100 cursor-pointer transition-colors">
-                            <FeaturedIcon size="md" color="brand" theme="light" icon={MessageSmileSquare} className="bg-utility-green-100 text-utility-green-700" />
-                            <div className="flex flex-1 justify-between gap-4">
-                                <p className="text-sm font-medium text-utility-green-700">Create SubmissionBot</p>
-                                <ArrowRight className="text-utility-green-700 w-4 h-4" />
-                            </div>
-                        </a>
-                        <a href="/procurement/upload-submissions" className="flex items-center gap-3 rounded-xl bg-utility-blue-50 p-4 hover:bg-utility-blue-100 cursor-pointer transition-colors">
-                            <FeaturedIcon size="md" color="brand" theme="light" icon={UploadCloud01} className="bg-utility-blue-100 text-utility-blue-700" />
-                            <div className="flex flex-1 justify-between gap-4">
-                                <p className="text-sm font-medium text-utility-blue-700">Upload submissions</p>
-                                <ArrowRight className="text-utility-blue-700 w-4 h-4" />
-                            </div>
-                        </a>
-                        <div className="flex items-center gap-3 rounded-xl bg-utility-pink-50 p-4 hover:bg-utility-pink-100 cursor-pointer transition-colors">
-                            <FeaturedIcon size="md" color="brand" theme="light" icon={Flash} className="bg-utility-pink-100 text-utility-pink-700" />
-                            <div className="flex flex-1 justify-between gap-4">
-                                <p className="text-sm font-medium text-utility-pink-700">Automate assessments</p>
-                                <ArrowRight className="text-utility-pink-700 w-4 h-4" />
-                            </div>
-                        </div>
-                        <a href="/procurement/analytics" className="flex items-center gap-3 rounded-xl bg-utility-purple-50 p-4 hover:bg-utility-purple-100 cursor-pointer transition-colors">
-                            <FeaturedIcon size="md" color="brand" theme="light" icon={BarChart01} className="bg-utility-purple-100 text-utility-purple-700" />
-                            <div className="flex flex-1 justify-between gap-4">
-                                <p className="text-sm font-medium text-utility-purple-700">View analytics</p>
-                                <ArrowRight className="text-utility-purple-700 w-4 h-4" />
-                            </div>
-                        </a>
-                    </div>
-                </div>
-            </div>
         </div>
     );
 }
@@ -659,11 +390,8 @@ function TenderCreatedContent() {
 export default function TenderCreatedPage() {
     return (
         <Suspense fallback={
-            <div className="min-h-screen bg-primary flex items-center justify-center">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600 mx-auto mb-4"></div>
-                    <p className="text-secondary">Loading tender status...</p>
-                </div>
+            <div className="flex h-screen items-center justify-center">
+                <div className="text-tertiary">Loading...</div>
             </div>
         }>
             <TenderCreatedContent />

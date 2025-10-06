@@ -98,12 +98,17 @@ export async function ragHealthCheck(): Promise<{
 
   // Test OpenSearch
   try {
+    if (!process.env.OPENSEARCH_ENDPOINT) {
+      throw new Error('OPENSEARCH_ENDPOINT not configured');
+    }
+    if (!process.env.OPENSEARCH_USERNAME || !process.env.OPENSEARCH_PASSWORD) {
+      throw new Error('OpenSearch credentials not configured');
+    }
+
     const response = await fetch(`${process.env.OPENSEARCH_ENDPOINT}/_cluster/health`, {
       method: 'GET',
       headers: {
-        'Authorization': process.env.OPENSEARCH_USERNAME 
-          ? `Basic ${Buffer.from(`${process.env.OPENSEARCH_USERNAME}:${process.env.OPENSEARCH_PASSWORD}`).toString('base64')}`
-          : 'Basic ' + Buffer.from('admin:admin').toString('base64'),
+        'Authorization': `Basic ${Buffer.from(`${process.env.OPENSEARCH_USERNAME}:${process.env.OPENSEARCH_PASSWORD}`).toString('base64')}`,
       },
     });
     if (response.ok) {
