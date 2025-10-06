@@ -10,9 +10,13 @@ const openSearchClient = new OpenSearchClient({
 });
 
 // OpenSearch configuration - REQUIRED (no fallback)
-const OPENSEARCH_ENDPOINT = process.env.OPENSEARCH_ENDPOINT;
-if (!OPENSEARCH_ENDPOINT) {
-  throw new Error('OPENSEARCH_ENDPOINT environment variable is required. Please configure OpenSearch in .env.local or .env.production');
+// Lazy evaluation to avoid build-time errors
+function getOpenSearchEndpoint(): string {
+  const endpoint = process.env.OPENSEARCH_ENDPOINT;
+  if (!endpoint) {
+    throw new Error('OPENSEARCH_ENDPOINT environment variable is required. Please configure OpenSearch in .env.local or .env.production');
+  }
+  return endpoint;
 }
 
 // Generate index name based on module type
@@ -55,7 +59,7 @@ export interface SearchResult {
 export async function storeDocumentVector(document: DocumentVector): Promise<void> {
   try {
     const indexName = getIndexName(document.moduleType || 'FUNDING');
-    const response = await fetch(`${OPENSEARCH_ENDPOINT}/${indexName}/_doc/${document.id}`, {
+    const response = await fetch(`${getOpenSearchEndpoint()}/${indexName}/_doc/${document.id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -130,7 +134,7 @@ export async function searchRelevantDocuments(
     };
     
     const indexName = getIndexName(moduleType);
-    const response = await fetch(`${OPENSEARCH_ENDPOINT}/${indexName}/_search`, {
+    const response = await fetch(`${getOpenSearchEndpoint()}/${indexName}/_search`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -220,7 +224,7 @@ export async function initializeOpenSearchIndex(moduleType: 'FUNDING' | 'PROCURE
       }
     };
 
-    const response = await fetch(`${OPENSEARCH_ENDPOINT}/${indexName}`, {
+    const response = await fetch(`${getOpenSearchEndpoint()}/${indexName}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
