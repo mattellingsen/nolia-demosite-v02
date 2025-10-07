@@ -20,11 +20,13 @@ function getOpenSearchEndpoint(): string {
 }
 
 // Generate index name based on module type
-function getIndexName(moduleType: 'FUNDING' | 'PROCUREMENT' | 'PROCUREMENT_ADMIN' = 'FUNDING'): string {
+function getIndexName(moduleType: 'FUNDING' | 'PROCUREMENT' | 'PROCUREMENT_ADMIN' | 'WORLDBANK' | 'WORLDBANK_ADMIN' = 'FUNDING'): string {
   const indexMap = {
     'FUNDING': 'funding-documents',
     'PROCUREMENT': 'procurement-documents',
-    'PROCUREMENT_ADMIN': 'procurement-admin-documents'
+    'PROCUREMENT_ADMIN': 'procurement-admin-documents',
+    'WORLDBANK': 'worldbank-documents',
+    'WORLDBANK_ADMIN': 'worldbank-admin-documents'
   };
   return indexMap[moduleType];
 }
@@ -36,7 +38,7 @@ export interface DocumentVector {
   filename: string;
   content: string;
   embedding: number[];
-  moduleType?: 'FUNDING' | 'PROCUREMENT' | 'PROCUREMENT_ADMIN'; // For index routing
+  moduleType?: 'FUNDING' | 'PROCUREMENT' | 'PROCUREMENT_ADMIN' | 'WORLDBANK' | 'WORLDBANK_ADMIN'; // For index routing
   metadata: {
     uploadedAt: string;
     fileSize: number;
@@ -98,7 +100,7 @@ export async function searchRelevantDocuments(
   fundId: string,
   documentTypes?: string[],
   limit: number = 5,
-  moduleType: 'FUNDING' | 'PROCUREMENT' | 'PROCUREMENT_ADMIN' = 'FUNDING'
+  moduleType: 'FUNDING' | 'PROCUREMENT' | 'PROCUREMENT_ADMIN' | 'WORLDBANK' | 'WORLDBANK_ADMIN' = 'FUNDING'
 ): Promise<SearchResult[]> {
   try {
     const mustClauses = [
@@ -191,7 +193,7 @@ export async function getFundGoodExamples(fundId: string): Promise<SearchResult[
 /**
  * Initialize OpenSearch index with proper mappings
  */
-export async function initializeOpenSearchIndex(moduleType: 'FUNDING' | 'PROCUREMENT' | 'PROCUREMENT_ADMIN' = 'FUNDING'): Promise<void> {
+export async function initializeOpenSearchIndex(moduleType: 'FUNDING' | 'PROCUREMENT' | 'PROCUREMENT_ADMIN' | 'WORLDBANK' | 'WORLDBANK_ADMIN' = 'FUNDING'): Promise<void> {
   try {
     const indexName = getIndexName(moduleType);
     const indexMapping = {

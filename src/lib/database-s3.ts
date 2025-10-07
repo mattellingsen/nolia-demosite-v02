@@ -83,7 +83,7 @@ export async function generateS3DownloadUrl(s3Key: string): Promise<string> {
 export async function saveFundWithDocuments(fundData: {
   name: string;
   description?: string;
-  moduleType?: 'FUNDING' | 'PROCUREMENT';
+  moduleType?: 'FUNDING' | 'PROCUREMENT' | 'WORLDBANK';
   applicationForm?: {
     file: Buffer;
     filename: string;
