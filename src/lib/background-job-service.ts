@@ -125,7 +125,7 @@ export class BackgroundJobService {
       await this.performDocumentAnalysis(fund.id);
 
       // Initialize OpenSearch index for this module type
-      const moduleType = fund.moduleType as 'FUNDING' | 'PROCUREMENT' | 'PROCUREMENT_ADMIN';
+      const moduleType = fund.moduleType as 'FUNDING' | 'PROCUREMENT' | 'PROCUREMENT_ADMIN' | 'WORLDBANK' | 'WORLDBANK_ADMIN';
       console.log(`Initializing OpenSearch index for module: ${moduleType}`);
       await initializeOpenSearchIndex(moduleType);
 
@@ -166,7 +166,7 @@ export class BackgroundJobService {
             filename: document.filename,
             content: documentText,
             embedding,
-            moduleType: fund.moduleType as 'FUNDING' | 'PROCUREMENT' | 'PROCUREMENT_ADMIN',
+            moduleType: fund.moduleType as 'FUNDING' | 'PROCUREMENT' | 'PROCUREMENT_ADMIN' | 'WORLDBANK' | 'WORLDBANK_ADMIN',
             metadata: {
               uploadedAt: document.uploadedAt.toISOString(),
               fileSize: document.fileSize,
