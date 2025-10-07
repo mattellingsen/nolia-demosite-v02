@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useProcurementBases, useDeleteProcurementBase } from "@/hooks/useProcurementBase";
+import { useWorldBankBases, useDeleteWorldBankBase } from "@/hooks/useWorldBankBase";
 import {
     ArrowRight,
     CheckDone01,
@@ -45,7 +45,7 @@ const formatDate = (timestamp: number): string => {
     return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
 };
 
-// Generate gradient colors for worldbank bases
+// Generate gradient colors for World Bank bases
 const generateGradient = (index: number): string => {
     const gradients = [
         "from-[#E6B3F1] to-[#B8A3FF]", // Purple gradient for admin
@@ -62,9 +62,9 @@ export const WorldBankAdminSetupDashboard = () => {
     const [mounted, setMounted] = useState(false);
     const router = useRouter();
 
-    // Fetch worldbank bases data
-    const { data: bases = [], isLoading: basesLoading, error: basesError } = useProcurementBases();
-    const deleteWorldBankBase = useDeleteProcurementBase();
+    // Fetch World Bank bases data
+    const { data: bases = [], isLoading: basesLoading, error: basesError } = useWorldBankBases();
+    const deleteWorldBankBase = useDeleteWorldBankBase();
 
     useEffect(() => {
         setMounted(true);
@@ -76,11 +76,11 @@ export const WorldBankAdminSetupDashboard = () => {
             event.stopPropagation();
         }
 
-        if (window.confirm('Are you sure you want to delete this worldbank base? This action cannot be undone.')) {
+        if (window.confirm('Are you sure you want to delete this World Bank base? This action cannot be undone.')) {
             try {
                 await deleteWorldBankBase.mutateAsync(baseId);
             } catch (error) {
-                console.error('Failed to delete worldbank base:', error);
+                console.error('Failed to delete World Bank base:', error);
             }
         }
     };
@@ -135,13 +135,13 @@ export const WorldBankAdminSetupDashboard = () => {
                 <div className="px-4 pb-12 lg:px-8">
                     {basesLoading ? (
                         <div className="flex justify-center py-12">
-                            <div className="text-tertiary">Loading worldbank bases...</div>
+                            <div className="text-tertiary">Loading World Bank bases...</div>
                         </div>
                     ) : basesError ? (
                         <div className="flex flex-col items-center gap-4 rounded-lg border border-error-300 bg-error-50 p-8 text-center">
                             <FeaturedIcon icon={Shield01} color="error" size="lg" />
                             <div>
-                                <p className="font-semibold text-primary">Failed to load worldbank bases</p>
+                                <p className="font-semibold text-primary">Failed to load World Bank bases</p>
                                 <p className="mt-1 text-sm text-tertiary">Please try refreshing the page</p>
                             </div>
                         </div>
