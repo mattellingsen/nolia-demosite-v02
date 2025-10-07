@@ -14,6 +14,9 @@ frontend:
         - echo "NOLIA_AWS_REGION=$NOLIA_AWS_REGION" >> .env.production
         - echo "SQS_DOCUMENT_PROCESSING_QUEUE=$SQS_DOCUMENT_PROCESSING_QUEUE" >> .env.production
         - echo "SQS_BRAIN_ASSEMBLY_QUEUE=$SQS_BRAIN_ASSEMBLY_QUEUE" >> .env.production
+        - echo "AUTH_USERNAME=$AUTH_USERNAME" >> .env.production
+        - echo "AUTH_PASSWORD=$AUTH_PASSWORD" >> .env.production
+        - echo "AUTH_SECRET=$AUTH_SECRET" >> .env.production
     build:
       commands:
         - npx prisma generate
