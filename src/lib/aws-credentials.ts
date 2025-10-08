@@ -30,17 +30,14 @@ export function getAWSCredentials(): AwsCredentialIdentityProvider | undefined {
   console.log('🔐 DEBUG: AWS_PROFILE present:', !!process.env.AWS_PROFILE);
 
   if (process.env.NODE_ENV === 'production') {
-    // CRITICAL: Use custom credential chain that skips config files
-    // Amplify serverless functions run in containers with IAM role credentials
-    // We must check: env vars → container metadata → instance metadata
-    // This bypasses ~/.aws/config and ~/.aws/sso/cache/ entirely
-    console.log('🔒 Using custom credential chain for Amplify (production mode)');
-    console.log('🔒 DEBUG: Credential provider: fromNodeProviderChain({ ignoreCache: true })');
+    // CRITICAL: Let AWS SDK use default credential chain for Amplify Lambda execution role
+    // Amplify Next.js API routes run as Lambda functions with execution role credentials
+    // The SDK's default chain correctly resolves Lambda execution role credentials
+    // Previous approach using fromNodeProviderChain() didn't work in Amplify environment
+    console.log('🔒 Using SDK default credential chain for Amplify Lambda (production mode)');
+    console.log('🔒 DEBUG: Credential provider: undefined (SDK will auto-detect Lambda execution role)');
 
-    return fromNodeProviderChain({
-      // Explicitly ignore shared credentials and config files
-      ignoreCache: true,
-    });
+    return undefined; // Let SDK use default chain (includes Lambda execution role)
   } else {
     // Development: Use environment variables from export-aws-creds.sh
     // Falls back to default credential chain if not set
