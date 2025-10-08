@@ -2,7 +2,7 @@
 import { prisma } from './database-s3';
 import { extractTextFromFile } from '../utils/server-document-analyzer';
 import { claudeService, ClaudeService } from './claude-service';
-import { storeDocumentVector, generateEmbedding, initializeOpenSearchIndex } from './aws-opensearch';
+import { storeDocumentVector, generateEmbedding, initializeOpenSearchIndex, chunkText, validateFundEmbeddings } from './aws-opensearch';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getAWSCredentials, AWS_REGION, S3_BUCKET } from './aws-credentials';
 
@@ -138,76 +138,261 @@ export class BackgroundJobService {
       });
 
       console.log(`Processing ${totalDocuments} documents for RAG indexing (${moduleType})`);
-      
+
+      // Success tracking counters
+      let successfulDocuments = 0;
+      let failedDocuments = 0;
+      let successfulChunks = 0;
+      let failedChunks = 0;
+      const failedItems: Array<{
+        documentId: string;
+        filename: string;
+        error: string;
+        chunkIndex?: number;
+      }> = [];
+
       // Process each document
       for (let i = 0; i < documents.length; i++) {
         const document = documents[i];
-        
+        let documentSuccess = false;
+        let documentChunksSucceeded = 0;
+        let documentChunksFailed = 0;
+
         try {
           console.log(`Processing document ${i + 1}/${totalDocuments}: ${document.filename}`);
-          
+
           // Extract text from S3
           const documentText = await this.extractTextFromS3Document(document.s3Key);
-          
+
           // Skip if no meaningful text (but don't fail the job)
           if (documentText.length < 10) {
-            console.log(`Skipping document ${document.filename} - insufficient text content`);
+            console.log(`⚠️ Skipping document ${document.filename} - insufficient text content`);
+            failedDocuments++;
+            failedItems.push({
+              documentId: document.id,
+              filename: document.filename,
+              error: 'Insufficient text content (< 10 characters)'
+            });
             continue;
           }
-          
-          // Generate embedding
-          const embedding = await generateEmbedding(documentText);
-          
-          // Store in OpenSearch
-          await storeDocumentVector({
-            id: document.id,
-            fundId: fund.id,
-            documentType: document.documentType,
-            filename: document.filename,
-            content: documentText,
-            embedding,
-            moduleType: fund.moduleType as 'FUNDING' | 'PROCUREMENT' | 'PROCUREMENT_ADMIN' | 'WORLDBANK' | 'WORLDBANK_ADMIN',
-            metadata: {
-              uploadedAt: document.uploadedAt.toISOString(),
-              fileSize: document.fileSize,
-              mimeType: document.mimeType,
-            },
-          });
-          
-          // Update progress
+
+          // Chunk the text to handle large documents (8,192 token limit)
+          const chunks = chunkText(documentText);
+          const isChunked = chunks.length > 1;
+
+          console.log(`📄 Document "${document.filename}" split into ${chunks.length} chunk(s) (${documentText.length} chars)`);
+
+          // Process each chunk
+          for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+            const chunk = chunks[chunkIndex];
+            const vectorId = isChunked
+              ? `${document.id}-chunk-${chunkIndex + 1}`
+              : document.id;
+
+            try {
+              console.log(`  Generating embedding for chunk ${chunkIndex + 1}/${chunks.length}...`);
+
+              // Generate embedding for this chunk
+              const embedding = await generateEmbedding(chunk);
+
+              // Store chunk in OpenSearch
+              await storeDocumentVector({
+                id: vectorId,
+                fundId: fund.id,
+                documentType: document.documentType,
+                filename: document.filename,
+                content: chunk,
+                embedding,
+                moduleType: fund.moduleType as 'FUNDING' | 'PROCUREMENT' | 'PROCUREMENT_ADMIN' | 'WORLDBANK' | 'WORLDBANK_ADMIN',
+                metadata: {
+                  uploadedAt: document.uploadedAt.toISOString(),
+                  fileSize: document.fileSize,
+                  mimeType: document.mimeType,
+                  ...(isChunked && {
+                    originalDocumentId: document.id,
+                    chunkIndex: chunkIndex + 1,
+                    totalChunks: chunks.length,
+                    isChunk: true
+                  })
+                },
+              });
+
+              console.log(`  ✅ Successfully stored chunk ${chunkIndex + 1}/${chunks.length}`);
+              successfulChunks++;
+              documentChunksSucceeded++;
+
+            } catch (chunkError) {
+              const errorMessage = chunkError instanceof Error ? chunkError.message : String(chunkError);
+              console.error(`  ❌ Failed to process chunk ${chunkIndex + 1}/${chunks.length}:`, errorMessage);
+              failedChunks++;
+              documentChunksFailed++;
+              failedItems.push({
+                documentId: document.id,
+                filename: document.filename,
+                error: `Chunk ${chunkIndex + 1}/${chunks.length} failed: ${errorMessage}`,
+                chunkIndex: chunkIndex + 1
+              });
+            }
+          }
+
+          // Document succeeds if at least one chunk succeeded
+          if (documentChunksSucceeded > 0) {
+            documentSuccess = true;
+            successfulDocuments++;
+            console.log(`✅ Successfully processed document ${i + 1}/${totalDocuments} (${documentChunksSucceeded}/${chunks.length} chunks succeeded)`);
+          } else {
+            failedDocuments++;
+            console.error(`❌ Document ${document.filename} completely failed - no chunks succeeded`);
+          }
+
+          // Update progress (after all chunks processed)
           const processedDocuments = i + 1;
           const progress = Math.min(95, Math.round((processedDocuments / totalDocuments) * 90) + 5);
-          
+
           await this.updateJob(jobId, {
             processedDocuments,
-            progress
+            progress,
+            metadata: {
+              ...job.metadata,
+              successfulDocuments,
+              failedDocuments,
+              successfulChunks,
+              failedChunks,
+              lastProcessedDocument: document.filename
+            }
           });
-          
-          console.log(`Successfully processed document ${processedDocuments}/${totalDocuments}`);
-          
+
         } catch (docError) {
-          console.error(`Error processing document ${document.filename}:`, docError);
-          // Continue with other documents instead of failing entire job
+          const errorMessage = docError instanceof Error ? docError.message : String(docError);
+          console.error(`❌ Error processing document ${document.filename}:`, errorMessage);
+          failedDocuments++;
+          failedItems.push({
+            documentId: document.id,
+            filename: document.filename,
+            error: errorMessage
+          });
         }
       }
-      
-      // Mark job as completed
-      await this.updateJob(jobId, {
-        status: 'COMPLETED',
-        progress: 100,
-        completedAt: new Date()
-      });
 
-      // Update fund status to ACTIVE when RAG processing completes
-      await prisma.fund.update({
-        where: { id: job.fundId },
-        data: {
-          status: 'ACTIVE',
-          brainAssembledAt: new Date()
-        }
-      });
+      // Validate embeddings were actually created in OpenSearch
+      console.log(`🔍 Validating embeddings for fund ${job.fundId}...`);
+      const validation = await validateFundEmbeddings(job.fundId, moduleType);
 
-      console.log(`RAG job ${jobId} completed successfully - Fund ${job.fundId} status updated to ACTIVE`);
+      console.log(`📊 Validation Results:
+        - Embeddings created: ${validation.count}
+        - Successful documents: ${successfulDocuments}/${totalDocuments}
+        - Successful chunks: ${successfulChunks}
+        - Failed chunks: ${failedChunks}`);
+
+      // Determine job success based on actual embeddings created
+      const hasAnyEmbeddings = validation.count > 0;
+      const hasCompleteFailure = successfulDocuments === 0 || validation.count === 0;
+      const hasCountDiscrepancy = validation.count < successfulChunks;
+      const hasPartialFailure = failedDocuments > 0 || failedChunks > 0;
+
+      // Build metadata with all tracking info
+      const finalMetadata = {
+        ...job.metadata,
+        successfulDocuments,
+        failedDocuments,
+        successfulChunks,
+        failedChunks,
+        embeddingsCreated: validation.count,
+        validationTimestamp: new Date().toISOString(),
+        indexName: validation.indexName,
+        failedItems: failedItems.length > 0 ? failedItems : undefined
+      };
+
+      if (hasCompleteFailure) {
+        // Complete failure - NO embeddings created
+        console.error(`❌ RAG job ${jobId} FAILED - No embeddings were created`);
+
+        await this.updateJob(jobId, {
+          status: 'FAILED',
+          progress: 100,
+          errorMessage: `No embeddings created. ${failedDocuments} document(s) failed, ${failedChunks} chunk(s) failed.`,
+          completedAt: new Date(),
+          metadata: finalMetadata
+        });
+
+        // Do NOT mark fund as ACTIVE
+        console.error(`Fund ${job.fundId} remains in current status - no functional brain created`);
+
+      } else if (hasCountDiscrepancy) {
+        // Count discrepancy - we think we succeeded but OpenSearch has fewer embeddings
+        console.warn(`⚠️ RAG job ${jobId} completed with storage discrepancy`);
+        console.warn(`   Expected ${successfulChunks} chunks, but OpenSearch has ${validation.count} embeddings`);
+        console.warn(`   This suggests some chunks failed to store despite appearing successful`);
+
+        await this.updateJob(jobId, {
+          status: 'COMPLETED',
+          progress: 100,
+          errorMessage: `Storage discrepancy: Expected ${successfulChunks} embeddings but only ${validation.count} were stored. Some chunks may have failed silently.`,
+          completedAt: new Date(),
+          metadata: finalMetadata
+        });
+
+        // Mark fund as ACTIVE but with warning
+        await prisma.fund.update({
+          where: { id: job.fundId },
+          data: {
+            status: 'ACTIVE',
+            brainAssembledAt: new Date()
+          }
+        });
+
+        console.warn(`⚠️ Fund ${job.fundId} marked ACTIVE but brain may be incomplete (storage discrepancy)`);
+
+      } else if (hasPartialFailure) {
+        // Partial success - some embeddings created but with errors
+        console.warn(`⚠️ RAG job ${jobId} completed with warnings`);
+        console.warn(`   ${successfulDocuments}/${totalDocuments} documents succeeded`);
+        console.warn(`   ${validation.count} embeddings created`);
+        console.warn(`   ${failedDocuments} document(s) failed, ${failedChunks} chunk(s) failed`);
+
+        await this.updateJob(jobId, {
+          status: 'COMPLETED',
+          progress: 100,
+          errorMessage: `Partial success: ${failedDocuments} document(s) failed, ${failedChunks} chunk(s) failed. See metadata for details.`,
+          completedAt: new Date(),
+          metadata: finalMetadata
+        });
+
+        // Mark fund as ACTIVE but log warning
+        await prisma.fund.update({
+          where: { id: job.fundId },
+          data: {
+            status: 'ACTIVE',
+            brainAssembledAt: new Date()
+          }
+        });
+
+        console.warn(`⚠️ Fund ${job.fundId} marked ACTIVE but with degraded brain (partial failures occurred)`);
+
+      } else {
+        // Complete success
+        console.log(`✅ RAG job ${jobId} completed successfully`);
+        console.log(`   All ${totalDocuments} documents processed`);
+        console.log(`   ${validation.count} embeddings created`);
+
+        await this.updateJob(jobId, {
+          status: 'COMPLETED',
+          progress: 100,
+          completedAt: new Date(),
+          metadata: finalMetadata
+        });
+
+        // Mark fund as ACTIVE
+        await prisma.fund.update({
+          where: { id: job.fundId },
+          data: {
+            status: 'ACTIVE',
+            brainAssembledAt: new Date()
+          }
+        });
+
+        console.log(`✅ Fund ${job.fundId} status updated to ACTIVE with functional brain`);
+      }
       
     } catch (error) {
       console.error(`RAG job ${jobId} failed:`, error);

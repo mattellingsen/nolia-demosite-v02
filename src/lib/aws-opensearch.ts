@@ -1,6 +1,7 @@
 // AWS OpenSearch integration for vector database and semantic search
 import { OpenSearchClient } from '@aws-sdk/client-opensearch';
 import { getAWSCredentials, AWS_REGION } from './aws-credentials';
+import { getEncoding } from 'js-tiktoken';
 
 // Initialize OpenSearch client with EXPLICIT IAM role credentials
 // This bypasses ALL configuration files and SSO settings
@@ -31,8 +32,58 @@ function getIndexName(moduleType: 'FUNDING' | 'PROCUREMENT' | 'PROCUREMENT_ADMIN
   return indexMap[moduleType];
 }
 
+/**
+ * Split text into chunks based on ACTUAL token count (not estimation)
+ * Uses tiktoken to count tokens accurately for OpenAI models
+ *
+ * @param text - The text to chunk
+ * @param maxTokens - Maximum tokens per chunk (default 7000, safe buffer under 8192 limit)
+ * @param overlapTokens - Number of tokens to overlap between chunks (default 300)
+ * @returns Array of text chunks
+ */
+export function chunkText(
+  text: string,
+  maxTokens: number = 7000,
+  overlapTokens: number = 300
+): string[] {
+  const encoder = getEncoding('cl100k_base'); // Use cl100k_base for text-embedding-3-small compatibility
+
+  try {
+    const tokens = encoder.encode(text);
+    const totalTokens = tokens.length;
+
+    // If text fits in one chunk, return as-is
+    if (totalTokens <= maxTokens) {
+      return [text];
+    }
+
+    const chunks: string[] = [];
+    const step = maxTokens - overlapTokens;
+
+    for (let i = 0; i < totalTokens; i += step) {
+      const endIndex = Math.min(i + maxTokens, totalTokens);
+      const chunkTokens = tokens.slice(i, endIndex);
+      // js-tiktoken's decode() returns a string directly (no TextDecoder needed)
+      const chunkText = encoder.decode(chunkTokens);
+
+      chunks.push(chunkText);
+
+      // Stop if we've reached the end
+      if (endIndex >= totalTokens) {
+        break;
+      }
+    }
+
+    return chunks;
+
+  } finally {
+    // Note: js-tiktoken doesn't require manual memory management (pure JavaScript)
+    // No need to free encoder
+  }
+}
+
 export interface DocumentVector {
-  id: string;
+  id: string;  // documentId OR documentId-chunk-N for chunked documents
   fundId: string;
   documentType: 'APPLICATION_FORM' | 'SELECTION_CRITERIA' | 'GOOD_EXAMPLES' | 'OUTPUT_TEMPLATES';
   filename: string;
@@ -43,6 +94,11 @@ export interface DocumentVector {
     uploadedAt: string;
     fileSize: number;
     mimeType: string;
+    // Chunk-specific fields (only present for chunked documents)
+    originalDocumentId?: string;  // Database document ID (parent document)
+    chunkIndex?: number;          // 1-based index (1, 2, 3...)
+    totalChunks?: number;         // Total number of chunks for this document
+    isChunk?: boolean;            // true for chunks, undefined for legacy single documents
   };
 }
 
@@ -268,12 +324,24 @@ export async function generateEmbedding(text: string): Promise<number[]> {
   try {
     // Option 1: Use AWS Titan Embeddings (recommended for AWS)
     // const titanResponse = await bedrockClient.send(new InvokeModelCommand({...}));
-    
+
     // Option 2: Use OpenAI embeddings (fallback)
+    const apiKey = process.env.OPENAI_API_KEY;
+
+    // Debug logging
+    if (!apiKey) {
+      console.error('❌ OPENAI_API_KEY is not set in environment');
+      console.error('   Available env vars starting with OPEN:',
+        Object.keys(process.env).filter(k => k.startsWith('OPEN')));
+      throw new Error('OPENAI_API_KEY environment variable is not set');
+    }
+
+    console.log(`🔄 Generating embedding for text (${text.length} chars) with API key: ${apiKey.substring(0, 10)}...`);
+
     const response = await fetch('https://api.openai.com/v1/embeddings', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -281,16 +349,102 @@ export async function generateEmbedding(text: string): Promise<number[]> {
         model: 'text-embedding-3-small',
       }),
     });
-    
+
     if (!response.ok) {
-      throw new Error('Failed to generate embedding');
+      const errorText = await response.text();
+      console.error(`❌ OpenAI API error: ${response.status} ${response.statusText}`);
+      console.error(`   Error details: ${errorText}`);
+      throw new Error(`OpenAI API returned ${response.status}: ${errorText}`);
     }
-    
+
     const data = await response.json();
+    console.log(`✅ Successfully generated embedding (dimension: ${data.data[0].embedding.length})`);
     return data.data[0].embedding;
 
   } catch (error) {
     console.error('Error generating embedding:', error);
     throw new Error(`Failed to generate embedding: ${error instanceof Error ? error.message : 'Unknown error'}. Ensure OPENAI_API_KEY is configured.`);
+  }
+}
+
+/**
+ * Validate that embeddings were successfully created for a fund
+ * Returns the count of embeddings and sample data
+ */
+export async function validateFundEmbeddings(
+  fundId: string,
+  moduleType: 'FUNDING' | 'PROCUREMENT' | 'PROCUREMENT_ADMIN' | 'WORLDBANK' | 'WORLDBANK_ADMIN' = 'FUNDING'
+): Promise<{
+  count: number;
+  indexName: string;
+  sample?: Array<{
+    id: string;
+    filename: string;
+    hasEmbedding: boolean;
+    isChunk: boolean;
+  }>;
+}> {
+  try {
+    const indexName = getIndexName(moduleType);
+
+    // Count embeddings for this fund
+    const countResponse = await fetch(`${getOpenSearchEndpoint()}/${indexName}/_count`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': await getOpenSearchAuth(),
+      },
+      body: JSON.stringify({
+        query: {
+          term: { fundId }
+        }
+      }),
+    });
+
+    if (!countResponse.ok) {
+      const errorText = await countResponse.text();
+      console.warn(`⚠️ Could not validate embeddings for fund ${fundId}: ${errorText}`);
+      return { count: 0, indexName, sample: [] };
+    }
+
+    const countData = await countResponse.json();
+    const count = countData.count || 0;
+
+    console.log(`📊 Validation: Found ${count} embeddings for fund ${fundId} in index ${indexName}`);
+
+    // Get sample documents if any exist
+    let sample = [];
+    if (count > 0) {
+      const sampleResponse = await fetch(`${getOpenSearchEndpoint()}/${indexName}/_search`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': await getOpenSearchAuth(),
+        },
+        body: JSON.stringify({
+          query: {
+            term: { fundId }
+          },
+          size: 3,
+          _source: ['filename', 'embedding', 'metadata']
+        }),
+      });
+
+      if (sampleResponse.ok) {
+        const sampleData = await sampleResponse.json();
+        sample = sampleData.hits.hits.map((hit: any) => ({
+          id: hit._id,
+          filename: hit._source.filename,
+          hasEmbedding: !!hit._source.embedding,
+          isChunk: hit._source.metadata?.isChunk || false
+        }));
+      }
+    }
+
+    return { count, indexName, sample };
+  } catch (error) {
+    console.error(`Error validating embeddings for fund ${fundId}:`, error);
+    // Return zero count on error - don't fail validation
+    return { count: 0, indexName: getIndexName(moduleType), sample: [] };
   }
 }

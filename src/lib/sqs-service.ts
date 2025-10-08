@@ -86,14 +86,10 @@ export class SQSService {
       }));
     }
 
-    // Mark job as processing
-    await prisma.backgroundJob.update({
-      where: { id: job.id },
-      data: {
-        status: JobStatus.PROCESSING,
-        startedAt: new Date(),
-      },
-    });
+    // In development, DON'T mark as PROCESSING - let background processor pick it up as PENDING
+    // In production with actual SQS queue workers, this line would mark it as PROCESSING
+    // For now, background processor will handle jobs in PENDING state within 30 seconds
+    console.log(`📝 Job ${job.id} created as PENDING - background processor will pick it up automatically`);
 
     return job;
   }
