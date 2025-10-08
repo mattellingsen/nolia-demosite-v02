@@ -8,7 +8,12 @@ export async function middleware(request: NextRequest) {
   // Allow login page and auth API routes without authentication
   if (
     request.nextUrl.pathname === '/login' ||
-    request.nextUrl.pathname.startsWith('/api/auth/')
+    request.nextUrl.pathname.startsWith('/api/auth/') ||
+    request.nextUrl.pathname.startsWith('/api/jobs/') ||
+    request.nextUrl.pathname.startsWith('/api/brain/') ||
+    request.nextUrl.pathname.startsWith('/api/procurement-brain/') ||
+    request.nextUrl.pathname.startsWith('/api/worldbank-brain/') ||
+    request.nextUrl.pathname.startsWith('/api/worldbank-admin-brain/')
   ) {
     return NextResponse.next();
   }
