@@ -129,14 +129,14 @@ export const Step1UploadForm: React.FC<Step1Props> = ({
             {/* Project Name Input */}
             <div className="flex flex-col gap-6">
                 <div>
-                    <h3 className="text-lg font-semibold text-primary mb-2">Project Project Name</h3>
+                    <h3 className="text-lg font-semibold text-primary mb-2">Project Name</h3>
                     <p className="text-sm text-tertiary mb-4">
-                        Choose a unique name for this project project
+                        Choose a unique name for this project
                     </p>
                     <div className="relative">
                         <InputBase
-                            label="Project Project Name"
-                            placeholder="e.g., Corporate IT Infrastructure Upgrade 2025"
+                            label="Project Name"
+                            placeholder="Indonesia Health Systems Strengthening Project"
                             value={formData.projectName || ''}
                             onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleTenderNameChange(e.target.value)}
                             error={tenderNameError}
@@ -145,7 +145,7 @@ export const Step1UploadForm: React.FC<Step1Props> = ({
                                 isCheckingName ? "Checking availability..." :
                                 nameAvailable === true ? "This name is available" :
                                 nameAvailable === false ? tenderNameError :
-                                "Enter a unique name for this project project"
+                                "Enter a unique name for this project"
                             }
                         />
                         {isCheckingName && (
@@ -163,11 +163,11 @@ export const Step1UploadForm: React.FC<Step1Props> = ({
                 </div>
             </div>
 
-            {/* Pre-RFP Document Upload Section */}
+            {/* Pre-RFx Document Upload Section */}
             <div>
-                <h3 className="text-lg font-semibold text-primary mb-2">Upload Pre-RFP Documents</h3>
+                <h3 className="text-lg font-semibold text-primary mb-2">Upload Pre-RFx Documents</h3>
                 <p className="text-sm text-tertiary mb-4">
-                    Upload your business case and other relevant documentation that informed your RFP.
+                    Upload your business case and other relevant documentation that informed your RFx.
                 </p>
 
                 {/* File Upload Component */}
@@ -268,7 +268,7 @@ export const Step1UploadForm: React.FC<Step1Props> = ({
                     onClick={onNext}
                     disabled={!canProceed || isUploading}
                 >
-                    Continue to RFP Document
+                    Continue to RFx Document
                 </Button>
             </div>
         </div>

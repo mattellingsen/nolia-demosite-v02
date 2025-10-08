@@ -78,14 +78,14 @@ const SetupNewTenderPage = () => {
     // Progress steps data for Untitled UI Progress component
     const progressSteps = [
         {
-            title: 'Pre-RFP Documents',
+            title: 'Pre-RFx Documents',
             description: 'Upload business case & context',
             status: getCurrentStepStatus('step1'),
             icon: UploadCloud01
         },
         {
-            title: 'RFP Document',
-            description: 'Upload the RFP itself',
+            title: 'RFx Document',
+            description: 'Upload the RFx itself',
             status: getCurrentStepStatus('step2'),
             icon: FileCheck02
         },
@@ -198,7 +198,7 @@ const SetupNewTenderPage = () => {
             const tenderData: any = {
                 name: formData.projectName || 'Untitled Project',
                 description: 'Project-specific project knowledgebase',
-                moduleType: 'PROCUREMENT' // Critical: Must be PROCUREMENT
+                moduleType: 'WORLDBANK' // Critical: Must be WORLDBANK
             };
 
             console.log('📦 DEBUG: Project data prepared:', {
@@ -210,9 +210,9 @@ const SetupNewTenderPage = () => {
             let currentProgress = 25;
             const progressIncrement = totalFiles > 0 ? (45 / totalFiles) : 0;
 
-            // Step 1: Pre-RFP documents (business case, etc.) → APPLICATION_FORM
+            // Step 1: Pre-RFx documents (business case, etc.) → APPLICATION_FORM
             if (formData.submissionForm) {
-                setCreationStep('Processing Pre-RFP documents...');
+                setCreationStep('Processing Pre-RFx documents...');
                 const content = await fileToBase64(formData.submissionForm);
                 tenderData.preRfpFiles = [{
                     filename: formData.submissionForm.name,
@@ -224,9 +224,9 @@ const SetupNewTenderPage = () => {
                 setCreationProgress(Math.round(currentProgress));
             }
 
-            // Step 2: RFP document itself → SELECTION_CRITERIA
+            // Step 2: RFx document itself → SELECTION_CRITERIA
             if (formData.selectionCriteria?.length > 0) {
-                setCreationStep(`Processing RFP documents (${formData.selectionCriteria.length} files)...`);
+                setCreationStep(`Processing RFx documents (${formData.selectionCriteria.length} files)...`);
                 tenderData.rfpFiles = await Promise.all(
                     formData.selectionCriteria.map(async (file: File, index: number) => {
                         const content = await fileToBase64(file);
@@ -456,7 +456,7 @@ const SetupNewTenderPage = () => {
                             Back
                         </Button>
                         <div className="flex flex-col gap-1 text-center">
-                            <p className="text-md font-semibold text-tertiary">AI Project Setup</p>
+                            <p className="text-md font-semibold text-tertiary">Project Setup</p>
                             <p className="text-display-md font-semibold text-primary">Setup New Project</p>
                         </div>
                     </div>

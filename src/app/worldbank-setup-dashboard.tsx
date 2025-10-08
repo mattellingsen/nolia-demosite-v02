@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useTenders, useDeleteTender } from "@/hooks/useTenders";
+import { useWorldbankProjects, useDeleteWorldbankProject } from "@/hooks/useWorldBankProjects";
 import {
     ArrowRight,
     CheckDone01,
@@ -69,8 +69,8 @@ export const WorldBankSetupDashboard = () => {
     const router = useRouter();
 
     // Fetch projects data
-    const { data: projects = [], isLoading: projectsLoading, error: projectsError } = useTenders();
-    const deleteProject = useDeleteTender();
+    const { data: projects = [], isLoading: projectsLoading, error: projectsError } = useWorldbankProjects();
+    const deleteProject = useDeleteWorldbankProject();
 
     useEffect(() => {
         setMounted(true);

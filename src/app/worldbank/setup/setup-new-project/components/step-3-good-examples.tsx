@@ -21,6 +21,7 @@ export const Step3GoodExamples: React.FC<Step3Props> = ({
 }) => {
     const [uploadError, setUploadError] = useState<string>('');
     const [isUploading, setIsUploading] = useState(false);
+    const [isDragActive, setIsDragActive] = useState(false);
 
     const handleFileUpload = useCallback(async (files: FileList) => {
         const fileArray = Array.from(files);
@@ -115,7 +116,7 @@ export const Step3GoodExamples: React.FC<Step3Props> = ({
                         Upload Supporting Documents
                     </h2>
                     <p className="text-lg text-secondary max-w-2xl mx-auto">
-                        Upload supporting RFP documentation such as scoring rubrics, evaluation frameworks,
+                        Upload supporting RFx documentation such as scoring rubrics, evaluation frameworks,
                         clarification documents (Q&A), response forms, and budget guidelines.
                     </p>
                 </div>
@@ -257,7 +258,6 @@ export const Step3GoodExamples: React.FC<Step3Props> = ({
                     color="primary"
                     iconTrailing={ArrowRight}
                     onClick={onNext}
-                    isDisabled={!hasFiles || isUploading}
                 >
                     Continue to Output Templates
                 </Button>

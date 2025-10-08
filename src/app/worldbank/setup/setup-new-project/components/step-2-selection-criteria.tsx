@@ -109,10 +109,10 @@ export const Step2SelectionCriteria: React.FC<Step2Props> = ({
             <div className="text-center space-y-4">
                 <div>
                     <h2 className="text-display-sm font-semibold text-primary mb-2">
-                        Upload RFP Document
+                        Upload RFx Document
                     </h2>
                     <p className="text-lg text-secondary max-w-2xl mx-auto">
-                        Upload the official Request for Proposal (RFP) document. This is the main project document
+                        Upload the official Request for Proposal/Quote/Tender (RFx) document. This is the main project document
                         that defines requirements and evaluation criteria.
                     </p>
                 </div>
@@ -152,7 +152,7 @@ export const Step2SelectionCriteria: React.FC<Step2Props> = ({
                     <div className="flex items-center gap-3">
                         <FeaturedIcon size="md" color="brand" theme="light" icon={CheckCircle} />
                         <div>
-                            <h3 className="text-lg font-semibold text-success-800">RFP Document Uploaded</h3>
+                            <h3 className="text-lg font-semibold text-success-800">RFx Document Uploaded</h3>
                             <p className="text-sm text-success-600">
                                 {formData.selectionCriteria.length} document{formData.selectionCriteria.length !== 1 ? 's' : ''} uploaded successfully.
                                 These will be processed when your project is created.
@@ -168,7 +168,7 @@ export const Step2SelectionCriteria: React.FC<Step2Props> = ({
                     {/* Pro Tip */}
                     <div className="bg-warning-50 rounded-lg p-4 border border-warning-200 mb-5">
                         <p className="text-sm text-warning-800">
-                            <strong>Pro tip:</strong> Upload the complete RFP document. You can also upload multiple versions
+                            <strong>Pro tip:</strong> Upload the complete RFx document. You can also upload multiple versions
                             or addendums if they exist. The more context you provide, the better the AI will understand
                             the project requirements.
                         </p>
