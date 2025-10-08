@@ -82,13 +82,18 @@ export async function GET(
     // Get overall status
     let ragJob = jobs.find(job => job.type === 'RAG_PROCESSING');
 
-    // AUTO-TRIGGER: Check if we have a pending RAG job that should be triggered
-    if (ragJob && ragJob.status === 'PENDING') {
+    // AUTO-TRIGGER: Check if we have a pending/completed RAG job that needs brain assembly
+    if (ragJob && (ragJob.status === 'PENDING' || ragJob.status === 'COMPLETED')) {
       const jobAge = Date.now() - new Date(ragJob.createdAt).getTime();
 
-      // If job is older than 5 seconds, trigger it automatically
-      if (jobAge > 5000) {
-        console.log(`🚀 Auto-triggering stale PENDING RAG job ${ragJob.id} from job-status endpoint`);
+      // If RAG job is PENDING and older than 1 second, OR if COMPLETED but fundBrain is NULL, trigger brain assembly
+      const shouldTrigger = (ragJob.status === 'PENDING' && jobAge > 1000) ||
+                           (ragJob.status === 'COMPLETED' && !project?.fundBrain);
+
+      if (shouldTrigger) {
+        const reason = ragJob.status === 'PENDING' ? `stale PENDING RAG job (${Math.round(jobAge/1000)}s old)` :
+                      'COMPLETED RAG job but fundBrain is NULL';
+        console.log(`🚀 Auto-triggering brain assembly for ${reason} - ${ragJob.id}`);
 
         try {
           const baseUrl = process.env.NEXTAUTH_URL || 'https://main.d2l8hlr3sei3te.amplifyapp.com';

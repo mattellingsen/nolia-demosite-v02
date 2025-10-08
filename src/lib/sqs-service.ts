@@ -43,7 +43,17 @@ export class SQSService {
     filename: string;
     mimeType: string;
   }>) {
-    // Create background job in database
+    // Get fund to retrieve moduleType
+    const fund = await prisma.fund.findUnique({
+      where: { id: fundId },
+      select: { moduleType: true }
+    });
+
+    if (!fund) {
+      throw new Error(`Fund ${fundId} not found`);
+    }
+
+    // Create background job in database WITH moduleType from fund
     const job = await prisma.backgroundJob.create({
       data: {
         fundId,
@@ -51,6 +61,7 @@ export class SQSService {
         status: JobStatus.PENDING,
         totalDocuments: documents.length,
         processedDocuments: 0,
+        moduleType: fund.moduleType as any, // Use fund's moduleType
         metadata: {
           documentIds: documents.map(d => d.id),
           queuedAt: new Date().toISOString(),
@@ -100,6 +111,16 @@ export class SQSService {
   async queueBrainAssembly(fundId: string, triggerType: 'DOCUMENT_COMPLETE' | 'MANUAL_TRIGGER' = 'DOCUMENT_COMPLETE') {
     // Use a transaction to prevent race conditions
     return await prisma.$transaction(async (tx) => {
+      // Get fund to retrieve moduleType
+      const fund = await tx.fund.findUnique({
+        where: { id: fundId },
+        select: { moduleType: true }
+      });
+
+      if (!fund) {
+        throw new Error(`Fund ${fundId} not found`);
+      }
+
       // Check if there's already a brain assembly job (any status)
       const existingJob = await tx.backgroundJob.findFirst({
         where: {
@@ -116,7 +137,7 @@ export class SQSService {
         return existingJob;
       }
 
-      // Create brain assembly job
+      // Create brain assembly job WITH moduleType from fund
       const job = await tx.backgroundJob.create({
         data: {
           fundId,
@@ -124,6 +145,7 @@ export class SQSService {
           status: JobStatus.PENDING,
           totalDocuments: 1, // Brain assembly is a single operation
           processedDocuments: 0,
+          moduleType: fund.moduleType as any, // Use fund's moduleType
           metadata: {
             triggerType,
             queuedAt: new Date().toISOString(),

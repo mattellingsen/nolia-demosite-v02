@@ -31,7 +31,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const worldbankBase = await prisma.fund.findUnique({
       where: {
         id: baseId,
-        moduleType: 'WORLDBANK_ADMIN'
+        moduleType: 'WORLDBANK'
       },
       include: {
         documents: true,
@@ -130,12 +130,15 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       BackgroundJobService.processRAGJob(existingRagJob.id)
         .then(() => {
           console.log(`✅ RAG processing completed for job ${existingRagJob.id}`);
-          // Update fund status to ACTIVE after RAG completes
+          // Update fund status to ACTIVE after RAG completes (preserve fundBrain)
           return prisma.fund.update({
             where: { id: baseId },
             data: {
               status: 'ACTIVE',
-              openSearchIndex: `worldbank-admin-documents` // Store index name
+              openSearchIndex: `worldbank-documents`, // Store index name
+              fundBrain: updatedBase.fundBrain,
+              brainAssembledAt: updatedBase.brainAssembledAt,
+              brainVersion: updatedBase.brainVersion
             }
           });
         })
@@ -147,12 +150,15 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       console.log(`RAG job already completed: ${existingRagJob.id}`);
       brainJob = existingRagJob;
 
-      // Update status to ACTIVE if not already
+      // Update status to ACTIVE if not already (preserve fundBrain from earlier update)
       await prisma.fund.update({
         where: { id: baseId },
         data: {
           status: 'ACTIVE',
-          openSearchIndex: `worldbank-admin-documents`
+          openSearchIndex: `worldbank-documents`,
+          fundBrain: updatedBase.fundBrain,
+          brainAssembledAt: updatedBase.brainAssembledAt,
+          brainVersion: updatedBase.brainVersion
         }
       });
     } else {
@@ -166,7 +172,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           progress: 0,
           totalDocuments: documentCount,
           processedDocuments: 0,
-          moduleType: 'WORLDBANK_ADMIN',
+          moduleType: 'WORLDBANK',
           metadata: {
             brainVersion: updatedBase.brainVersion,
             createdAt: new Date().toISOString(),
@@ -180,12 +186,15 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       BackgroundJobService.processRAGJob(brainJob.id)
         .then(() => {
           console.log(`✅ RAG processing completed for job ${brainJob.id}`);
-          // Update fund status to ACTIVE after RAG completes
+          // Update fund status to ACTIVE after RAG completes (preserve fundBrain)
           return prisma.fund.update({
             where: { id: baseId },
             data: {
               status: 'ACTIVE',
-              openSearchIndex: `worldbank-admin-documents`
+              openSearchIndex: `worldbank-documents`,
+              fundBrain: updatedBase.fundBrain,
+              brainAssembledAt: updatedBase.brainAssembledAt,
+              brainVersion: updatedBase.brainVersion
             }
           });
         })
@@ -226,7 +235,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const worldbankBase = await prisma.fund.findUnique({
       where: {
         id: baseId,
-        moduleType: 'WORLDBANK_ADMIN'
+        moduleType: 'WORLDBANK'
       },
       select: {
         id: true,
@@ -301,7 +310,7 @@ function assembleWorldbankBrain(data: {
       baseDescription: baseInfo.description,
       assembledAt: new Date().toISOString(),
       version: 1,
-      moduleType: 'WORLDBANK_ADMIN'
+      moduleType: 'WORLDBANK'
     },
 
     // Worldbank policies structure
@@ -356,7 +365,7 @@ function assembleWorldbankBrain(data: {
       assessmentPrompt: generateWorldbankAssessmentPrompt(policies, procedures, templates, standards),
       scoringScale: '0-100',
       outputFormat: 'structured_json',
-      moduleType: 'WORLDBANK_ADMIN'
+      moduleType: 'WORLDBANK'
     },
 
     // Quality assurance thresholds for worldbank
