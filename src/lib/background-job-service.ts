@@ -382,16 +382,50 @@ export class BackgroundJobService {
           metadata: finalMetadata
         });
 
-        // Mark fund as ACTIVE
-        await prisma.fund.update({
-          where: { id: job.fundId },
-          data: {
-            status: 'ACTIVE',
-            brainAssembledAt: new Date()
-          }
-        });
+        // Trigger brain assembly for modules that have brain endpoints
+        const moduleType = fund.moduleType as 'FUNDING' | 'PROCUREMENT' | 'PROCUREMENT_ADMIN' | 'WORLDBANK' | 'WORLDBANK_ADMIN';
+        if (moduleType === 'PROCUREMENT_ADMIN' || moduleType === 'WORLDBANK' || moduleType === 'WORLDBANK_ADMIN') {
+          console.log(`🧠 Triggering brain assembly for ${moduleType} fund ${job.fundId}...`);
 
-        console.log(`✅ Fund ${job.fundId} status updated to ACTIVE with functional brain`);
+          // Determine the correct brain endpoint for this module
+          let brainEndpoint: string;
+          if (moduleType === 'PROCUREMENT_ADMIN') {
+            brainEndpoint = `/api/procurement-brain/${job.fundId}/assemble`;
+          } else if (moduleType === 'WORLDBANK') {
+            brainEndpoint = `/api/worldbank-brain/${job.fundId}/assemble`;
+          } else if (moduleType === 'WORLDBANK_ADMIN') {
+            brainEndpoint = `/api/worldbank-admin-brain/${job.fundId}/assemble`;
+          }
+
+          // Call brain assembly endpoint (non-blocking)
+          const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+          fetch(`${baseUrl}${brainEndpoint}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          })
+            .then(async (response) => {
+              if (response.ok) {
+                console.log(`✅ Brain assembly triggered successfully for fund ${job.fundId}`);
+              } else {
+                const text = await response.text();
+                console.error(`❌ Brain assembly failed for fund ${job.fundId}: ${response.status} - ${text}`);
+              }
+            })
+            .catch((error) => {
+              console.error(`❌ Error triggering brain assembly for fund ${job.fundId}:`, error);
+            });
+        } else {
+          // For FUNDING module (no brain endpoint), just mark as ACTIVE
+          await prisma.fund.update({
+            where: { id: job.fundId },
+            data: {
+              status: 'ACTIVE',
+              brainAssembledAt: new Date()
+            }
+          });
+
+          console.log(`✅ Fund ${job.fundId} status updated to ACTIVE with functional brain`);
+        }
       }
       
     } catch (error) {
