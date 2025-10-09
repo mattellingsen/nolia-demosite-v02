@@ -707,10 +707,11 @@ export class BackgroundJobService {
    * Extract text from S3 document
    */
   private static async extractTextFromS3Document(s3Key: string): Promise<string> {
-    // S3 client with EXPLICIT IAM role credentials
+    // CRITICAL FIX: Create S3 client lazily to ensure Lambda execution role is available
+    // Must create client at runtime, not module load time
     const s3Client = new S3Client({
       region: AWS_REGION,
-      credentials: getAWSCredentials(),
+      credentials: getAWSCredentials(), // Returns undefined in production to use Lambda role
     });
 
     const command = new GetObjectCommand({

@@ -7,11 +7,20 @@ import { BackgroundJobService } from '@/lib/background-job-service';
 import { JobStatus, JobType } from '@prisma/client';
 import { getAWSCredentials, AWS_REGION, S3_BUCKET } from '@/lib/aws-credentials';
 
-// S3 client with EXPLICIT IAM role credentials - bypasses SSO config files
-const s3Client = new S3Client({
-  region: AWS_REGION,
-  credentials: getAWSCredentials(),
-});
+// CRITICAL FIX: Create S3 client lazily to ensure Lambda execution role is available
+// Do NOT initialize at module level as credentials may not be ready during cold start
+let s3Client: S3Client | null = null;
+
+function getS3Client(): S3Client {
+  if (!s3Client) {
+    console.log('🔐 Creating new S3 client with Lambda execution role credentials');
+    s3Client = new S3Client({
+      region: AWS_REGION,
+      credentials: getAWSCredentials(), // Returns undefined in production to use Lambda role
+    });
+  }
+  return s3Client;
+}
 
 /**
  * Simulate document processing from SQS queue
@@ -355,7 +364,7 @@ async function processDocument(document: any) {
     Key: document.s3Key
   });
 
-  const s3Response = await s3Client.send(getCommand);
+  const s3Response = await getS3Client().send(getCommand);
   const documentBuffer = Buffer.from(await s3Response.Body!.transformToByteArray());
 
   // Create File-like object for analysis functions

@@ -8,12 +8,20 @@ import { BackgroundJobService } from './background-job-service';
 // DIAGNOSTIC: Log what ModuleType enum values this Prisma client knows about
 console.log('🔍 DIAGNOSTIC: ModuleType enum values known by deployed Prisma client:', Object.keys(ModuleType));
 
-// Initialize SQS client with EXPLICIT IAM role credentials
-// This bypasses ALL configuration files and SSO settings
-const sqsClient = new SQSClient({
-  region: AWS_REGION,
-  credentials: getAWSCredentials(),
-});
+// CRITICAL FIX: Create SQS client lazily to ensure Lambda execution role is available
+// Do NOT initialize at module level as credentials may not be ready during cold start
+let sqsClient: SQSClient | null = null;
+
+function getSQSClient(): SQSClient {
+  if (!sqsClient) {
+    console.log('🔐 Creating new SQS client with Lambda execution role credentials');
+    sqsClient = new SQSClient({
+      region: AWS_REGION,
+      credentials: getAWSCredentials(), // Returns undefined in production to use Lambda role
+    });
+  }
+  return sqsClient;
+}
 
 // Queue URLs from environment variables
 const DOCUMENT_PROCESSING_QUEUE = process.env.SQS_QUEUE_URL || process.env.SQS_DOCUMENT_PROCESSING_QUEUE || 'nolia-document-processing';
@@ -93,7 +101,7 @@ export class SQSService {
     for (let i = 0; i < messages.length; i += batchSize) {
       const batch = messages.slice(i, i + batchSize);
       
-      await sqsClient.send(new SendMessageBatchCommand({
+      await getSQSClient().send(new SendMessageBatchCommand({
         QueueUrl: DOCUMENT_PROCESSING_QUEUE,
         Entries: batch,
       }));
@@ -173,7 +181,7 @@ export class SQSService {
 
       // Send message to brain assembly queue (use same queue for now)
       try {
-        await sqsClient.send(new SendMessageCommand({
+        await getSQSClient().send(new SendMessageCommand({
           QueueUrl: DOCUMENT_PROCESSING_QUEUE, // Use same queue for brain assembly
           MessageBody: JSON.stringify({
             jobId: job.id,
