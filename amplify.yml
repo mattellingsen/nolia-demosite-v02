@@ -26,8 +26,8 @@ frontend:
         - echo "Step 1 - Nuclear clean - removing ALL build artifacts"
         - rm -rf .next
         - rm -rf node_modules/.prisma
-        - echo "Step 2 - Force regenerating Prisma client"
-        - npx prisma generate --force
+        - echo "Step 2 - Regenerating Prisma client"
+        - npx prisma generate
         - echo "Step 3 - Verify Prisma client has all ModuleType values"
         - node -e "const {ModuleType} = require('@prisma/client'); console.log('ModuleType values:', Object.keys(ModuleType));"
         - echo "Step 4 - Building Next.js application with fresh Prisma client"
