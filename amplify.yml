@@ -23,7 +23,7 @@ frontend:
         - echo "AUTH_SECRET=$AUTH_SECRET" >> .env.production
     build:
       commands:
-        - rm -rf node_modules/.prisma node_modules/@prisma/client
+        - rm -rf node_modules/.prisma
         - npx prisma generate
         - npm run build
         - echo "Build completed successfully with procurement-admin routes"
