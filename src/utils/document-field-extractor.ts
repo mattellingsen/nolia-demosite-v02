@@ -8,11 +8,20 @@
 import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
 import { getAWSCredentials, AWS_REGION } from '@/lib/aws-credentials';
 
-// Initialize Bedrock client with EXPLICIT IAM role credentials
-const bedrock = new BedrockRuntimeClient({
-  region: AWS_REGION,
-  credentials: getAWSCredentials(),
-});
+// CRITICAL FIX: Create Bedrock client lazily to ensure Lambda execution role is available
+// Do NOT initialize at module level as credentials may not be ready during cold start
+let bedrock: BedrockRuntimeClient | null = null;
+
+function getBedrockClient(): BedrockRuntimeClient {
+  if (!bedrock) {
+    console.log('🔐 Creating new Bedrock client with Lambda execution role credentials');
+    bedrock = new BedrockRuntimeClient({
+      region: AWS_REGION,
+      credentials: getAWSCredentials(),
+    });
+  }
+  return bedrock;
+}
 
 export interface ExtractedFields {
   // Basic Application Info
@@ -354,7 +363,7 @@ async function invokeClaude(prompt: string): Promise<string> {
     contentType: "application/json"
   });
 
-  const response = await bedrock.send(command);
+  const response = await getBedrockClient().send(command);
   const responseBody = JSON.parse(new TextDecoder().decode(response.body));
 
   if (responseBody.content && responseBody.content[0]?.text) {

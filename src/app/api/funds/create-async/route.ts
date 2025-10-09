@@ -120,10 +120,17 @@ export async function POST(request: NextRequest) {
     const { getAWSCredentials, AWS_REGION, S3_BUCKET } = await import('@/lib/aws-credentials');
     const crypto = await import('crypto');
 
-    const s3Client = new S3Client({
-      region: AWS_REGION,
-      credentials: getAWSCredentials(),
-    });
+    // CRITICAL FIX: Create S3 client using lazy pattern
+    let s3ClientInstance: InstanceType<typeof S3Client> | null = null;
+    const getS3Client = () => {
+      if (!s3ClientInstance) {
+        s3ClientInstance = new S3Client({
+          region: AWS_REGION,
+          credentials: getAWSCredentials(),
+        });
+      }
+      return s3ClientInstance;
+    };
     const documentRecords = [];
 
     for (const doc of documentsToProcess) {
@@ -135,7 +142,7 @@ export async function POST(request: NextRequest) {
       const buffer = Buffer.from(doc.content, 'base64');
 
       // Upload to S3
-      await s3Client.send(new PutObjectCommand({
+      await getS3Client().send(new PutObjectCommand({
         Bucket: S3_BUCKET,
         Key: s3Key,
         Body: buffer,

@@ -7,11 +7,14 @@ import { DocumentType } from '@prisma/client';
 import crypto from 'crypto';
 import { getAWSCredentials, AWS_REGION, S3_BUCKET } from '@/lib/aws-credentials';
 
-// S3 client with EXPLICIT IAM role credentials
-const s3Client = new S3Client({
-  region: AWS_REGION,
-  credentials: getAWSCredentials(),
-});
+// CRITICAL FIX: Create S3 client lazily
+let s3Client: S3Client | null = null;
+function getS3Client(): S3Client {
+  if (!s3Client) {
+    s3Client = new S3Client({ region: AWS_REGION, credentials: getAWSCredentials() });
+  }
+  return s3Client;
+}
 
 interface UploadRequest {
   fundId: string;
@@ -100,7 +103,7 @@ export async function POST(request: NextRequest) {
         ContentLength: doc.fileSize,
       });
 
-      const presignedUrl = await getSignedUrl(s3Client, putCommand, {
+      const presignedUrl = await getSignedUrl(getS3Client(), putCommand, {
         expiresIn: 3600, // 1 hour
       });
 

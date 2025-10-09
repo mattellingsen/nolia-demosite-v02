@@ -8,11 +8,20 @@ import { getAWSCredentials, AWS_REGION, S3_BUCKET } from '@/lib/aws-credentials'
 
 const prisma = new PrismaClient();
 
-// S3 client with EXPLICIT IAM role credentials
-const s3Client = new S3Client({
-  region: AWS_REGION,
-  credentials: getAWSCredentials(),
-});
+// CRITICAL FIX: Create S3 client lazily to ensure Lambda execution role is available
+// Do NOT initialize at module level as credentials may not be ready during cold start
+let s3Client: S3Client | null = null;
+
+function getS3Client(): S3Client {
+  if (!s3Client) {
+    console.log('🔐 Creating new S3 client with Lambda execution role credentials');
+    s3Client = new S3Client({
+      region: AWS_REGION,
+      credentials: getAWSCredentials(),
+    });
+  }
+  return s3Client;
+}
 
 // POST: Create procurement base asynchronously with document processing
 export async function POST(req: NextRequest) {
@@ -168,7 +177,7 @@ export async function POST(req: NextRequest) {
           ContentType: file.mimeType,
         });
 
-        const s3Response = await s3Client.send(putObjectCommand);
+        const s3Response = await getS3Client().send(putObjectCommand);
         console.log(`✅ S3 upload successful for ${file.filename}`, {
           ETag: s3Response.ETag,
           VersionId: s3Response.VersionId

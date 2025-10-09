@@ -46,15 +46,18 @@ export async function initializeRAGSystem(): Promise<{
     console.error('❌ OpenSearch initialization failed:', error);
   }
 
-  // Test AWS Bedrock connection
+  // Test AWS Bedrock connection (runtime creation to avoid credential pollution)
   try {
-    const bedrockClient = new BedrockRuntimeClient({
-      region: AWS_REGION,
-      credentials: getAWSCredentials(),
-    });
+    // Create client at runtime, not module level
+    const testBedrock = () => {
+      const bedrockClient = new BedrockRuntimeClient({
+        region: AWS_REGION,
+        credentials: getAWSCredentials(),
+      });
+      return bedrockClient;
+    };
 
-    // Simple connectivity test (list models is not available, so we'll test with a minimal invoke)
-    // This will fail if credentials are wrong but succeed if they're correct
+    testBedrock(); // Test creation
     result.components.bedrock = true;
     console.log('✅ AWS Bedrock client configured');
   } catch (error) {
@@ -118,12 +121,16 @@ export async function ragHealthCheck(): Promise<{
     console.error('OpenSearch health check failed:', error);
   }
 
-  // Test Bedrock (simplified check)
+  // Test Bedrock (simplified check - runtime creation to avoid credential pollution)
   try {
-    const bedrockClient = new BedrockRuntimeClient({
-      region: AWS_REGION,
-      credentials: getAWSCredentials(),
-    });
+    // Create client at runtime, not module level
+    const testBedrock = () => {
+      return new BedrockRuntimeClient({
+        region: AWS_REGION,
+        credentials: getAWSCredentials(),
+      });
+    };
+    testBedrock(); // Test creation
     services.bedrock = 'up'; // If client creation succeeds, consider it up
   } catch (error) {
     console.error('Bedrock health check failed:', error);

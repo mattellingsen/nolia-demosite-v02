@@ -3,11 +3,14 @@ import { prisma } from '@/lib/database-s3';
 import { DeleteObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getAWSCredentials, AWS_REGION, S3_BUCKET } from '@/lib/aws-credentials';
 
-// S3 client with EXPLICIT IAM role credentials
-const s3Client = new S3Client({
-  region: AWS_REGION,
-  credentials: getAWSCredentials(),
-});
+// CRITICAL FIX: Create S3 client lazily
+let s3Client: S3Client | null = null;
+function getS3Client(): S3Client {
+  if (!s3Client) {
+    s3Client = new S3Client({ region: AWS_REGION, credentials: getAWSCredentials() });
+  }
+  return s3Client;
+}
 
 export async function GET(
   request: NextRequest,
@@ -151,7 +154,7 @@ export async function DELETE(
     if (tender.documents.length > 0) {
       const deletePromises = tender.documents.map(async (doc) => {
         try {
-          await s3Client.send(new DeleteObjectCommand({
+          await getS3Client().send(new DeleteObjectCommand({
             Bucket: S3_BUCKET,
             Key: doc.s3Key,
           }));
