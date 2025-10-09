@@ -1,9 +1,12 @@
 import { SQSClient, SendMessageCommand, SendMessageBatchCommand } from '@aws-sdk/client-sqs';
 import { prisma } from './database-s3';
-import { JobType, JobStatus } from '@prisma/client';
+import { JobType, JobStatus, ModuleType } from '@prisma/client';
 import crypto from 'crypto';
 import { getAWSCredentials, AWS_REGION } from './aws-credentials';
 import { BackgroundJobService } from './background-job-service';
+
+// DIAGNOSTIC: Log what ModuleType enum values this Prisma client knows about
+console.log('🔍 DIAGNOSTIC: ModuleType enum values known by deployed Prisma client:', Object.keys(ModuleType));
 
 // Initialize SQS client with EXPLICIT IAM role credentials
 // This bypasses ALL configuration files and SSO settings
