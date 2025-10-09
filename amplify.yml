@@ -9,18 +9,22 @@ frontend:
       commands:
         - nvm use 20
         - npm ci
+        - echo "NODE_ENV=production" >> .env.production
         - echo "DATABASE_URL=$DATABASE_URL" >> .env.production
+        - echo "NOLIA_AWS_REGION=$NOLIA_AWS_REGION" >> .env.production
+        - echo "S3_BUCKET_DOCUMENTS=$S3_BUCKET_DOCUMENTS" >> .env.production
+        - echo "S3_BUCKET_REGION=$S3_BUCKET_REGION" >> .env.production
         - echo "OPENSEARCH_ENDPOINT=$OPENSEARCH_ENDPOINT" >> .env.production
         - echo "OPENSEARCH_USERNAME=$OPENSEARCH_USERNAME" >> .env.production
         - echo "OPENSEARCH_PASSWORD=$OPENSEARCH_PASSWORD" >> .env.production
         - echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> .env.production
-        - echo "ADMIN_API_KEY=$ADMIN_API_KEY" >> .env.production
-        - echo "NOLIA_AWS_REGION=$NOLIA_AWS_REGION" >> .env.production
         - echo "SQS_DOCUMENT_PROCESSING_QUEUE=$SQS_DOCUMENT_PROCESSING_QUEUE" >> .env.production
         - echo "SQS_BRAIN_ASSEMBLY_QUEUE=$SQS_BRAIN_ASSEMBLY_QUEUE" >> .env.production
+        - echo "ADMIN_API_KEY=$ADMIN_API_KEY" >> .env.production
         - echo "AUTH_USERNAME=$AUTH_USERNAME" >> .env.production
         - echo "AUTH_PASSWORD=$AUTH_PASSWORD" >> .env.production
         - echo "AUTH_SECRET=$AUTH_SECRET" >> .env.production
+        - echo "INTERNAL_API_SECRET=$INTERNAL_API_SECRET" >> .env.production
     build:
       commands:
         - echo "Step 1 - Nuclear clean - removing ALL build artifacts"
