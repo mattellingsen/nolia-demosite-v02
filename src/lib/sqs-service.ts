@@ -14,7 +14,6 @@ const sqsClient = new SQSClient({
 
 // Queue URLs from environment variables
 const DOCUMENT_PROCESSING_QUEUE = process.env.SQS_QUEUE_URL || process.env.SQS_DOCUMENT_PROCESSING_QUEUE || 'nolia-document-processing';
-const BRAIN_ASSEMBLY_QUEUE = process.env.SQS_DLQ_URL || process.env.SQS_BRAIN_ASSEMBLY_QUEUE || 'nolia-brain-assembly';
 
 export interface DocumentProcessingMessage {
   jobId: string;
@@ -102,15 +101,18 @@ export class SQSService {
     // For now, background processor will handle jobs in PENDING state within 30 seconds
     console.log(`📝 Job ${job.id} created as PENDING - background processor will pick it up automatically`);
 
-    // In production, immediately trigger job processing (background processor doesn't run in serverless)
+    // In production, immediately trigger document processing (background processor doesn't run in serverless)
+    // CRITICAL: Call BackgroundJobService directly to avoid HTTP overhead and connection pool exhaustion
     if (process.env.NODE_ENV === 'production') {
-      const baseUrl = process.env.NEXTAUTH_URL || 'https://main.d2l8hlr3sei3te.amplifyapp.com';
-      fetch(`${baseUrl}/api/jobs/process`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId: job.id, autoTrigger: true })
-      }).catch(err => console.error('❌ Failed to trigger job processing:', err));
-      console.log(`🚀 Triggered immediate processing for job ${job.id} in production`);
+      console.log(`🚀 Triggering immediate document processing for job ${job.id} in production`);
+
+      // Import dynamically to avoid circular dependencies
+      import('./background-job-service').then(({ BackgroundJobService }) => {
+        // processNextJob will pick up the PENDING job we just created
+        BackgroundJobService.processNextJob()
+          .then(() => console.log(`✅ Successfully triggered job processing in production`))
+          .catch((err: Error) => console.error(`❌ Failed to trigger job processing:`, err));
+      }).catch((err: Error) => console.error('❌ Failed to import BackgroundJobService:', err));
     }
 
     return job;
