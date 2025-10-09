@@ -205,6 +205,9 @@ class BackgroundProcessor {
               if (job.fund?.moduleType === 'PROCUREMENT_ADMIN') {
                 // FIXED: procurement-brain endpoint expects baseId parameter, not fundId
                 assemblyUrl = `${this.getBaseUrl()}/api/procurement-brain/${job.fund.id}/assemble`;
+              } else if (job.fund?.moduleType === 'WORLDBANK') {
+                // WORLDBANK projects use worldbank-brain endpoint
+                assemblyUrl = `${this.getBaseUrl()}/api/worldbank-brain/${job.fund.id}/assemble`;
               } else {
                 assemblyUrl = `${this.getBaseUrl()}/api/brain/${job.fundId}/assemble`;
               }

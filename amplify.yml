@@ -1,4 +1,8 @@
 version: 1
+env:
+  variables:
+    AWS_SDK_LOAD_CONFIG: 'false'
+    NODE_ENV: 'production'
 frontend:
   phases:
     preBuild:
@@ -14,11 +18,21 @@ frontend:
         - echo "NOLIA_AWS_REGION=$NOLIA_AWS_REGION" >> .env.production
         - echo "SQS_DOCUMENT_PROCESSING_QUEUE=$SQS_DOCUMENT_PROCESSING_QUEUE" >> .env.production
         - echo "SQS_BRAIN_ASSEMBLY_QUEUE=$SQS_BRAIN_ASSEMBLY_QUEUE" >> .env.production
+        - echo "AUTH_USERNAME=$AUTH_USERNAME" >> .env.production
+        - echo "AUTH_PASSWORD=$AUTH_PASSWORD" >> .env.production
+        - echo "AUTH_SECRET=$AUTH_SECRET" >> .env.production
     build:
       commands:
+        - echo "Step 1 - Nuclear clean - removing ALL build artifacts"
+        - rm -rf .next
+        - rm -rf node_modules/.prisma
+        - echo "Step 2 - Regenerating Prisma client"
         - npx prisma generate
+        - echo "Step 3 - Verify Prisma client has all ModuleType values"
+        - node -e "const {ModuleType} = require('@prisma/client'); console.log('ModuleType values:', Object.keys(ModuleType));"
+        - echo "Step 4 - Building Next.js application with fresh Prisma client"
         - npm run build
-        - echo "Build completed successfully with procurement-admin routes"
+        - echo "Build complete"
   artifacts:
     baseDirectory: .next
     files:

@@ -1,14 +1,12 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useRef } from "react";
 import { UploadCloud01, File02, ArrowRight, CheckCircle, AlertCircle, XCircle } from "@untitledui/icons";
 import { Button } from "@/components/base/buttons/button";
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
 import { FileUpload } from "@/components/application/file-upload/file-upload-base";
 import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
 import { InputBase } from "@/components/base/input/input";
-import { analyzeDocumentViaAPI } from "@/lib/api-client";
-import { type DocumentAnalysis } from "@/utils/browser-document-analyzer";
 
 interface Step1Props {
     formData: any;
@@ -16,65 +14,59 @@ interface Step1Props {
     onNext: () => void;
 }
 
-// Use DocumentAnalysis from the document analyzer utility
-type FormAnalysis = DocumentAnalysis;
-
 export const Step1UploadForm: React.FC<Step1Props> = ({
     formData,
     updateFormData,
     onNext
 }) => {
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [analysis, setAnalysis] = useState<FormAnalysis | null>(null);
     const [uploadError, setUploadError] = useState<string>('');
-    const [uploadProgress, setUploadProgress] = useState<number>(0);
     const [isUploading, setIsUploading] = useState(false);
 
-    // Fund name validation states
-    const [fundNameError, setFundNameError] = useState<string>('');
+    // Tender name validation states
+    const [tenderNameError, setTenderNameError] = useState<string>('');
     const [isCheckingName, setIsCheckingName] = useState(false);
     const [nameAvailable, setNameAvailable] = useState<boolean | null>(null);
     const checkNameTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Check if fund name is available
-    const checkFundNameAvailability = useCallback(async (name: string) => {
+    // Check if tender name is available
+    const checkTenderNameAvailability = useCallback(async (name: string) => {
         if (!name || !name.trim()) {
-            setFundNameError('');
+            setTenderNameError('');
             setNameAvailable(null);
             return;
         }
 
         setIsCheckingName(true);
-        setFundNameError('');
+        setTenderNameError('');
 
         try {
-            const response = await fetch(`/api/funds/check-name?name=${encodeURIComponent(name.trim())}`);
+            const response = await fetch(`/api/tenders/check-name?name=${encodeURIComponent(name.trim())}`);
             const data = await response.json();
 
             if (!response.ok) {
-                setFundNameError(data.error || 'Failed to check name availability');
+                setTenderNameError(data.error || 'Failed to check name availability');
                 setNameAvailable(false);
             } else {
                 if (data.available) {
                     setNameAvailable(true);
-                    setFundNameError('');
+                    setTenderNameError('');
                 } else {
                     setNameAvailable(false);
-                    setFundNameError(data.message || 'This name is already taken');
+                    setTenderNameError(data.message || 'This name is already taken');
                 }
             }
         } catch (error) {
-            console.error('Error checking fund name:', error);
-            setFundNameError('Unable to verify name availability');
+            console.error('Error checking tender name:', error);
+            setTenderNameError('Unable to verify name availability');
             setNameAvailable(false);
         } finally {
             setIsCheckingName(false);
         }
     }, []);
 
-    // Debounced fund name validation
-    const handleFundNameChange = useCallback((value: string) => {
-        updateFormData({ fundName: value });
+    // Debounced tender name validation
+    const handleTenderNameChange = useCallback((value: string) => {
+        updateFormData({ tenderName: value });
         setNameAvailable(null); // Reset availability status while typing
 
         // Clear any existing timeout
@@ -82,72 +74,37 @@ export const Step1UploadForm: React.FC<Step1Props> = ({
             clearTimeout(checkNameTimeoutRef.current);
         }
 
-        // Set a new timeout to check after user stops typing
+        // Set new timeout for debounced check
         checkNameTimeoutRef.current = setTimeout(() => {
-            checkFundNameAvailability(value);
-        }, 500); // Wait 500ms after user stops typing
-    }, [updateFormData, checkFundNameAvailability]);
-
-    // Cleanup timeout on unmount
-    useEffect(() => {
-        return () => {
-            if (checkNameTimeoutRef.current) {
-                clearTimeout(checkNameTimeoutRef.current);
-            }
-        };
-    }, []);
-
-    const analyzeForm = async (file: File) => {
-        setIsAnalyzing(true);
-        setUploadError('');
-        
-        try {
-            // Re-enabled: Document analysis for user feedback (analysis data won't be uploaded)
-            const documentAnalysis = await analyzeDocumentViaAPI(file);
-            
-            // Store real analysis for user feedback
-            setAnalysis(documentAnalysis);
-            
-            // Update form data with analysis (will be stripped before upload)
-            updateFormData({ 
-                applicationForm: file,
-                applicationFormAnalysis: documentAnalysis
-            });
-            
-        } catch (error) {
-            console.error('Analysis error:', error);
-            setUploadError(error instanceof Error ? error.message : 'Failed to analyze the form. Please try again.');
-        } finally {
-            setIsAnalyzing(false);
-        }
-    };
+            checkTenderNameAvailability(value);
+        }, 500);
+    }, [updateFormData, checkTenderNameAvailability]);
 
     const handleFileUpload = useCallback(async (files: FileList) => {
         const file = files[0];
         if (!file) return;
 
-        setUploadError('');
         setIsUploading(true);
-        setUploadProgress(0);
+        setUploadError('');
 
-        // First update form data to show the file
-        updateFormData({ applicationForm: file });
-        
-        // Simulate upload progress
-        const progressInterval = setInterval(() => {
-            setUploadProgress(prev => {
-                if (prev >= 100) {
-                    clearInterval(progressInterval);
-                    setIsUploading(false);
-                    // Start analysis after a brief delay to show completed upload
-                    setTimeout(() => {
-                        analyzeForm(file);
-                    }, 500);
-                    return 100;
+        try {
+            // Store the pre-RFP file
+            updateFormData({ submissionForm: file });
+
+            // Real analysis will happen via background processing after creation
+            // Just show success state immediately for uploaded file
+            updateFormData({
+                submissionFormAnalysis: {
+                    status: 'uploaded'
                 }
-                return prev + 10;
             });
-        }, 200);
+
+        } catch (error) {
+            console.error('Error uploading document:', error);
+            setUploadError('Failed to upload document. Please try again.');
+        } finally {
+            setIsUploading(false);
+        }
     }, [updateFormData]);
 
     const getFileType = (fileName: string) => {
@@ -163,212 +120,157 @@ export const Step1UploadForm: React.FC<Step1Props> = ({
         }
     };
 
+    const canProceed = formData.tenderName?.trim() &&
+                       nameAvailable === true &&
+                       formData.submissionForm;
+
     return (
-        <div className="max-w-4xl mx-auto space-y-8">
-            {/* Fund Name Input */}
-            <div className="flex justify-center">
-                <div className="w-full max-w-md">
-                    <div className="mb-4 text-center">
-                        <p className="text-lg text-secondary">
-                            1. Start by naming your fund.
-                        </p>
-                    </div>
+        <div className="flex flex-col gap-8">
+            {/* Tender Name Input */}
+            <div className="flex flex-col gap-6">
+                <div>
+                    <h3 className="text-lg font-semibold text-primary mb-2">Tender Project Name</h3>
+                    <p className="text-sm text-tertiary mb-4">
+                        Choose a unique name for this tender project
+                    </p>
                     <div className="relative">
                         <InputBase
-                            label="Fund Name"
-                            placeholder="Enter the name of your fund"
-                            value={formData.fundName || ''}
-                            onChange={(e) => handleFundNameChange(e.target.value)}
-                            size="md"
-                            isRequired
-                            className="w-full"
-                            error={fundNameError}
-                            style={{
-                                '--tw-shadow': '0 0 0 8px rgba(59, 130, 246, 0.1)',
-                                '--tw-ring-shadow': '0 0 0 8px rgba(59, 130, 246, 0.1)'
-                            }}
+                            label="Tender Project Name"
+                            placeholder="e.g., Corporate IT Infrastructure Upgrade 2025"
+                            value={formData.tenderName || ''}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleTenderNameChange(e.target.value)}
+                            error={tenderNameError}
+                            success={nameAvailable === true ? true : undefined}
+                            hint={
+                                isCheckingName ? "Checking availability..." :
+                                nameAvailable === true ? "This name is available" :
+                                nameAvailable === false ? tenderNameError :
+                                "Enter a unique name for this tender project"
+                            }
                         />
-
-                        {/* Success message */}
-                        {!isCheckingName && nameAvailable === true && (
-                            <p className="mt-2 text-sm text-success-600 flex items-center gap-1">
-                                <CheckCircle className="w-4 h-4" />
-                                This name is available
-                            </p>
+                        {isCheckingName && (
+                            <div className="absolute right-3 top-9">
+                                <LoadingIndicator size="sm" />
+                            </div>
                         )}
-
-                        {/* Error message */}
-                        {fundNameError && !isCheckingName && (
-                            <p className="mt-2 text-sm text-error-600">
-                                {fundNameError}
-                            </p>
+                        {nameAvailable === true && (
+                            <CheckCircle className="absolute right-3 top-9 size-5 text-success-600" />
                         )}
-                        <style jsx global>{`
-                            * input {
-                                border: 1px solid #3497B8 !important;
-                                box-shadow: 0 0 0 8px #F2FAFC !important;
-                                border-radius: 0.5rem !important;
-                            }
-                            * input:focus {
-                                border: 1px solid #3497B8 !important;
-                                box-shadow: 0 0 0 8px #F2FAFC !important;
-                                outline: none !important;
-                                ring: none !important;
-                            }
-                            .upload-dropzone-custom {
-                                box-shadow: 0 0 0 8px #F2FAFC !important;
-                            }
-                        `}</style>
+                        {nameAvailable === false && (
+                            <XCircle className="absolute right-3 top-9 size-5 text-error-600" />
+                        )}
                     </div>
                 </div>
             </div>
 
-            {/* Upload Area */}
-            <div className="text-center mb-4">
-                <p className="text-lg text-secondary max-w-2xl mx-auto">
-                    2. Upload your current application form. We'll analyse the structure and add this to the system.
+            {/* Pre-RFP Document Upload Section */}
+            <div>
+                <h3 className="text-lg font-semibold text-primary mb-2">Upload Pre-RFP Documents</h3>
+                <p className="text-sm text-tertiary mb-4">
+                    Upload your business case and other relevant documentation that informed your RFP.
                 </p>
-            </div>
-            <div className="flex justify-center">
-                <div className="w-full max-w-2xl">
-                    <FileUpload.Root>
-                        <FileUpload.DropZone
-                            hint="PDF, Word documents, or text files up to 10MB"
-                            accept=".pdf,.doc,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,text/plain"
-                            allowsMultiple={false}
-                            maxSize={10 * 1024 * 1024} // 10MB
-                            onDropFiles={handleFileUpload}
-                            onDropUnacceptedFiles={(files) => {
-                                setUploadError('Please upload a PDF, Word document, or text file.');
-                            }}
-                            onSizeLimitExceed={(files) => {
-                                setUploadError('File size must be less than 10MB.');
-                            }}
-                            className="!bg-white !border !border-brand-secondary-600 min-h-64 py-12 !flex !items-center !justify-center !rounded-lg upload-dropzone-custom"
-                        />
-                        
-                        {formData.applicationForm && (
-                            <FileUpload.List>
-                                {formData.applicationForm && (
-                                    <FileUpload.ListItemProgressBar
-                                        name={formData.applicationForm.name}
-                                        size={formData.applicationForm.size}
-                                        progress={isUploading ? uploadProgress : 100}
-                                        failed={false}
-                                        type={getFileType(formData.applicationForm.name) as any}
-                                        onDelete={() => {
-                                            updateFormData({ applicationForm: null });
-                                            setAnalysis(null);
-                                            setUploadProgress(0);
-                                            setIsUploading(false);
-                                        }}
-                                        onRetry={() => {}}
-                                    />
-                                )}
-                            </FileUpload.List>
-                        )}
 
-                        {isAnalyzing && (
-                            <div className="flex justify-center py-6">
-                                <LoadingIndicator 
-                                    type="dot-circle" 
-                                    size="md" 
-                                    label="Analyzing your form..." 
-                                />
+                {/* File Upload Component */}
+                <FileUpload.DropZone
+                    accept=".pdf,.doc,.docx"
+                    allowsMultiple={false}
+                    maxSize={10 * 1024 * 1024} // 10MB
+                    onDropFiles={handleFileUpload}
+                    hint="PDF, DOC, DOCX up to 10MB"
+                    className="mb-4"
+                />
+
+                {uploadError && (
+                    <div className="mb-4 flex items-center gap-2 rounded-lg bg-error-50 p-3 text-sm text-error-700">
+                        <AlertCircle className="size-4" />
+                        {uploadError}
+                    </div>
+                )}
+
+                {/* Uploaded File Display */}
+                {formData.submissionForm && (
+                    <div className="space-y-2">
+                        <h4 className="text-sm font-medium text-primary">Uploaded Document</h4>
+                        <div className="flex items-center justify-between rounded-lg border border-secondary p-3">
+                            <div className="flex items-center gap-3">
+                                <File02 className="size-5 text-tertiary" />
+                                <div>
+                                    <p className="text-sm font-medium text-primary">{formData.submissionForm.name}</p>
+                                    <p className="text-xs text-tertiary">
+                                        {(formData.submissionForm.size / 1024).toFixed(1)} KB
+                                    </p>
+                                </div>
                             </div>
-                        )}
-                    </FileUpload.Root>
-                </div>
+                            <Button
+                                size="sm"
+                                color="tertiary"
+                                onClick={() => {
+                                    updateFormData({ submissionForm: null, submissionFormAnalysis: null });
+                                }}
+                            >
+                                Remove
+                            </Button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Upload Success */}
+                {formData.submissionFormAnalysis && (
+                    <div className="mt-4 rounded-lg bg-success-50 p-4">
+                        <div className="flex items-start gap-3">
+                            <CheckCircle className="size-5 text-success-600 mt-0.5" />
+                            <div>
+                                <p className="font-medium text-success-900">Document uploaded successfully</p>
+                                <p className="mt-1 text-sm text-success-700">
+                                    Document ready for processing
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
             </div>
 
-            {/* Error Display */}
-            {uploadError && (
-                <div className="flex items-center gap-2 p-4 bg-error-50 border border-error-200 rounded-lg">
-                    <AlertCircle className="w-5 h-5 text-error-600" />
-                    <p className="text-sm text-error-700">{uploadError}</p>
-                </div>
-            )}
-
-            {/* Analysis Results */}
-            {analysis && formData.applicationForm && (
-                <div className="bg-gray-50 rounded-lg p-6 space-y-6">
-                    <div className="flex items-center gap-3">
-                        <FeaturedIcon size="md" color="brand" theme="light" icon={File02} />
-                        <h3 className="text-lg font-semibold text-primary">Form Analysis Complete</h3>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                        <div className="bg-white rounded-lg p-4 border border-gray-200">
-                            <p className="text-2xl font-bold text-success-600 mb-1">{analysis.questionsFound}</p>
-                            <p className="text-sm text-secondary">Questions Found</p>
-                        </div>
-                        
-                        <div className="bg-white rounded-lg p-4 border border-gray-200">
-                            <p className="text-2xl font-bold text-success-600 mb-1">{analysis.fieldTypes.length}</p>
-                            <p className="text-sm text-secondary">Field Types</p>
-                        </div>
-                        
-                        <div className="bg-white rounded-lg p-4 border border-gray-200">
-                            <p className="text-2xl font-bold text-success-600 mb-1">{analysis.sections.length}</p>
-                            <p className="text-sm text-secondary">Sections</p>
-                        </div>
-                        
-                        <div className="bg-white rounded-lg p-4 border border-gray-200">
-                            <p className="text-2xl font-bold text-success-600 mb-1">{analysis.wordCount?.toLocaleString() || 'N/A'}</p>
-                            <p className="text-sm text-secondary">Word Count</p>
-                        </div>
-                        
-                        <div className="bg-white rounded-lg p-4 border border-gray-200">
-                            <p className={`text-2xl font-bold mb-1 ${
-                                analysis.complexity === 'Simple' ? 'text-success-600' :
-                                analysis.complexity === 'Medium' ? 'text-warning-600' : 'text-error-600'
-                            }`}>
-                                {analysis.complexity}
-                            </p>
-                            <p className="text-sm text-secondary">Complexity</p>
-                        </div>
-                    </div>
-
-                    <div className="space-y-6">
+            {/* Example Document Types */}
+            <div className="bg-gray-50 rounded-lg p-6">
+                <h3 className="text-md font-semibold text-primary mb-4">Example Document Types</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200">
+                        <FeaturedIcon size="sm" color="gray" theme="light" icon={File02} />
                         <div>
-                            <p className="text-sm font-medium text-primary mb-3">Field Types Detected:</p>
-                            <div className="flex flex-wrap gap-2">
-                                {analysis.fieldTypes.map((type, index) => (
-                                    <span key={index} className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded-full">
-                                        {type}
-                                    </span>
-                                ))}
-                            </div>
+                            <p className="text-sm font-medium text-primary">Business Case</p>
+                            <p className="text-xs text-secondary">Project justification</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200">
+                        <FeaturedIcon size="sm" color="gray" theme="light" icon={File02} />
+                        <div>
+                            <p className="text-sm font-medium text-primary">Requirements Document</p>
+                            <p className="text-xs text-secondary">Needs assessment</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200">
+                        <FeaturedIcon size="sm" color="gray" theme="light" icon={File02} />
+                        <div>
+                            <p className="text-sm font-medium text-primary">Budget Estimates</p>
+                            <p className="text-xs text-secondary">Financial planning</p>
                         </div>
                     </div>
                 </div>
-            )}
+            </div>
 
-            {/* Action Buttons */}
-            <div className="flex justify-between items-center pt-6 border-t border-gray-200">
-                <div className="text-sm text-secondary">
-                    Step 1 of 4
-                </div>
-                
+            {/* Navigation Buttons */}
+            <div className="flex justify-end gap-3 pt-6 border-t border-secondary">
                 <Button
                     size="lg"
                     color="primary"
                     iconTrailing={ArrowRight}
                     onClick={onNext}
-                    isDisabled={
-                        !formData.fundName?.trim() ||
-                        !formData.applicationForm ||
-                        isAnalyzing ||
-                        !analysis ||
-                        isCheckingName ||
-                        nameAvailable === false ||
-                        nameAvailable === null
-                    }
+                    disabled={!canProceed || isUploading}
                 >
-                    Continue to Selection Criteria
+                    Continue to RFP Document
                 </Button>
             </div>
-
         </div>
     );
 };

@@ -7,11 +7,20 @@ import { BackgroundJobService } from '@/lib/background-job-service';
 import { JobStatus, JobType } from '@prisma/client';
 import { getAWSCredentials, AWS_REGION, S3_BUCKET } from '@/lib/aws-credentials';
 
-// S3 client with EXPLICIT IAM role credentials - bypasses SSO config files
-const s3Client = new S3Client({
-  region: AWS_REGION,
-  credentials: getAWSCredentials(),
-});
+// CRITICAL FIX: Create S3 client lazily to ensure Lambda execution role is available
+// Do NOT initialize at module level as credentials may not be ready during cold start
+let s3Client: S3Client | null = null;
+
+function getS3Client(): S3Client {
+  if (!s3Client) {
+    console.log('🔐 Creating new S3 client with Lambda execution role credentials');
+    s3Client = new S3Client({
+      region: AWS_REGION,
+      credentials: getAWSCredentials(), // Returns undefined in production to use Lambda role
+    });
+  }
+  return s3Client;
+}
 
 /**
  * Simulate document processing from SQS queue
@@ -355,7 +364,7 @@ async function processDocument(document: any) {
     Key: document.s3Key
   });
 
-  const s3Response = await s3Client.send(getCommand);
+  const s3Response = await getS3Client().send(getCommand);
   const documentBuffer = Buffer.from(await s3Response.Body!.transformToByteArray());
 
   // Create File-like object for analysis functions
@@ -374,7 +383,8 @@ async function processDocument(document: any) {
       // Try Claude analysis first, fallback to pattern matching if failed
       try {
         console.log('🧠 Attempting Claude AI analysis for application form in background processing... [FORCED RECOMPILE]');
-        const textContent = await extractTextFromFile(fileObject as File);
+        // Pass S3 key for PDF processing via Textract
+        const textContent = await extractTextFromFile(fileObject as File, document.s3Key);
         const documentContext = {
           filename: document.filename,
           content: textContent,
@@ -403,7 +413,8 @@ async function processDocument(document: any) {
       // Try Claude analysis first, fallback to pattern matching if failed
       try {
         console.log('🧠 Attempting Claude AI analysis for selection criteria in background processing...');
-        const textContent = await extractTextFromFile(fileObject as File);
+        // Pass S3 key for PDF processing via Textract
+        const textContent = await extractTextFromFile(fileObject as File, document.s3Key);
         const documentContexts = [{
           filename: document.filename,
           content: textContent,
@@ -433,7 +444,8 @@ async function processDocument(document: any) {
       // Try Claude analysis first, fallback to basic analysis if failed
       try {
         console.log('🧠 Attempting Claude AI analysis for good examples in background processing...');
-        const textContent = await extractTextFromFile(fileObject as File);
+        // Pass S3 key for PDF processing via Textract
+        const textContent = await extractTextFromFile(fileObject as File, document.s3Key);
         const documentContexts = [{
           filename: document.filename,
           content: textContent,
@@ -463,7 +475,8 @@ async function processDocument(document: any) {
       // Analyze output template structure for dynamic formatting
       try {
         console.log('🧠 Attempting Claude AI analysis for output template in background processing...');
-        const textContent = await extractTextFromFile(fileObject as File);
+        // Pass S3 key for PDF processing via Textract
+        const textContent = await extractTextFromFile(fileObject as File, document.s3Key);
 
         analysisResult = await BackgroundJobService.analyzeOutputTemplateDocument(textContent, document.filename);
 

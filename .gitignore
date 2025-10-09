@@ -31,6 +31,14 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env
+.env.local
+
+# temporary dev scripts and debugging files
+check-brain-status.js
+cleanup-dev.sh
+cleanup-draft-funds.js
+start-dev.sh
+restart-dev.sh
 
 # vercel
 .vercel

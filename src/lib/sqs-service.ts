@@ -1,20 +1,30 @@
 import { SQSClient, SendMessageCommand, SendMessageBatchCommand } from '@aws-sdk/client-sqs';
 import { prisma } from './database-s3';
-import { JobType, JobStatus } from '@prisma/client';
+import { JobType, JobStatus, ModuleType } from '@prisma/client';
 import crypto from 'crypto';
 import { getAWSCredentials, AWS_REGION } from './aws-credentials';
 import { BackgroundJobService } from './background-job-service';
 
-// Initialize SQS client with EXPLICIT IAM role credentials
-// This bypasses ALL configuration files and SSO settings
-const sqsClient = new SQSClient({
-  region: AWS_REGION,
-  credentials: getAWSCredentials(),
-});
+// DIAGNOSTIC: Log what ModuleType enum values this Prisma client knows about
+console.log('🔍 DIAGNOSTIC: ModuleType enum values known by deployed Prisma client:', Object.keys(ModuleType));
+
+// CRITICAL FIX: Create SQS client lazily to ensure Lambda execution role is available
+// Do NOT initialize at module level as credentials may not be ready during cold start
+let sqsClient: SQSClient | null = null;
+
+function getSQSClient(): SQSClient {
+  if (!sqsClient) {
+    console.log('🔐 Creating new SQS client with Lambda execution role credentials');
+    sqsClient = new SQSClient({
+      region: AWS_REGION,
+      credentials: getAWSCredentials(), // Returns undefined in production to use Lambda role
+    });
+  }
+  return sqsClient;
+}
 
 // Queue URLs from environment variables
 const DOCUMENT_PROCESSING_QUEUE = process.env.SQS_QUEUE_URL || process.env.SQS_DOCUMENT_PROCESSING_QUEUE || 'nolia-document-processing';
-const BRAIN_ASSEMBLY_QUEUE = process.env.SQS_DLQ_URL || process.env.SQS_BRAIN_ASSEMBLY_QUEUE || 'nolia-brain-assembly';
 
 export interface DocumentProcessingMessage {
   jobId: string;
@@ -43,7 +53,17 @@ export class SQSService {
     filename: string;
     mimeType: string;
   }>) {
-    // Create background job in database
+    // Get fund to retrieve moduleType
+    const fund = await prisma.fund.findUnique({
+      where: { id: fundId },
+      select: { moduleType: true }
+    });
+
+    if (!fund) {
+      throw new Error(`Fund ${fundId} not found`);
+    }
+
+    // Create background job in database WITH moduleType from fund
     const job = await prisma.backgroundJob.create({
       data: {
         fundId,
@@ -51,6 +71,7 @@ export class SQSService {
         status: JobStatus.PENDING,
         totalDocuments: documents.length,
         processedDocuments: 0,
+        moduleType: fund.moduleType as any, // Use fund's moduleType
         metadata: {
           documentIds: documents.map(d => d.id),
           queuedAt: new Date().toISOString(),
@@ -80,20 +101,30 @@ export class SQSService {
     for (let i = 0; i < messages.length; i += batchSize) {
       const batch = messages.slice(i, i + batchSize);
       
-      await sqsClient.send(new SendMessageBatchCommand({
+      await getSQSClient().send(new SendMessageBatchCommand({
         QueueUrl: DOCUMENT_PROCESSING_QUEUE,
         Entries: batch,
       }));
     }
 
-    // Mark job as processing
-    await prisma.backgroundJob.update({
-      where: { id: job.id },
-      data: {
-        status: JobStatus.PROCESSING,
-        startedAt: new Date(),
-      },
-    });
+    // In development, DON'T mark as PROCESSING - let background processor pick it up as PENDING
+    // In production with actual SQS queue workers, this line would mark it as PROCESSING
+    // For now, background processor will handle jobs in PENDING state within 30 seconds
+    console.log(`📝 Job ${job.id} created as PENDING - background processor will pick it up automatically`);
+
+    // In production, immediately trigger document processing (background processor doesn't run in serverless)
+    // CRITICAL: Call BackgroundJobService directly to avoid HTTP overhead and connection pool exhaustion
+    if (process.env.NODE_ENV === 'production') {
+      console.log(`🚀 Triggering immediate document processing for job ${job.id} in production`);
+
+      // Import dynamically to avoid circular dependencies
+      import('./background-job-service').then(({ BackgroundJobService }) => {
+        // processNextJob will pick up the PENDING job we just created
+        BackgroundJobService.processNextJob()
+          .then(() => console.log(`✅ Successfully triggered job processing in production`))
+          .catch((err: Error) => console.error(`❌ Failed to trigger job processing:`, err));
+      }).catch((err: Error) => console.error('❌ Failed to import BackgroundJobService:', err));
+    }
 
     return job;
   }
@@ -104,6 +135,16 @@ export class SQSService {
   async queueBrainAssembly(fundId: string, triggerType: 'DOCUMENT_COMPLETE' | 'MANUAL_TRIGGER' = 'DOCUMENT_COMPLETE') {
     // Use a transaction to prevent race conditions
     return await prisma.$transaction(async (tx) => {
+      // Get fund to retrieve moduleType
+      const fund = await tx.fund.findUnique({
+        where: { id: fundId },
+        select: { moduleType: true }
+      });
+
+      if (!fund) {
+        throw new Error(`Fund ${fundId} not found`);
+      }
+
       // Check if there's already a brain assembly job (any status)
       const existingJob = await tx.backgroundJob.findFirst({
         where: {
@@ -120,7 +161,7 @@ export class SQSService {
         return existingJob;
       }
 
-      // Create brain assembly job
+      // Create brain assembly job WITH moduleType from fund
       const job = await tx.backgroundJob.create({
         data: {
           fundId,
@@ -128,6 +169,7 @@ export class SQSService {
           status: JobStatus.PENDING,
           totalDocuments: 1, // Brain assembly is a single operation
           processedDocuments: 0,
+          moduleType: fund.moduleType as any, // Use fund's moduleType
           metadata: {
             triggerType,
             queuedAt: new Date().toISOString(),
@@ -139,7 +181,7 @@ export class SQSService {
 
       // Send message to brain assembly queue (use same queue for now)
       try {
-        await sqsClient.send(new SendMessageCommand({
+        await getSQSClient().send(new SendMessageCommand({
           QueueUrl: DOCUMENT_PROCESSING_QUEUE, // Use same queue for brain assembly
           MessageBody: JSON.stringify({
             jobId: job.id,

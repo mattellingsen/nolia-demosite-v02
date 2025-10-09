@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/base/buttons/button";
 import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { Form } from "@/components/base/form/form";
@@ -9,6 +11,42 @@ import { BackgroundPattern } from "@/components/shared-assets/background-pattern
 
 
 export const LoginSimple = () => {
+    const router = useRouter();
+    const [error, setError] = useState<string>('');
+    const [isLoading, setIsLoading] = useState(false);
+
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        setError('');
+        setIsLoading(true);
+
+        const formData = new FormData(e.currentTarget);
+        const username = formData.get('email') as string;
+        const password = formData.get('password') as string;
+
+        try {
+            const response = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password }),
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Redirect to home page on successful login
+                router.push('/');
+                router.refresh();
+            } else {
+                setError(data.error || 'Invalid credentials');
+            }
+        } catch (err) {
+            setError('Login failed. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     return (
         <section className="relative min-h-screen overflow-hidden bg-primary px-4 py-12 md:px-8 md:pt-24">
             <div className="relative z-10 mx-auto flex w-full flex-col gap-8 sm:max-w-90">
@@ -26,20 +64,40 @@ export const LoginSimple = () => {
                 </div>
 
                 <Form
-                    onSubmit={(e) => {
-                        e.preventDefault();
-                        const data = Object.fromEntries(new FormData(e.currentTarget));
-                        console.log("Form data:", data);
-                    }}
+                    onSubmit={handleSubmit}
                     className="z-10 flex flex-col gap-6"
                 >
+                    {error && (
+                        <div className="rounded-lg bg-error-50 p-3 text-sm text-error-700">
+                            {error}
+                        </div>
+                    )}
+
                     <div className="flex flex-col gap-5">
-                        <Input isRequired hideRequiredIndicator label="Email" type="email" name="email" placeholder="Enter your email" size="md" />
-                        <Input isRequired hideRequiredIndicator label="Password" type="password" name="password" size="md" placeholder="••••••••" />
+                        <Input
+                            isRequired
+                            hideRequiredIndicator
+                            label="Email"
+                            type="email"
+                            name="email"
+                            placeholder="Enter your email"
+                            size="md"
+                            isDisabled={isLoading}
+                        />
+                        <Input
+                            isRequired
+                            hideRequiredIndicator
+                            label="Password"
+                            type="password"
+                            name="password"
+                            size="md"
+                            placeholder="••••••••"
+                            isDisabled={isLoading}
+                        />
                     </div>
 
                     <div className="flex items-center">
-                        <Checkbox label="Remember for 30 days" name="remember" />
+                        <Checkbox label="Remember for 30 days" name="remember" isDisabled={isLoading} />
 
                         <Button color="link-color" size="md" href="#" className="ml-auto">
                             Forgot password
@@ -47,8 +105,8 @@ export const LoginSimple = () => {
                     </div>
 
                     <div className="flex flex-col gap-4">
-                        <Button type="submit" size="lg">
-                            Sign in
+                        <Button type="submit" size="lg" isDisabled={isLoading}>
+                            {isLoading ? 'Signing in...' : 'Sign in'}
                         </Button>
                     </div>
                 </Form>

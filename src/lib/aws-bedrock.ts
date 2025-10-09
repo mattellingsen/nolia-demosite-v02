@@ -2,12 +2,20 @@
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 import { getAWSCredentials, AWS_REGION } from './aws-credentials';
 
-// Initialize Bedrock client with EXPLICIT IAM role credentials
-// This bypasses ALL configuration files and SSO settings
-const bedrockClient = new BedrockRuntimeClient({
-  region: AWS_REGION,
-  credentials: getAWSCredentials(),
-});
+// CRITICAL FIX: Create Bedrock client lazily to ensure Lambda execution role is available
+// Do NOT initialize at module level as credentials may not be ready during cold start
+let bedrockClient: BedrockRuntimeClient | null = null;
+
+function getBedrockClient(): BedrockRuntimeClient {
+  if (!bedrockClient) {
+    console.log('🔐 Creating new Bedrock client with Lambda execution role credentials');
+    bedrockClient = new BedrockRuntimeClient({
+      region: AWS_REGION,
+      credentials: getAWSCredentials(), // Returns undefined in production to use Lambda role
+    });
+  }
+  return bedrockClient;
+}
 
 // Claude model configuration - Updated to use Claude 3.5 Sonnet v2 (working model)
 const CLAUDE_MODEL_ID = 'anthropic.claude-3-5-sonnet-20241022-v2:0';
@@ -74,7 +82,7 @@ export async function assessApplicationWithBedrock(
       body: JSON.stringify(payload),
     });
 
-    const response = await bedrockClient.send(command);
+    const response = await getBedrockClient().send(command);
     
     // Parse the response
     const responseBody = JSON.parse(new TextDecoder().decode(response.body));

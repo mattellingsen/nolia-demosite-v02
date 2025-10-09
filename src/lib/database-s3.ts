@@ -40,12 +40,20 @@ export const prisma =
 // Prevent multiple instances in development
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
-// S3 client configuration - EXPLICIT IAM role credentials in production
-// This bypasses ALL configuration files and SSO settings
-const s3Client = new S3Client({
-  region: AWS_REGION,
-  credentials: getAWSCredentials(),
-});
+// CRITICAL FIX: Create S3 client lazily to ensure Lambda execution role is available
+// Do NOT initialize at module level as credentials may not be ready during cold start
+let s3Client: S3Client | null = null;
+
+function getS3ClientInstance(): S3Client {
+  if (!s3Client) {
+    console.log('🔐 Creating new S3 client in database-s3.ts with Lambda execution role credentials');
+    s3Client = new S3Client({
+      region: AWS_REGION,
+      credentials: getAWSCredentials(), // Returns undefined in production to use Lambda role
+    });
+  }
+  return s3Client;
+}
 
 // S3_BUCKET is now imported from aws-credentials.ts
 
@@ -54,14 +62,14 @@ const s3Client = new S3Client({
  */
 export async function uploadFileToS3(buffer: Buffer, filename: string, mimeType: string, folder: string): Promise<string> {
   const key = `${folder}/${crypto.randomUUID()}-${filename}`;
-  
-  await s3Client.send(new PutObjectCommand({
+
+  await getS3ClientInstance().send(new PutObjectCommand({
     Bucket: S3_BUCKET,
     Key: key,
     Body: buffer,
     ContentType: mimeType,
   }));
-  
+
   return key;
 }
 
@@ -73,8 +81,8 @@ export async function generateS3DownloadUrl(s3Key: string): Promise<string> {
     Bucket: S3_BUCKET,
     Key: s3Key,
   });
-  
-  return getSignedUrl(s3Client, command, { expiresIn: 3600 }); // 1 hour
+
+  return getSignedUrl(getS3ClientInstance(), command, { expiresIn: 3600 }); // 1 hour
 }
 
 /**
@@ -83,7 +91,7 @@ export async function generateS3DownloadUrl(s3Key: string): Promise<string> {
 export async function saveFundWithDocuments(fundData: {
   name: string;
   description?: string;
-  moduleType?: 'FUNDING' | 'PROCUREMENT';
+  moduleType?: 'FUNDING' | 'PROCUREMENT' | 'WORLDBANK';
   applicationForm?: {
     file: Buffer;
     filename: string;

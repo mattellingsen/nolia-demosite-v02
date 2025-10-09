@@ -109,11 +109,11 @@ export const Step2SelectionCriteria: React.FC<Step2Props> = ({
             <div className="text-center space-y-4">
                 <div>
                     <h2 className="text-display-sm font-semibold text-primary mb-2">
-                        Upload Selection Criteria
+                        Upload RFP Document
                     </h2>
                     <p className="text-lg text-secondary max-w-2xl mx-auto">
-                        Upload your assessment criteria documents. These will help Nolia validate applications 
-                        and ensure only qualified submissions are processed.
+                        Upload the official Request for Proposal (RFP) document. This is the main tender document
+                        that defines requirements and evaluation criteria.
                     </p>
                 </div>
             </div>
@@ -152,10 +152,10 @@ export const Step2SelectionCriteria: React.FC<Step2Props> = ({
                     <div className="flex items-center gap-3">
                         <FeaturedIcon size="md" color="brand" theme="light" icon={CheckCircle} />
                         <div>
-                            <h3 className="text-lg font-semibold text-success-800">Selection Criteria Uploaded</h3>
+                            <h3 className="text-lg font-semibold text-success-800">RFP Document Uploaded</h3>
                             <p className="text-sm text-success-600">
-                                {formData.selectionCriteria.length} document{formData.selectionCriteria.length !== 1 ? 's' : ''} uploaded successfully. 
-                                These will be processed when your fund is created.
+                                {formData.selectionCriteria.length} document{formData.selectionCriteria.length !== 1 ? 's' : ''} uploaded successfully.
+                                These will be processed when your tender is created.
                             </p>
                         </div>
                     </div>
@@ -168,9 +168,9 @@ export const Step2SelectionCriteria: React.FC<Step2Props> = ({
                     {/* Pro Tip */}
                     <div className="bg-warning-50 rounded-lg p-4 border border-warning-200 mb-5">
                         <p className="text-sm text-warning-800">
-                            <strong>Pro tip:</strong> Upload multiple documents like scoring rubrics, evaluation criteria, 
-                            and assessment guidelines. The more context you provide, the better the AI will understand 
-                            your requirements.
+                            <strong>Pro tip:</strong> Upload the complete RFP document. You can also upload multiple versions
+                            or addendums if they exist. The more context you provide, the better the AI will understand
+                            the tender requirements.
                         </p>
                     </div>
                     <FileUpload.Root>
@@ -195,34 +195,6 @@ export const Step2SelectionCriteria: React.FC<Step2Props> = ({
                             box-shadow: 0 0 0 8px #F2FAFC !important;
                         }
                     `}</style>
-                </div>
-            </div>
-
-            {/* Example Document Types */}
-            <div className="bg-gray-50 rounded-lg p-6">
-                <h3 className="text-md font-semibold text-primary mb-4">Example Document Types</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200">
-                        <FeaturedIcon size="sm" color="gray" theme="light" icon={File02} />
-                        <div>
-                            <p className="text-sm font-medium text-primary">Ministerial Direction</p>
-                            <p className="text-xs text-secondary">Government directives</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200">
-                        <FeaturedIcon size="sm" color="gray" theme="light" icon={File02} />
-                        <div>
-                            <p className="text-sm font-medium text-primary">Funding Agreements</p>
-                            <p className="text-xs text-secondary">Terms and conditions</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200">
-                        <FeaturedIcon size="sm" color="gray" theme="light" icon={File02} />
-                        <div>
-                            <p className="text-sm font-medium text-primary">Eligibility Requirements</p>
-                            <p className="text-xs text-secondary">Qualification criteria</p>
-                        </div>
-                    </div>
                 </div>
             </div>
 
@@ -257,7 +229,7 @@ export const Step2SelectionCriteria: React.FC<Step2Props> = ({
                     onClick={onNext}
                     isDisabled={!hasFiles}
                 >
-                    Continue to Good Examples
+                    Continue to Supporting Documents
                 </Button>
             </div>
 
