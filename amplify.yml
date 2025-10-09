@@ -25,6 +25,7 @@ frontend:
       commands:
         - rm -rf node_modules/.prisma
         - npx prisma generate
+        - rm -rf .next/cache
         - npm run build
         - echo "Build completed successfully with procurement-admin routes"
   artifacts:
