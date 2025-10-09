@@ -102,6 +102,17 @@ export class SQSService {
     // For now, background processor will handle jobs in PENDING state within 30 seconds
     console.log(`📝 Job ${job.id} created as PENDING - background processor will pick it up automatically`);
 
+    // In production, immediately trigger job processing (background processor doesn't run in serverless)
+    if (process.env.NODE_ENV === 'production') {
+      const baseUrl = process.env.NEXTAUTH_URL || 'https://main.d2l8hlr3sei3te.amplifyapp.com';
+      fetch(`${baseUrl}/api/jobs/process`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId: job.id, autoTrigger: true })
+      }).catch(err => console.error('❌ Failed to trigger job processing:', err));
+      console.log(`🚀 Triggered immediate processing for job ${job.id} in production`);
+    }
+
     return job;
   }
 
