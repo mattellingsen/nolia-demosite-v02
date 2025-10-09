@@ -125,25 +125,6 @@ export async function POST(req: NextRequest) {
     console.log('🔐 DEBUG: S3_BUCKET:', S3_BUCKET);
     console.log('🔐 DEBUG: S3_BUCKET_DOCUMENTS:', process.env.S3_BUCKET_DOCUMENTS);
 
-    // Test AWS credentials before uploading files
-    try {
-      const testCredentials = await s3Client.config.credentials();
-      console.log('🔐 DEBUG: AWS credentials resolved successfully:', {
-        accessKeyId: testCredentials?.accessKeyId ? `${testCredentials.accessKeyId.substring(0, 8)}...` : 'NONE',
-        hasSecretKey: !!testCredentials?.secretAccessKey,
-        hasSessionToken: !!testCredentials?.sessionToken
-      });
-    } catch (credError) {
-      console.error('🔐 DEBUG: Failed to resolve AWS credentials:', credError);
-      return NextResponse.json(
-        {
-          error: 'AWS credentials not configured correctly',
-          details: credError instanceof Error ? credError.message : String(credError)
-        },
-        { status: 500 }
-      );
-    }
-
     for (const file of allFiles) {
       try {
         console.log(`📄 Processing file: ${file.filename} (${file.documentType})`);
