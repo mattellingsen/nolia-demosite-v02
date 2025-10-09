@@ -101,30 +101,18 @@ export class SQSService {
     // For now, background processor will handle jobs in PENDING state within 30 seconds
     console.log(`📝 Job ${job.id} created as PENDING - background processor will pick it up automatically`);
 
-    // DEBUG LOGGING - TEMPORARY FOR INVESTIGATION
-    console.log('🔍 DEBUG - Environment Check:');
-    console.log('🔍 NODE_ENV value:', process.env.NODE_ENV);
-    console.log('🔍 NODE_ENV type:', typeof process.env.NODE_ENV);
-    console.log('🔍 NODE_ENV === "production"?', process.env.NODE_ENV === 'production');
-    console.log('🔍 Available env vars:', Object.keys(process.env).filter(k => k.includes('NODE') || k.includes('AWS') || k.includes('AMPLIFY')).sort());
-    console.log('🔍 Is serverless/Lambda?:', typeof window === 'undefined' && !!process.env.AWS_EXECUTION_ENV);
-    console.log('🔍 AWS_EXECUTION_ENV:', process.env.AWS_EXECUTION_ENV);
-
     // In production, immediately trigger document processing (background processor doesn't run in serverless)
     // CRITICAL: Call BackgroundJobService directly to avoid HTTP overhead and connection pool exhaustion
     if (process.env.NODE_ENV === 'production') {
-      console.log(`🚀 [TRIGGER FIRING] Triggering immediate document processing for job ${job.id} in production`);
+      console.log(`🚀 Triggering immediate document processing for job ${job.id} in production`);
 
       // Import dynamically to avoid circular dependencies
       import('./background-job-service').then(({ BackgroundJobService }) => {
-        console.log('🔍 [TRIGGER] BackgroundJobService imported successfully');
         // processNextJob will pick up the PENDING job we just created
         BackgroundJobService.processNextJob()
-          .then(() => console.log(`✅ [TRIGGER] Successfully triggered job processing in production`))
-          .catch((err: Error) => console.error(`❌ [TRIGGER] Failed to trigger job processing:`, err));
-      }).catch((err: Error) => console.error('❌ [TRIGGER] Failed to import BackgroundJobService:', err));
-    } else {
-      console.log('🔍 [TRIGGER NOT FIRING] NODE_ENV check failed - automatic trigger skipped');
+          .then(() => console.log(`✅ Successfully triggered job processing in production`))
+          .catch((err: Error) => console.error(`❌ Failed to trigger job processing:`, err));
+      }).catch((err: Error) => console.error('❌ Failed to import BackgroundJobService:', err));
     }
 
     return job;
