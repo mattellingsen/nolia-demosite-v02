@@ -1,4 +1,7 @@
 version: 1
+env:
+  variables:
+    AWS_SDK_LOAD_CONFIG: 'false'
 frontend:
   phases:
     preBuild:
