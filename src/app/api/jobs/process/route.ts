@@ -174,12 +174,28 @@ async function processDocumentAnalysisJob(job: any) {
 
   let processedCount = 0;
 
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log(`📋 DOCUMENT LOOP: Starting processing ${documents.length} documents`);
+  console.log(`📋 Job ID: ${job.id}`);
+  console.log(`📋 Documents: ${documents.map(d => d.filename).join(', ')}`);
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
   // Process each document
   for (const document of documents) {
     try {
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log(`📄 DOCUMENT ${processedCount + 1}/${documents.length}: Starting ${document.filename}`);
+      console.log(`📄 Type: ${document.documentType}`);
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
       await processDocument(document);
       processedCount++;
-      
+
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log(`✅ DOCUMENT ${processedCount}/${documents.length}: Completed ${document.filename}`);
+      console.log(`✅ Progress: ${processedCount}/${documents.length} (${Math.round(processedCount/documents.length*100)}%)`);
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
       // Update job progress
       await sqsService.updateJobProgress(job.id, processedCount, {
         lastProcessedDocument: document.id,
@@ -187,7 +203,11 @@ async function processDocumentAnalysisJob(job: any) {
       });
 
     } catch (error) {
-      console.error(`Failed to process document ${document.id}:`, error);
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.error(`❌ DOCUMENT ${processedCount + 1}/${documents.length}: Failed ${document.filename}`);
+      console.error(`❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error(`❌ Stack:`, error instanceof Error ? error.stack : '');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       await sqsService.markJobFailed(job.id, `Failed to process document ${document.filename}: ${error instanceof Error ? error.message : 'Unknown error'}`);
       throw error;
     }

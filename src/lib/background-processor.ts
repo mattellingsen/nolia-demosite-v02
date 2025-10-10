@@ -29,7 +29,12 @@ class BackgroundProcessor {
       return;
     }
 
-    console.log('🤖 Background processor starting...');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('🤖 BACKGROUND PROCESSOR: Starting polling cycle');
+    console.log(`🤖 Interval: ${intervalMs}ms (${intervalMs/1000}s)`);
+    console.log(`🤖 Environment: ${process.env.NODE_ENV}`);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
     this.interval = setInterval(() => {
       this.processStuckJobs().catch(console.error);
     }, intervalMs);
@@ -60,6 +65,11 @@ class BackgroundProcessor {
     this.isProcessing = true;
 
     try {
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('🔍 POLLING CYCLE: Checking for jobs to process');
+      console.log(`🔍 Time: ${new Date().toISOString()}`);
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
       // Find jobs that are stuck (PROCESSING status but no progress for > 2 minutes)
       // Include ALL module types: FUNDING, PROCUREMENT, PROCUREMENT_ADMIN
       const stuckJobs = await prisma.backgroundJob.findMany({
@@ -105,11 +115,19 @@ class BackgroundProcessor {
         }
       });
 
+      console.log(`✅ Found ${stuckJobs.length} stuck job(s) to process`);
+      console.log(`✅ Found ${retryableFailedJobs.length} retryable failed job(s)`);
+
       if (stuckJobs.length > 0) {
-        console.log(`🔧 Found ${stuckJobs.length} stuck job(s), triggering processing...`);
+        console.log(`🔧 Processing ${stuckJobs.length} stuck job(s)...`);
 
         for (const job of stuckJobs) {
-          console.log(`📋 Processing stuck job: ${job.id} for fund "${job.fund.name}"`);
+          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+          console.log(`🎯 JOB PICKUP: Found job ${job.id} to process`);
+          console.log(`🎯 Fund: ${job.fund.name} (${job.fund.moduleType})`);
+          console.log(`🎯 Job Status: ${job.status}`);
+          console.log(`🎯 Progress: ${job.processedDocuments}/${job.totalDocuments}`);
+          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
           try {
             // Trigger job processing via API

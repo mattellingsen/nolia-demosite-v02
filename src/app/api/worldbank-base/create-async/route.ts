@@ -263,6 +263,8 @@ export async function POST(req: NextRequest) {
         console.log('✅ Job Type:', job.type);
         console.log('✅ Job Status:', job.status);
         console.log('✅ Total Documents:', job.totalDocuments);
+        console.log('📨 SQS: Messages sent to queue for background processing');
+        console.log('📨 SQS: Queue URL: https://sqs.ap-southeast-2.amazonaws.com/599065966827/nolia-document-processing');
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       } catch (sqsError) {
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
