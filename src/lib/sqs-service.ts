@@ -98,14 +98,46 @@ export class SQSService {
 
     // Send in batches of up to 10 (SQS limit)
     const batchSize = 10;
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('📨 SENDING MESSAGES TO SQS');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('📨 Queue URL:', DOCUMENT_PROCESSING_QUEUE);
+    console.log('📨 Total messages to send:', messages.length);
+    console.log('📨 Number of batches:', Math.ceil(messages.length / batchSize));
+
     for (let i = 0; i < messages.length; i += batchSize) {
       const batch = messages.slice(i, i + batchSize);
-      
-      await getSQSClient().send(new SendMessageBatchCommand({
-        QueueUrl: DOCUMENT_PROCESSING_QUEUE,
-        Entries: batch,
-      }));
+
+      console.log(`📨 Sending batch ${Math.floor(i / batchSize) + 1} with ${batch.length} message(s)...`);
+      console.log('📨 Batch message IDs:', batch.map(m => m.Id).join(', '));
+
+      try {
+        const result = await getSQSClient().send(new SendMessageBatchCommand({
+          QueueUrl: DOCUMENT_PROCESSING_QUEUE,
+          Entries: batch,
+        }));
+
+        console.log('✅ Batch sent successfully');
+        console.log('✅ Successful:', result.Successful?.length || 0);
+        console.log('✅ Failed:', result.Failed?.length || 0);
+        if (result.Failed && result.Failed.length > 0) {
+          console.error('❌ Failed messages:', JSON.stringify(result.Failed, null, 2));
+        }
+      } catch (sendError) {
+        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.error('❌ SQS SEND FAILED FOR BATCH');
+        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.error('❌ Error type:', sendError?.constructor?.name);
+        console.error('❌ Error message:', sendError instanceof Error ? sendError.message : String(sendError));
+        console.error('❌ Error stack:', sendError instanceof Error ? sendError.stack : 'No stack');
+        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        throw sendError; // Re-throw to be caught by outer try-catch
+      }
     }
+
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('✅ ALL SQS MESSAGES SENT SUCCESSFULLY');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
     // In development, DON'T mark as PROCESSING - let background processor pick it up as PENDING
     // In production with actual SQS queue workers, this line would mark it as PROCESSING

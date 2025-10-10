@@ -231,6 +231,15 @@ export async function POST(req: NextRequest) {
     let job = null;
     if (successfulUploads.length > 0) {
       try {
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('🚀 ABOUT TO QUEUE DOCUMENTS FOR SQS PROCESSING');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('📦 Base ID:', base.id);
+        console.log('📦 Successful uploads count:', successfulUploads.length);
+        console.log('📦 Documents to queue:', successfulUploads.map(d => d.filename).join(', '));
+        console.log('🔐 AWS Credentials status: (will be logged by getAWSCredentials)');
+        console.log('📍 About to call sqsService.queueDocumentProcessing()...');
+
         job = await sqsService.queueDocumentProcessing(base.id, successfulUploads.map(doc => ({
           id: doc.documentId,
           s3Key: doc.s3Key,
@@ -238,9 +247,25 @@ export async function POST(req: NextRequest) {
           filename: doc.filename,
           mimeType: 'application/pdf' // Will be properly set from file data
         })));
-        console.log('✅ SQS job created:', job.id);
+
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('✅ SQS JOB CREATED SUCCESSFULLY');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('✅ Job ID:', job.id);
+        console.log('✅ Job Type:', job.type);
+        console.log('✅ Job Status:', job.status);
+        console.log('✅ Total Documents:', job.totalDocuments);
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       } catch (sqsError) {
-        console.error('❌ Failed to create SQS job:', sqsError);
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.error('❌ SQS JOB CREATION FAILED');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.error('❌ Error type:', sqsError?.constructor?.name);
+        console.error('❌ Error message:', sqsError instanceof Error ? sqsError.message : String(sqsError));
+        console.error('❌ Error stack:', sqsError instanceof Error ? sqsError.stack : 'No stack trace');
+        console.error('❌ Full error object:', JSON.stringify(sqsError, Object.getOwnPropertyNames(sqsError), 2));
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
         // Create a placeholder job in the database so frontend has something to track
         job = await prisma.backgroundJob.create({
           data: {
@@ -252,11 +277,13 @@ export async function POST(req: NextRequest) {
             errorMessage: `SQS queue failed: ${sqsError instanceof Error ? sqsError.message : 'Unknown error'}`,
             metadata: {
               documentIds: successfulUploads.map(d => d.documentId),
-              failureReason: 'SQS_ERROR'
+              failureReason: 'SQS_ERROR',
+              fullError: JSON.stringify(sqsError, Object.getOwnPropertyNames(sqsError))
             },
             moduleType: 'WORLDBANK_ADMIN'
           }
         });
+        console.log('📝 Created FAILED job in database as fallback:', job.id);
       }
     }
 
