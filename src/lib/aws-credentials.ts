@@ -7,11 +7,11 @@
  * Root Cause Fixed:
  * - Amplify sets expired build credentials in environment variables during deployment
  * - AWS SDK credential provider chain checks environment variables FIRST
- * - By deleting these env vars, we force SDK to use Lambda execution role
- * - The SDK's default chain correctly finds Lambda role via container metadata service
+ * - By deleting these env vars AND using fromNodeProviderChain(), we ensure Lambda finds its execution role
+ * - fromNodeProviderChain() includes container metadata service for ECS/Lambda environments
  */
 
-import { fromEnv } from '@aws-sdk/credential-providers';
+import { fromEnv, fromNodeProviderChain } from '@aws-sdk/credential-providers';
 import type { AwsCredentialIdentityProvider } from '@aws-sdk/types';
 
 /**
@@ -42,11 +42,13 @@ export function getAWSCredentials(): AwsCredentialIdentityProvider | undefined {
       console.log('✅ Environment cleaned - SDK will now use Lambda execution role');
     }
 
-    // Return undefined to let SDK use default chain
-    // With env vars deleted, SDK will find Lambda execution role via container metadata
-    // This is the correct approach for Amplify Lambda functions
-    console.log('🔒 Using SDK default chain for Lambda execution role (production)');
-    return undefined;
+    // Use fromNodeProviderChain which includes:
+    // 1. Container metadata (ECS/Lambda execution role)
+    // 2. Instance metadata (EC2 IAM role)
+    // 3. Process credentials
+    // This ensures Lambda can find its execution role credentials
+    console.log('🔒 Using Node provider chain for Lambda execution role (production)');
+    return fromNodeProviderChain();
   } else {
     // Development: Use environment variables from export-aws-creds.sh
     // Falls back to default credential chain if not set
