@@ -137,11 +137,11 @@ async function extractTextFromS3Document(s3Key: string): Promise<string> {
   try {
     // Download from S3
     const { S3Client, GetObjectCommand } = await import('@aws-sdk/client-s3');
-    const { getAWSCredentials, AWS_REGION } = await import('./aws-credentials');
+    const { AWS_REGION } = await import('./aws-credentials');
 
     const s3Client = new S3Client({
       region: AWS_REGION,
-      credentials: getAWSCredentials(),
+      // NO credentials - Lambda execution role is used automatically
     });
     
     const command = new GetObjectCommand({
