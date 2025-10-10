@@ -15,10 +15,18 @@ let s3Client: S3Client | null = null;
 function getS3Client(): S3Client {
   if (!s3Client) {
     console.log('🔐 Creating new S3 client with Lambda execution role credentials');
+
+    // CRITICAL: In production, DO NOT pass credentials property
+    // Let SDK use Lambda execution role automatically
+    // Only pass credentials in development
+    const credentials = getAWSCredentials();
+
     s3Client = new S3Client({
       region: AWS_REGION,
-      credentials: getAWSCredentials(),
+      ...(credentials && { credentials }), // Only add credentials if defined
     });
+
+    console.log('✅ S3 client created successfully');
   }
   return s3Client;
 }

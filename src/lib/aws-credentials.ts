@@ -30,25 +30,13 @@ export function getAWSCredentials(): AwsCredentialIdentityProvider | undefined {
   console.log('🔐 DEBUG: AWS_PROFILE present:', !!process.env.AWS_PROFILE);
 
   if (process.env.NODE_ENV === 'production') {
-    // CRITICAL FIX: Delete Amplify's expired build credentials from environment
-    // These polluted env vars cause "The provided token has expired" errors
-    // AWS SDK checks env vars FIRST in its credential chain
-    if (process.env.AWS_ACCESS_KEY_ID || process.env.AWS_SECRET_ACCESS_KEY || process.env.AWS_SESSION_TOKEN) {
-      console.log('🧹 Cleaning up Amplify build credentials from environment...');
-      delete process.env.AWS_ACCESS_KEY_ID;
-      delete process.env.AWS_SECRET_ACCESS_KEY;
-      delete process.env.AWS_SESSION_TOKEN;
-      delete process.env.AWS_PROFILE;
-      console.log('✅ Environment cleaned - SDK will now use Lambda execution role');
-    }
-
-    // Use fromNodeProviderChain which includes:
-    // 1. Container metadata (ECS/Lambda execution role)
-    // 2. Instance metadata (EC2 IAM role)
-    // 3. Process credentials
-    // This ensures Lambda can find its execution role credentials
-    console.log('🔒 Using Node provider chain for Lambda execution role (production)');
-    return fromNodeProviderChain();
+    // CRITICAL FIX: Amplify pollutes environment with expired build credentials
+    // Solution: Don't delete env vars, don't use providers - just return undefined
+    // Let the AWS SDK clients handle credential resolution internally
+    // The SDK will automatically use the Lambda execution role when no credentials provider is specified
+    console.log('🔒 Using automatic Lambda execution role resolution (production)');
+    console.log('🔒 SDK will resolve credentials internally without explicit provider');
+    return undefined;
   } else {
     // Development: Use environment variables from export-aws-creds.sh
     // Falls back to default credential chain if not set
