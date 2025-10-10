@@ -2,23 +2,23 @@
  * AWS Credentials Provider - Forces IAM Role Usage in Production
  *
  * This utility ensures that AWS SDK clients ONLY use IAM role credentials in production,
- * completely bypassing SSO configuration files and expired tokens.
+ * completely bypassing expired build credentials set by Amplify.
  *
  * Root Cause Fixed:
- * - AWS SDK credential provider chain checks ~/.aws/config and ~/.aws/sso/cache/
- * - These files may contain expired SSO tokens from the build environment
- * - By explicitly providing fromInstanceMetadata(), we force IAM role usage
- * - The SDK never checks configuration files when credentials are explicitly provided
+ * - Amplify sets expired build credentials in environment variables during deployment
+ * - AWS SDK credential provider chain checks environment variables FIRST
+ * - By deleting these env vars, we force SDK to use Lambda execution role
+ * - The SDK's default chain correctly finds Lambda role via container metadata service
  */
 
-import { fromInstanceMetadata, fromEnv, fromContainerMetadata, fromNodeProviderChain } from '@aws-sdk/credential-providers';
+import { fromEnv } from '@aws-sdk/credential-providers';
 import type { AwsCredentialIdentityProvider } from '@aws-sdk/types';
 
 /**
  * Get AWS credentials provider based on environment
  *
- * Production: Forces IAM role credentials via custom chain (bypasses SSO config files)
- * Development: Uses environment variables (from export-aws-creds.sh)
+ * Production: Cleans polluted env vars, lets SDK use Lambda execution role
+ * Development: Uses environment variables (from export-aws-creds.sh) or SSO
  */
 export function getAWSCredentials(): AwsCredentialIdentityProvider | undefined {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -30,15 +30,23 @@ export function getAWSCredentials(): AwsCredentialIdentityProvider | undefined {
   console.log('🔐 DEBUG: AWS_PROFILE present:', !!process.env.AWS_PROFILE);
 
   if (process.env.NODE_ENV === 'production') {
-    // CRITICAL FIX: Use ONLY instance metadata (Lambda execution role)
-    // This explicitly SKIPS environment variable checks entirely
-    // Amplify sets expired build credentials in env vars that cause "The provided token has expired"
-    // By using fromInstanceMetadata() directly, we bypass env vars and go straight to Lambda role
-    console.log('🔒 Using fromInstanceMetadata() to bypass expired Amplify env credentials');
-    return fromInstanceMetadata({
-      timeout: 1000,
-      maxRetries: 3
-    });
+    // CRITICAL FIX: Delete Amplify's expired build credentials from environment
+    // These polluted env vars cause "The provided token has expired" errors
+    // AWS SDK checks env vars FIRST in its credential chain
+    if (process.env.AWS_ACCESS_KEY_ID || process.env.AWS_SECRET_ACCESS_KEY || process.env.AWS_SESSION_TOKEN) {
+      console.log('🧹 Cleaning up Amplify build credentials from environment...');
+      delete process.env.AWS_ACCESS_KEY_ID;
+      delete process.env.AWS_SECRET_ACCESS_KEY;
+      delete process.env.AWS_SESSION_TOKEN;
+      delete process.env.AWS_PROFILE;
+      console.log('✅ Environment cleaned - SDK will now use Lambda execution role');
+    }
+
+    // Return undefined to let SDK use default chain
+    // With env vars deleted, SDK will find Lambda execution role via container metadata
+    // This is the correct approach for Amplify Lambda functions
+    console.log('🔒 Using SDK default chain for Lambda execution role (production)');
+    return undefined;
   } else {
     // Development: Use environment variables from export-aws-creds.sh
     // Falls back to default credential chain if not set
