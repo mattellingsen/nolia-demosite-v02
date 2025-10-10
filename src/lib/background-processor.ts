@@ -113,6 +113,11 @@ class BackgroundProcessor {
 
           try {
             // Trigger job processing via API
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.log(`🤖 BACKGROUND PROCESSOR: Triggering job ${job.id}`);
+            console.log(`🤖 Fund: ${job.fund.name} (${job.fund.moduleType})`);
+            console.log(`🤖 Calling: ${this.getBaseUrl()}/api/jobs/process`);
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
             const response = await fetch(`${this.getBaseUrl()}/api/jobs/process`, {
               method: 'POST',
               headers: {

@@ -384,7 +384,14 @@ async function processDocument(document: any) {
       try {
         console.log('🧠 Attempting Claude AI analysis for application form in background processing... [FORCED RECOMPILE]');
         // Pass S3 key for PDF processing via Textract
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log(`📄 TEXTRACT: Starting text extraction for ${document.filename}`);
+        console.log(`📄 S3 Key: ${document.s3Key}`);
+        console.log(`📄 Document Type: ${document.documentType}`);
         const textContent = await extractTextFromFile(fileObject as File, document.s3Key);
+        console.log(`✅ TEXTRACT: Extracted ${textContent.length} characters`);
+        console.log(`✅ Text preview: ${textContent.substring(0, 200)}...`);
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         const documentContext = {
           filename: document.filename,
           content: textContent,
@@ -414,7 +421,14 @@ async function processDocument(document: any) {
       try {
         console.log('🧠 Attempting Claude AI analysis for selection criteria in background processing...');
         // Pass S3 key for PDF processing via Textract
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log(`📄 TEXTRACT: Starting text extraction for ${document.filename}`);
+        console.log(`📄 S3 Key: ${document.s3Key}`);
+        console.log(`📄 Document Type: ${document.documentType}`);
         const textContent = await extractTextFromFile(fileObject as File, document.s3Key);
+        console.log(`✅ TEXTRACT: Extracted ${textContent.length} characters`);
+        console.log(`✅ Text preview: ${textContent.substring(0, 200)}...`);
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         const documentContexts = [{
           filename: document.filename,
           content: textContent,
@@ -445,7 +459,14 @@ async function processDocument(document: any) {
       try {
         console.log('🧠 Attempting Claude AI analysis for good examples in background processing...');
         // Pass S3 key for PDF processing via Textract
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log(`📄 TEXTRACT: Starting text extraction for ${document.filename}`);
+        console.log(`📄 S3 Key: ${document.s3Key}`);
+        console.log(`📄 Document Type: ${document.documentType}`);
         const textContent = await extractTextFromFile(fileObject as File, document.s3Key);
+        console.log(`✅ TEXTRACT: Extracted ${textContent.length} characters`);
+        console.log(`✅ Text preview: ${textContent.substring(0, 200)}...`);
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         const documentContexts = [{
           filename: document.filename,
           content: textContent,
@@ -476,7 +497,14 @@ async function processDocument(document: any) {
       try {
         console.log('🧠 Attempting Claude AI analysis for output template in background processing...');
         // Pass S3 key for PDF processing via Textract
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log(`📄 TEXTRACT: Starting text extraction for ${document.filename}`);
+        console.log(`📄 S3 Key: ${document.s3Key}`);
+        console.log(`📄 Document Type: ${document.documentType}`);
         const textContent = await extractTextFromFile(fileObject as File, document.s3Key);
+        console.log(`✅ TEXTRACT: Extracted ${textContent.length} characters`);
+        console.log(`✅ Text preview: ${textContent.substring(0, 200)}...`);
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
         analysisResult = await BackgroundJobService.analyzeOutputTemplateDocument(textContent, document.filename);
 

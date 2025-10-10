@@ -1,3 +1,36 @@
+// Logging to diagnose Prisma client issue
+const fs = require('fs');
+const path = require('path');
+
+console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+console.log('🔍 LAMBDA STARTUP DIAGNOSTICS');
+console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+console.log('📂 __dirname:', __dirname);
+console.log('📂 process.cwd():', process.cwd());
+
+// Check if Prisma client exists
+const prismaClientPath = path.join(__dirname, 'node_modules', '.prisma', 'client');
+console.log('🔍 Checking for Prisma client at:', prismaClientPath);
+console.log('📁 Prisma client exists:', fs.existsSync(prismaClientPath));
+
+if (fs.existsSync(prismaClientPath)) {
+  const files = fs.readdirSync(prismaClientPath);
+  console.log('📄 Files in .prisma/client:', files.join(', '));
+} else {
+  console.log('❌ .prisma/client directory NOT FOUND');
+  const nodeModulesPath = path.join(__dirname, 'node_modules');
+  if (fs.existsSync(nodeModulesPath)) {
+    console.log('📁 node_modules exists, checking for @prisma...');
+    const prismaPath = path.join(nodeModulesPath, '@prisma');
+    if (fs.existsSync(prismaPath)) {
+      const prismaContents = fs.readdirSync(prismaPath);
+      console.log('📁 @prisma directory contains:', prismaContents.join(', '));
+    }
+  }
+}
+
+console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+
 const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient({

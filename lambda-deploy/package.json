@@ -4,7 +4,9 @@
   "description": "Lambda function to process documents for Nolia funding system",
   "main": "index.js",
   "dependencies": {
-    "@prisma/client": "^6.15.0",
+    "@prisma/client": "^5.7.1"
+  },
+  "devDependencies": {
     "prisma": "^5.7.1"
   }
 }

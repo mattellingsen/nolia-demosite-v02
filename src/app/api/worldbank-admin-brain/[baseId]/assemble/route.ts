@@ -81,6 +81,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Assemble the worldbank brain from all analyses
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('🧠 BRAIN ASSEMBLY: Starting OpenSearch indexing');
+    console.log(`🧠 Base ID: ${baseId}`);
+    console.log(`🧠 Documents to process: ${worldbankBase.documents.length}`);
     const worldbankBrain = assembleWorldbankBrain({
       policies: worldbankAnalyses.policies,
       procedures: worldbankAnalyses.procedures,
@@ -92,6 +96,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         description: worldbankBase.description,
       }
     });
+    console.log('✅ BRAIN ASSEMBLY: Brain structure created');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
     // Update worldbank base with assembled brain
     const updatedBase = await prisma.fund.update({

@@ -16,6 +16,12 @@ function initializeServices() {
 
   try {
     // Start background processor if not already running
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('🚀 STARTUP: Background processor status check');
+    console.log(`🚀 Environment: ${process.env.NODE_ENV}`);
+    console.log(`🚀 Running: ${!backgroundProcessor.getStatus().running ? 'NO' : 'YES'}`);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
     if (!backgroundProcessor.getStatus().running) {
       backgroundProcessor.start(30000); // Check every 30 seconds
       console.log('✅ Background processor started automatically');
