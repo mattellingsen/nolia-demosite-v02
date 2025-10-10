@@ -70,8 +70,23 @@ class BackgroundProcessor {
       console.log(`🔍 Time: ${new Date().toISOString()}`);
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
+      // Find PENDING jobs (newly created, never started)
+      const pendingJobs = await prisma.backgroundJob.findMany({
+        where: {
+          status: JobStatus.PENDING
+        },
+        include: {
+          fund: {
+            select: {
+              id: true,
+              name: true,
+              moduleType: true
+            }
+          }
+        }
+      });
+
       // Find jobs that are stuck (PROCESSING status but no progress for > 2 minutes)
-      // Include ALL module types: FUNDING, PROCUREMENT, PROCUREMENT_ADMIN
       const stuckJobs = await prisma.backgroundJob.findMany({
         where: {
           status: JobStatus.PROCESSING,
@@ -90,6 +105,9 @@ class BackgroundProcessor {
           }
         }
       });
+
+      // Combine pending and stuck jobs
+      const jobsToProcess = [...pendingJobs, ...stuckJobs];
 
       // Find recently failed jobs that might be retryable (failed < 10 minutes ago)
       // Include ALL module types: FUNDING, PROCUREMENT, PROCUREMENT_ADMIN
@@ -115,13 +133,14 @@ class BackgroundProcessor {
         }
       });
 
+      console.log(`✅ Found ${pendingJobs.length} pending job(s) to process`);
       console.log(`✅ Found ${stuckJobs.length} stuck job(s) to process`);
       console.log(`✅ Found ${retryableFailedJobs.length} retryable failed job(s)`);
 
-      if (stuckJobs.length > 0) {
-        console.log(`🔧 Processing ${stuckJobs.length} stuck job(s)...`);
+      if (jobsToProcess.length > 0) {
+        console.log(`🔧 Processing ${jobsToProcess.length} job(s) (${pendingJobs.length} pending + ${stuckJobs.length} stuck)...`);
 
-        for (const job of stuckJobs) {
+        for (const job of jobsToProcess) {
           console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
           console.log(`🎯 JOB PICKUP: Found job ${job.id} to process`);
           console.log(`🎯 Fund: ${job.fund.name} (${job.fund.moduleType})`);
