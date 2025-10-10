@@ -398,7 +398,15 @@ export class BackgroundJobService {
           }
 
           // Call brain assembly endpoint (non-blocking)
-          const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+          // Auto-detect branch from AWS Amplify environment variable
+          let baseUrl = 'http://localhost:3000';
+          if (process.env.NODE_ENV === 'production') {
+            const branch = process.env.AWS_BRANCH || 'main';
+            const appId = 'd2l8hlr3sei3te';
+            baseUrl = `https://${branch}.${appId}.amplifyapp.com`;
+            console.log(`🔗 Brain assembly: Auto-detected branch ${branch}, using ${baseUrl}`);
+          }
+
           fetch(`${baseUrl}${brainEndpoint}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }

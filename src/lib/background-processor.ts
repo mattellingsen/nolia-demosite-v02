@@ -11,11 +11,19 @@ class BackgroundProcessor {
 
   /**
    * Get the base URL for API calls
-   * In production, use the Amplify URL; in development, use localhost
+   * Auto-detects the current branch from AWS Amplify environment variables
    */
   private getBaseUrl(): string {
     if (process.env.NODE_ENV === 'production') {
-      return process.env.NEXTAUTH_URL || 'https://main.d2l8hlr3sei3te.amplifyapp.com';
+      // AWS Amplify automatically provides AWS_BRANCH environment variable
+      const branch = process.env.AWS_BRANCH || 'main';
+      const appId = 'd2l8hlr3sei3te';
+
+      // Construct the correct URL based on the deployed branch
+      const branchUrl = `https://${branch}.${appId}.amplifyapp.com`;
+
+      console.log(`🔗 Auto-detected branch: ${branch}, using URL: ${branchUrl}`);
+      return branchUrl;
     }
     return 'http://localhost:3000';
   }
