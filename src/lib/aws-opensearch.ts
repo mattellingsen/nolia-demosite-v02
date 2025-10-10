@@ -3,12 +3,20 @@ import { OpenSearchClient } from '@aws-sdk/client-opensearch';
 import { getAWSCredentials, AWS_REGION } from './aws-credentials';
 import { getEncoding } from 'js-tiktoken';
 
-// Initialize OpenSearch client with EXPLICIT IAM role credentials
-// This bypasses ALL configuration files and SSO settings
-const openSearchClient = new OpenSearchClient({
-  region: AWS_REGION,
-  credentials: getAWSCredentials(),
-});
+// Lazy-initialized OpenSearch client to prevent credential pollution
+// Client is created on-demand when first accessed, ensuring Lambda execution role is available
+let openSearchClient: OpenSearchClient | null = null;
+
+function getOpenSearchClient(): OpenSearchClient {
+  if (!openSearchClient) {
+    console.log('🔐 Creating new OpenSearch client with Lambda execution role credentials');
+    openSearchClient = new OpenSearchClient({
+      region: AWS_REGION,
+      credentials: getAWSCredentials(),
+    });
+  }
+  return openSearchClient;
+}
 
 // OpenSearch configuration - REQUIRED (no fallback)
 // Lazy evaluation to avoid build-time errors

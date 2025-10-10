@@ -16,16 +16,31 @@ import {
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getAWSCredentials, AWS_REGION, S3_BUCKET } from './aws-credentials';
 
-// Initialize clients
-const textractClient = new TextractClient({
-  region: AWS_REGION,
-  credentials: getAWSCredentials()
-});
+// Lazy-initialized clients to prevent credential pollution
+let textractClient: TextractClient | null = null;
+let s3Client: S3Client | null = null;
 
-const s3Client = new S3Client({
-  region: AWS_REGION,
-  credentials: getAWSCredentials()
-});
+function getTextractClient(): TextractClient {
+  if (!textractClient) {
+    console.log('🔐 Creating new Textract client with Lambda execution role credentials');
+    textractClient = new TextractClient({
+      region: AWS_REGION,
+      credentials: getAWSCredentials()
+    });
+  }
+  return textractClient;
+}
+
+function getS3Client(): S3Client {
+  if (!s3Client) {
+    console.log('🔐 Creating new S3 client with Lambda execution role credentials');
+    s3Client = new S3Client({
+      region: AWS_REGION,
+      credentials: getAWSCredentials()
+    });
+  }
+  return s3Client;
+}
 
 /**
  * Extract text from a PDF document stored in S3 using AWS Textract
@@ -75,7 +90,7 @@ async function tryDetectDocumentText(s3Key: string): Promise<string | null> {
       Key: s3Key
     });
 
-    const s3Response = await s3Client.send(getCommand);
+    const s3Response = await getS3Client().send(getCommand);
     if (!s3Response.Body) {
       throw new Error('No content in S3 object');
     }
@@ -103,7 +118,7 @@ async function tryDetectDocumentText(s3Key: string): Promise<string | null> {
       }
     });
 
-    const response = await textractClient.send(command);
+    const response = await getTextractClient().send(command);
 
     if (!response.Blocks || response.Blocks.length === 0) {
       return null;
@@ -156,7 +171,7 @@ async function processMultiPagePDF(s3Key: string): Promise<string> {
     }
   });
 
-  const startResponse = await textractClient.send(startCommand);
+  const startResponse = await getTextractClient().send(startCommand);
   const jobId = startResponse.JobId;
 
   if (!jobId) {
@@ -177,7 +192,7 @@ async function processMultiPagePDF(s3Key: string): Promise<string> {
       JobId: jobId
     });
 
-    const getResponse = await textractClient.send(getCommand);
+    const getResponse = await getTextractClient().send(getCommand);
     jobStatus = getResponse.JobStatus || 'IN_PROGRESS';
 
     console.log(`📄 Job status: ${jobStatus} (attempt ${attempts + 1}/${maxAttempts})`);
@@ -204,7 +219,7 @@ async function processMultiPagePDF(s3Key: string): Promise<string> {
           NextToken: nextToken
         });
 
-        const nextResponse = await textractClient.send(nextCommand);
+        const nextResponse = await getTextractClient().send(nextCommand);
 
         if (nextResponse.Blocks) {
           const textLines = nextResponse.Blocks
@@ -249,7 +264,7 @@ async function extractTextWithAlternativeMethod(s3Key: string): Promise<string> 
       Key: s3Key
     });
 
-    const s3Response = await s3Client.send(getCommand);
+    const s3Response = await getS3Client().send(getCommand);
     if (!s3Response.Body) {
       throw new Error('No content in S3 object');
     }
