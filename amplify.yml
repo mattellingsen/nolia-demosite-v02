@@ -25,6 +25,7 @@ frontend:
         - echo "AUTH_PASSWORD=$AUTH_PASSWORD" >> .env.production
         - echo "AUTH_SECRET=$AUTH_SECRET" >> .env.production
         - echo "INTERNAL_API_SECRET=$INTERNAL_API_SECRET" >> .env.production
+        - echo "AWS_BRANCH=$AWS_BRANCH" >> .env.production
     build:
       commands:
         - echo "Step 1 - Nuclear clean - removing ALL build artifacts"
