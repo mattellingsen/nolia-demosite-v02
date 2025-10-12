@@ -28,7 +28,7 @@ function getS3Client(): S3Client {
  */
 export async function POST(request: NextRequest) {
   try {
-    const { jobId, documentId, force = false, autoTrigger = false, retry = false } = await request.json();
+    const { jobId, documentId, force = false, autoTrigger = false, retry = false, callerContext } = await request.json();
 
     // Handle retry request
     if (retry && jobId) {
@@ -199,7 +199,9 @@ async function processDocumentAnalysisJob(job: any) {
       // Update job progress
       await sqsService.updateJobProgress(job.id, processedCount, {
         lastProcessedDocument: document.id,
-        lastProcessedAt: new Date().toISOString()
+        lastProcessedAt: new Date().toISOString(),
+        // Store caller context for branch routing verification
+        ...(callerContext && { callerContext })
       });
 
     } catch (error) {

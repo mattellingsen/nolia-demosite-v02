@@ -158,19 +158,29 @@ class BackgroundProcessor {
 
           try {
             // Trigger job processing via API
+            const targetUrl = `${this.getBaseUrl()}/api/jobs/process`;
+            const callerContext = {
+              detectedBranch: process.env.AWS_BRANCH || 'undefined',
+              constructedUrl: targetUrl,
+              nodeEnv: process.env.NODE_ENV,
+              timestamp: new Date().toISOString(),
+            };
+
             console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
             console.log(`🤖 BACKGROUND PROCESSOR: Triggering job ${job.id}`);
             console.log(`🤖 Fund: ${job.fund.name} (${job.fund.moduleType})`);
-            console.log(`🤖 Calling: ${this.getBaseUrl()}/api/jobs/process`);
+            console.log(`🤖 Detected Branch: ${callerContext.detectedBranch}`);
+            console.log(`🤖 Calling: ${targetUrl}`);
             console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-            const response = await fetch(`${this.getBaseUrl()}/api/jobs/process`, {
+            const response = await fetch(targetUrl, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
                 jobId: job.id,
-                autoTrigger: true
+                autoTrigger: true,
+                callerContext // Pass branch context for verification
               }),
             });
 

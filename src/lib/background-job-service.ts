@@ -768,6 +768,39 @@ export class BackgroundJobService {
     try {
       if (job.type === 'RAG_PROCESSING') {
         await this.processRAGJob(job.id);
+      } else if (job.type === 'DOCUMENT_ANALYSIS') {
+        // Handle DOCUMENT_ANALYSIS jobs by calling the process API
+        console.log(`🚀 Processing DOCUMENT_ANALYSIS job ${job.id} via immediate trigger`);
+
+        const baseUrl = process.env.NODE_ENV === 'production'
+          ? `https://${process.env.AWS_BRANCH || 'main'}.d2l8hlr3sei3te.amplifyapp.com`
+          : 'http://localhost:3000';
+
+        const callerContext = {
+          detectedBranch: process.env.AWS_BRANCH || 'undefined',
+          constructedUrl: `${baseUrl}/api/jobs/process`,
+          nodeEnv: process.env.NODE_ENV,
+          timestamp: new Date().toISOString(),
+          source: 'BackgroundJobService.processNextJob'
+        };
+
+        const response = await fetch(`${baseUrl}/api/jobs/process`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jobId: job.id,
+            autoTrigger: true,
+            immediateTrigger: true,
+            callerContext
+          })
+        });
+
+        if (!response.ok) {
+          console.error(`❌ Immediate trigger failed for job ${job.id}, status: ${response.status}`);
+          console.error(`   Job will be picked up by background processor instead`);
+        } else {
+          console.log(`✅ Successfully triggered immediate processing for job ${job.id}`);
+        }
       }
       // Add other job types here as needed
 

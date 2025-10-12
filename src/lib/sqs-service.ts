@@ -75,6 +75,13 @@ export class SQSService {
         metadata: {
           documentIds: documents.map(d => d.id),
           queuedAt: new Date().toISOString(),
+          // Deployment context for branch routing verification
+          deploymentContext: {
+            nodeEnv: process.env.NODE_ENV,
+            awsBranch: process.env.AWS_BRANCH || 'undefined',
+            awsRegion: process.env.AWS_REGION || process.env.NOLIA_AWS_REGION,
+            timestamp: new Date().toISOString(),
+          },
         },
       },
     });
