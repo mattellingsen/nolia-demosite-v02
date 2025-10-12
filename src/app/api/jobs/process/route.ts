@@ -208,7 +208,7 @@ async function processDocumentAnalysisJob(job: any, callerContext?: any) {
       console.log(`📄 Type: ${document.documentType}`);
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
-      await processDocument(document);
+      await processDocument(document, job.metadata);
       processedCount++;
 
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -225,12 +225,57 @@ async function processDocumentAnalysisJob(job: any, callerContext?: any) {
       });
 
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+
+      // Check for Textract async pending (large document still processing)
+      if (errorMessage.startsWith('TEXTRACT_ASYNC_PENDING:')) {
+        const textractJobId = errorMessage.split(':')[1];
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log(`⏳ TEXTRACT ASYNC: Document ${document.filename} has Textract job pending: ${textractJobId}`);
+        console.log(`⏳ Saving Textract JobId to metadata for background polling`);
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+        // Get current job metadata
+        const currentJob = await prisma.backgroundJob.findUnique({
+          where: { id: job.id }
+        });
+
+        const currentMetadata = currentJob?.metadata as any || {};
+
+        // Save Textract JobId to metadata and mark job as PROCESSING (not FAILED)
+        // Background processor will poll for completion
+        await prisma.backgroundJob.update({
+          where: { id: job.id },
+          data: {
+            status: JobStatus.PROCESSING,
+            metadata: {
+              ...currentMetadata,
+              textractJobs: {
+                ...(currentMetadata.textractJobs || {}),
+                [document.id]: {
+                  jobId: textractJobId,
+                  s3Key: document.s3Key,
+                  filename: document.filename,
+                  documentType: document.documentType,
+                  startedAt: new Date().toISOString(),
+                  status: 'IN_PROGRESS'
+                }
+              }
+            }
+          }
+        });
+
+        // Return early - background processor will continue this job
+        console.log(`⏳ Job ${job.id} paused for Textract completion. Background processor will resume.`);
+        return { documentsProcessed: processedCount };
+      }
+
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       console.error(`❌ DOCUMENT ${processedCount + 1}/${documents.length}: Failed ${document.filename}`);
-      console.error(`❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error(`❌ Error: ${errorMessage}`);
       console.error(`❌ Stack:`, error instanceof Error ? error.stack : '');
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      await sqsService.markJobFailed(job.id, `Failed to process document ${document.filename}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      await sqsService.markJobFailed(job.id, `Failed to process document ${document.filename}: ${errorMessage}`);
       throw error;
     }
   }
@@ -397,8 +442,18 @@ function inferPlaceholderType(placeholderText: string, context: string): string 
   return 'text';
 }
 
-async function processDocument(document: any) {
+async function processDocument(document: any, jobMetadata?: any) {
   console.log(`Processing document: ${document.filename} (${document.documentType})`);
+
+  // Check if Textract already extracted text (from async job)
+  const textractJobs = jobMetadata?.textractJobs || {};
+  const textractJob = textractJobs[document.id];
+
+  let preExtractedText: string | null = null;
+  if (textractJob?.status === 'SUCCEEDED' && textractJob.extractedText) {
+    console.log(`📄 Using pre-extracted Textract text for ${document.filename} (${textractJob.textLength} chars)`);
+    preExtractedText = textractJob.extractedText;
+  }
 
   // Download document from S3
   const getCommand = new GetObjectCommand({
@@ -425,13 +480,19 @@ async function processDocument(document: any) {
       // Try Claude analysis first, fallback to pattern matching if failed
       try {
         console.log('🧠 Attempting Claude AI analysis for application form in background processing... [FORCED RECOMPILE]');
-        // Pass S3 key for PDF processing via Textract
+        // Use pre-extracted text if available, otherwise extract now
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        console.log(`📄 TEXTRACT: Starting text extraction for ${document.filename}`);
-        console.log(`📄 S3 Key: ${document.s3Key}`);
-        console.log(`📄 Document Type: ${document.documentType}`);
-        const textContent = await extractTextFromFile(fileObject as File, document.s3Key);
-        console.log(`✅ TEXTRACT: Extracted ${textContent.length} characters`);
+        let textContent: string;
+        if (preExtractedText) {
+          console.log(`📄 Using pre-extracted text for ${document.filename} (${preExtractedText.length} chars)`);
+          textContent = preExtractedText;
+        } else {
+          console.log(`📄 TEXTRACT: Starting text extraction for ${document.filename}`);
+          console.log(`📄 S3 Key: ${document.s3Key}`);
+          console.log(`📄 Document Type: ${document.documentType}`);
+          textContent = await extractTextFromFile(fileObject as File, document.s3Key);
+          console.log(`✅ TEXTRACT: Extracted ${textContent.length} characters`);
+        }
         console.log(`✅ Text preview: ${textContent.substring(0, 200)}...`);
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         const documentContext = {
@@ -462,13 +523,19 @@ async function processDocument(document: any) {
       // Try Claude analysis first, fallback to pattern matching if failed
       try {
         console.log('🧠 Attempting Claude AI analysis for selection criteria in background processing...');
-        // Pass S3 key for PDF processing via Textract
+        // Use pre-extracted text if available, otherwise extract now
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        console.log(`📄 TEXTRACT: Starting text extraction for ${document.filename}`);
-        console.log(`📄 S3 Key: ${document.s3Key}`);
-        console.log(`📄 Document Type: ${document.documentType}`);
-        const textContent = await extractTextFromFile(fileObject as File, document.s3Key);
-        console.log(`✅ TEXTRACT: Extracted ${textContent.length} characters`);
+        let textContent: string;
+        if (preExtractedText) {
+          console.log(`📄 Using pre-extracted text for ${document.filename} (${preExtractedText.length} chars)`);
+          textContent = preExtractedText;
+        } else {
+          console.log(`📄 TEXTRACT: Starting text extraction for ${document.filename}`);
+          console.log(`📄 S3 Key: ${document.s3Key}`);
+          console.log(`📄 Document Type: ${document.documentType}`);
+          textContent = await extractTextFromFile(fileObject as File, document.s3Key);
+          console.log(`✅ TEXTRACT: Extracted ${textContent.length} characters`);
+        }
         console.log(`✅ Text preview: ${textContent.substring(0, 200)}...`);
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         const documentContexts = [{
@@ -500,13 +567,19 @@ async function processDocument(document: any) {
       // Try Claude analysis first, fallback to basic analysis if failed
       try {
         console.log('🧠 Attempting Claude AI analysis for good examples in background processing...');
-        // Pass S3 key for PDF processing via Textract
+        // Use pre-extracted text if available, otherwise extract now
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        console.log(`📄 TEXTRACT: Starting text extraction for ${document.filename}`);
-        console.log(`📄 S3 Key: ${document.s3Key}`);
-        console.log(`📄 Document Type: ${document.documentType}`);
-        const textContent = await extractTextFromFile(fileObject as File, document.s3Key);
-        console.log(`✅ TEXTRACT: Extracted ${textContent.length} characters`);
+        let textContent: string;
+        if (preExtractedText) {
+          console.log(`📄 Using pre-extracted text for ${document.filename} (${preExtractedText.length} chars)`);
+          textContent = preExtractedText;
+        } else {
+          console.log(`📄 TEXTRACT: Starting text extraction for ${document.filename}`);
+          console.log(`📄 S3 Key: ${document.s3Key}`);
+          console.log(`📄 Document Type: ${document.documentType}`);
+          textContent = await extractTextFromFile(fileObject as File, document.s3Key);
+          console.log(`✅ TEXTRACT: Extracted ${textContent.length} characters`);
+        }
         console.log(`✅ Text preview: ${textContent.substring(0, 200)}...`);
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         const documentContexts = [{
@@ -538,13 +611,19 @@ async function processDocument(document: any) {
       // Analyze output template structure for dynamic formatting
       try {
         console.log('🧠 Attempting Claude AI analysis for output template in background processing...');
-        // Pass S3 key for PDF processing via Textract
+        // Use pre-extracted text if available, otherwise extract now
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        console.log(`📄 TEXTRACT: Starting text extraction for ${document.filename}`);
-        console.log(`📄 S3 Key: ${document.s3Key}`);
-        console.log(`📄 Document Type: ${document.documentType}`);
-        const textContent = await extractTextFromFile(fileObject as File, document.s3Key);
-        console.log(`✅ TEXTRACT: Extracted ${textContent.length} characters`);
+        let textContent: string;
+        if (preExtractedText) {
+          console.log(`📄 Using pre-extracted text for ${document.filename} (${preExtractedText.length} chars)`);
+          textContent = preExtractedText;
+        } else {
+          console.log(`📄 TEXTRACT: Starting text extraction for ${document.filename}`);
+          console.log(`📄 S3 Key: ${document.s3Key}`);
+          console.log(`📄 Document Type: ${document.documentType}`);
+          textContent = await extractTextFromFile(fileObject as File, document.s3Key);
+          console.log(`✅ TEXTRACT: Extracted ${textContent.length} characters`);
+        }
         console.log(`✅ Text preview: ${textContent.substring(0, 200)}...`);
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
