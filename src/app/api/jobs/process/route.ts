@@ -158,6 +158,26 @@ export async function POST(request: NextRequest) {
 async function processDocumentAnalysisJob(job: any, callerContext?: any) {
   console.log(`Processing document analysis job: ${job.id}`);
 
+  // CRITICAL: Set status to PROCESSING immediately to prevent duplicate processing by other Lambda instances
+  // This acts as a distributed lock - any other Lambda seeing this job will skip it
+  try {
+    await prisma.backgroundJob.update({
+      where: {
+        id: job.id,
+        status: JobStatus.PENDING // Only update if still PENDING (another Lambda may have already claimed it)
+      },
+      data: {
+        status: JobStatus.PROCESSING,
+        startedAt: new Date()
+      }
+    });
+    console.log(`✅ Job ${job.id} claimed and marked as PROCESSING`);
+  } catch (error) {
+    // If update fails, another Lambda already claimed this job - exit gracefully
+    console.log(`⚠️ Job ${job.id} already being processed by another Lambda instance - skipping`);
+    return { documentsProcessed: 0 };
+  }
+
   // Get documents for this job
   const jobMetadata = job.metadata as any;
   const documentIds = jobMetadata?.documentIds || [];

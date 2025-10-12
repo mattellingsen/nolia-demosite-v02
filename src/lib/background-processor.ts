@@ -94,14 +94,15 @@ class BackgroundProcessor {
         }
       });
 
-      // Find jobs that are stuck (PROCESSING status but no progress for > 2 minutes)
+      // Find jobs that are stuck (PROCESSING status but no progress for > 5 minutes)
+      // Increased from 2 to 5 minutes to account for large PDF Textract processing time
       const stuckJobs = await prisma.backgroundJob.findMany({
         where: {
           status: JobStatus.PROCESSING,
-          processedDocuments: 0,
           startedAt: {
-            lt: new Date(Date.now() - 2 * 60 * 1000) // Started > 2 minutes ago
-          }
+            lt: new Date(Date.now() - 5 * 60 * 1000) // Started > 5 minutes ago with no completion
+          },
+          completedAt: null // Still not completed
         },
         include: {
           fund: {
