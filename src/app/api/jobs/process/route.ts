@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
 
       for (const job of pendingJobs) {
         try {
-          const result = await processDocumentAnalysisJob(job);
+          const result = await processDocumentAnalysisJob(job, callerContext);
           processedJobs++;
           processedDocuments += result.documentsProcessed;
         } catch (error) {
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
         }, { status: 404 });
       }
 
-      const result = await processDocumentAnalysisJob(job);
+      const result = await processDocumentAnalysisJob(job, callerContext);
       processedJobs = 1;
       processedDocuments = result.documentsProcessed;
 
@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function processDocumentAnalysisJob(job: any) {
+async function processDocumentAnalysisJob(job: any, callerContext?: any) {
   console.log(`Processing document analysis job: ${job.id}`);
 
   // Get documents for this job
