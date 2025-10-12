@@ -150,12 +150,12 @@ async function tryDetectDocumentText(s3Key: string): Promise<string | null> {
 }
 
 /**
- * Process multi-page PDFs using async Textract job
+ * Start async Textract job for multi-page PDF and return JobId immediately
+ * Background processor will poll for completion
  */
-async function processMultiPagePDF(s3Key: string): Promise<string> {
+export async function startTextractJob(s3Key: string): Promise<string> {
   console.log(`📄 Starting async Textract job for multi-page PDF: ${s3Key}`);
 
-  // Start async text detection job
   const startCommand = new StartDocumentTextDetectionCommand({
     DocumentLocation: {
       S3Object: {
@@ -172,76 +172,104 @@ async function processMultiPagePDF(s3Key: string): Promise<string> {
     throw new Error('Failed to start Textract job');
   }
 
-  console.log(`📄 Textract job started: ${jobId}`);
+  console.log(`📄 Textract job started: ${jobId} - background processor will poll for completion`);
+  return jobId;
+}
 
-  // Poll for job completion
-  let jobStatus: JobStatus = 'IN_PROGRESS';
-  let attempts = 0;
-  const maxAttempts = 60; // 5 minutes max wait
+/**
+ * Check status of Textract job
+ */
+export async function getTextractJobStatus(jobId: string): Promise<{
+  status: 'IN_PROGRESS' | 'SUCCEEDED' | 'FAILED' | 'PARTIAL_SUCCESS';
+  statusMessage?: string;
+}> {
+  const getCommand = new GetDocumentTextDetectionCommand({
+    JobId: jobId
+  });
 
-  while (jobStatus === 'IN_PROGRESS' && attempts < maxAttempts) {
-    await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
+  const response = await getTextractClient().send(getCommand);
 
+  return {
+    status: response.JobStatus || 'IN_PROGRESS',
+    statusMessage: response.StatusMessage
+  };
+}
+
+/**
+ * Retrieve text from completed Textract job
+ */
+export async function getTextractJobResults(jobId: string): Promise<string> {
+  console.log(`📄 Retrieving Textract job results: ${jobId}`);
+
+  let allText = '';
+  let nextToken: string | undefined = undefined;
+
+  do {
     const getCommand = new GetDocumentTextDetectionCommand({
-      JobId: jobId
+      JobId: jobId,
+      NextToken: nextToken
     });
 
-    const getResponse = await getTextractClient().send(getCommand);
-    jobStatus = getResponse.JobStatus || 'IN_PROGRESS';
+    const response = await getTextractClient().send(getCommand);
+
+    if (response.JobStatus !== 'SUCCEEDED') {
+      throw new Error(`Textract job not complete. Status: ${response.JobStatus}`);
+    }
+
+    if (response.Blocks) {
+      const textLines = response.Blocks
+        .filter(block => block.BlockType === 'LINE')
+        .map(block => block.Text || '')
+        .filter(text => text.trim().length > 0);
+      allText += textLines.join('\n') + '\n';
+    }
+
+    nextToken = response.NextToken;
+  } while (nextToken);
+
+  const trimmedText = allText.trim();
+  console.log(`📄 Textract extraction complete: ${trimmedText.length} characters from job ${jobId}`);
+
+  if (trimmedText.length === 0) {
+    throw new Error('PDF appears to be empty or contains only images');
+  }
+
+  return trimmedText;
+}
+
+/**
+ * Process multi-page PDFs using async Textract job (LEGACY - kept for backwards compatibility)
+ * New code should use startTextractJob + getTextractJobResults
+ */
+async function processMultiPagePDF(s3Key: string): Promise<string> {
+  // Start job and get JobId
+  const jobId = await startTextractJob(s3Key);
+
+  // Poll for completion (limited to avoid Lambda timeout)
+  let jobStatus: JobStatus = 'IN_PROGRESS';
+  let attempts = 0;
+  const maxAttempts = 4; // Only 20 seconds max (4 × 5s) to avoid Lambda timeout
+
+  while (jobStatus === 'IN_PROGRESS' && attempts < maxAttempts) {
+    await new Promise(resolve => setTimeout(resolve, 5000));
+
+    const status = await getTextractJobStatus(jobId);
+    jobStatus = status.status;
 
     console.log(`📄 Job status: ${jobStatus} (attempt ${attempts + 1}/${maxAttempts})`);
     attempts++;
 
     if (jobStatus === 'SUCCEEDED') {
-      // Collect all text from all pages
-      let allText = '';
-      let nextToken = getResponse.NextToken;
-
-      // Process first batch of results
-      if (getResponse.Blocks) {
-        const textLines = getResponse.Blocks
-          .filter(block => block.BlockType === 'LINE')
-          .map(block => block.Text || '')
-          .filter(text => text.trim().length > 0);
-        allText += textLines.join('\n') + '\n';
-      }
-
-      // Get additional pages of results if needed
-      while (nextToken) {
-        const nextCommand = new GetDocumentTextDetectionCommand({
-          JobId: jobId,
-          NextToken: nextToken
-        });
-
-        const nextResponse = await getTextractClient().send(nextCommand);
-
-        if (nextResponse.Blocks) {
-          const textLines = nextResponse.Blocks
-            .filter(block => block.BlockType === 'LINE')
-            .map(block => block.Text || '')
-            .filter(text => text.trim().length > 0);
-          allText += textLines.join('\n') + '\n';
-        }
-
-        nextToken = nextResponse.NextToken;
-      }
-
-      const trimmedText = allText.trim();
-      console.log(`📄 Async extraction successful: ${trimmedText.length} characters`);
-
-      if (trimmedText.length === 0) {
-        throw new Error('PDF appears to be empty or contains only images');
-      }
-
-      return trimmedText;
+      return await getTextractJobResults(jobId);
     }
 
     if (jobStatus === 'FAILED') {
-      throw new Error(`Textract job failed: ${getResponse.StatusMessage || 'Unknown error'}`);
+      throw new Error(`Textract job failed: ${status.statusMessage || 'Unknown error'}`);
     }
   }
 
-  throw new Error('Textract job timed out after 5 minutes');
+  // Job still in progress - throw special error to trigger background polling
+  throw new Error(`TEXTRACT_ASYNC_PENDING:${jobId}`);
 }
 
 

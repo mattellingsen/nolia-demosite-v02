@@ -161,8 +161,19 @@ export class BackgroundJobService {
         try {
           console.log(`Processing document ${i + 1}/${totalDocuments}: ${document.filename}`);
 
-          // Extract text from S3
-          const documentText = await this.extractTextFromS3Document(document.s3Key);
+          // Check if Textract already extracted text (from async job)
+          const textractJobs = (job.metadata as any)?.textractJobs || {};
+          const textractJob = textractJobs[document.id];
+
+          let documentText: string;
+
+          if (textractJob?.status === 'SUCCEEDED' && textractJob.extractedText) {
+            console.log(`📄 Using pre-extracted Textract text for ${document.filename} (${textractJob.textLength} chars)`);
+            documentText = textractJob.extractedText;
+          } else {
+            // Extract text from S3
+            documentText = await this.extractTextFromS3Document(document.s3Key);
+          }
 
           // Skip if no meaningful text (but don't fail the job)
           if (documentText.length < 10) {
@@ -264,6 +275,37 @@ export class BackgroundJobService {
 
         } catch (docError) {
           const errorMessage = docError instanceof Error ? docError.message : String(docError);
+
+          // Check for Textract async pending (large document still processing)
+          if (errorMessage.startsWith('TEXTRACT_ASYNC_PENDING:')) {
+            const textractJobId = errorMessage.split(':')[1];
+            console.log(`⏳ Document ${document.filename} has Textract job pending: ${textractJobId}`);
+            console.log(`⏳ Saving Textract JobId to metadata for background polling`);
+
+            // Save Textract JobId to metadata and mark job as PROCESSING (not FAILED)
+            // Background processor will poll for completion
+            await this.updateJob(jobId, {
+              status: 'PROCESSING',
+              metadata: {
+                ...job.metadata,
+                textractJobs: {
+                  ...(job.metadata?.textractJobs || {}),
+                  [document.id]: {
+                    jobId: textractJobId,
+                    s3Key: document.s3Key,
+                    filename: document.filename,
+                    startedAt: new Date().toISOString(),
+                    status: 'IN_PROGRESS'
+                  }
+                }
+              }
+            });
+
+            // Return early - background processor will continue this job
+            console.log(`⏳ Job ${jobId} paused for Textract completion. Background processor will resume.`);
+            return { documentsProcessed: i };
+          }
+
           console.error(`❌ Error processing document ${document.filename}:`, errorMessage);
           failedDocuments++;
           failedItems.push({
