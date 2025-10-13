@@ -228,8 +228,9 @@ async function processDocumentAnalysisJob(job: any, callerContext?: any) {
       const errorMessage = error instanceof Error ? error.message : String(error);
 
       // Check for Textract async pending (large document still processing)
-      if (errorMessage.startsWith('TEXTRACT_ASYNC_PENDING:')) {
-        const textractJobId = errorMessage.split(':')[1];
+      if (errorMessage.includes('TEXTRACT_ASYNC_PENDING:')) {
+        const match = errorMessage.match(/TEXTRACT_ASYNC_PENDING:([a-f0-9]+)/);
+        const textractJobId = match ? match[1] : errorMessage.split('TEXTRACT_ASYNC_PENDING:')[1].split(/[\s\.]/)[0];
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         console.log(`⏳ TEXTRACT ASYNC: Document ${document.filename} has Textract job pending: ${textractJobId}`);
         console.log(`⏳ Saving Textract JobId to metadata for background polling`);
