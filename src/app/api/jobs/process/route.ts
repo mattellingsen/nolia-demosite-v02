@@ -169,9 +169,10 @@ async function processDocumentAnalysisJob(job: any, callerContext?: any) {
     return { documentsProcessed: 0 };
   }
 
-  // If job was recently updated (within last 30 seconds), another instance is actively processing it
+  // If job was recently updated (within last 5 seconds), another instance is actively processing it
+  // Reduced from 30s to 5s to prevent EventBridge metadata updates from blocking legitimate processing
   const recentlyUpdated = currentJob.updatedAt &&
-    (Date.now() - new Date(currentJob.updatedAt).getTime() < 30000);
+    (Date.now() - new Date(currentJob.updatedAt).getTime() < 5000);
 
   if (currentJob.status === JobStatus.PROCESSING && recentlyUpdated) {
     console.log(`⚠️ Job ${job.id} is actively being processed (updated ${Math.floor((Date.now() - new Date(currentJob.updatedAt).getTime()) / 1000)}s ago) - skipping`);

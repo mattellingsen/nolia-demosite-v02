@@ -32,6 +32,16 @@ class BackgroundProcessor {
    * Start automatic background processing
    */
   start(intervalMs: number = 30000) { // Check every 30 seconds
+    // CRITICAL: Disable in production/serverless environments
+    // Multiple Amplify instances spawn multiple processors = race conditions
+    // EventBridge + Lambda pattern is sufficient for production
+    if (process.env.NODE_ENV === 'production' || process.env.AWS_BRANCH) {
+      console.log('🚫 BACKGROUND PROCESSOR: Disabled in serverless environment');
+      console.log('🚫 Reason: EventBridge + Lambda handles background processing in production');
+      console.log(`🚫 Environment: ${process.env.NODE_ENV}, Branch: ${process.env.AWS_BRANCH || 'N/A'}`);
+      return;
+    }
+
     if (this.interval) {
       console.log('Background processor already running');
       return;
