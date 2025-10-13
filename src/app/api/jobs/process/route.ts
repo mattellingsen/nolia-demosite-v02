@@ -158,23 +158,43 @@ export async function POST(request: NextRequest) {
 async function processDocumentAnalysisJob(job: any, callerContext?: any) {
   console.log(`Processing document analysis job: ${job.id}`);
 
-  // CRITICAL: Set status to PROCESSING immediately to prevent duplicate processing by other Lambda instances
-  // This acts as a distributed lock - any other Lambda seeing this job will skip it
+  // CRITICAL: Atomic job claiming with distributed lock
+  // Refresh the job record to check current status before attempting to claim it
+  const currentJob = await prisma.backgroundJob.findUnique({
+    where: { id: job.id }
+  });
+
+  if (!currentJob) {
+    console.log(`⚠️ Job ${job.id} no longer exists - skipping`);
+    return { documentsProcessed: 0 };
+  }
+
+  // If job was recently updated (within last 30 seconds), another instance is actively processing it
+  const recentlyUpdated = currentJob.updatedAt &&
+    (Date.now() - new Date(currentJob.updatedAt).getTime() < 30000);
+
+  if (currentJob.status === JobStatus.PROCESSING && recentlyUpdated) {
+    console.log(`⚠️ Job ${job.id} is actively being processed (updated ${Math.floor((Date.now() - new Date(currentJob.updatedAt).getTime()) / 1000)}s ago) - skipping`);
+    return { documentsProcessed: 0 };
+  }
+
+  // Claim the job atomically - update updatedAt as our lock timestamp
   try {
     await prisma.backgroundJob.update({
       where: {
         id: job.id,
-        status: JobStatus.PENDING // Only update if still PENDING (another Lambda may have already claimed it)
+        updatedAt: currentJob.updatedAt // Only succeed if updatedAt hasn't changed (optimistic locking)
       },
       data: {
         status: JobStatus.PROCESSING,
-        startedAt: new Date()
+        startedAt: currentJob.startedAt || new Date(),
+        updatedAt: new Date() // This acts as our distributed lock timestamp
       }
     });
     console.log(`✅ Job ${job.id} claimed and marked as PROCESSING`);
   } catch (error) {
     // If update fails, another Lambda already claimed this job - exit gracefully
-    console.log(`⚠️ Job ${job.id} already being processed by another Lambda instance - skipping`);
+    console.log(`⚠️ Job ${job.id} already being processed by another Lambda instance (optimistic lock failed) - skipping`);
     return { documentsProcessed: 0 };
   }
 
