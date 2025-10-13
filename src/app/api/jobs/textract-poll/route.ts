@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/database-s3';
 import { getTextractJobStatus, getTextractJobResults } from '@/lib/aws-textract';
 
 const API_KEY = 'nolia-textract-poller-secret-key-2025-staging-v1';
