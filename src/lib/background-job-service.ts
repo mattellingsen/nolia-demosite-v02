@@ -198,29 +198,10 @@ export class BackgroundJobService {
           console.log(`✅ Updated Textract job statuses in metadata`);
         }
 
-        // If there are still IN_PROGRESS jobs, schedule another retry and exit
+        // If there are still IN_PROGRESS jobs, exit and let EventBridge poller continue checking
         const stillPending = Object.values(updatedTextractJobs).some((tj: any) => tj.status === 'IN_PROGRESS');
         if (stillPending) {
-          console.log(`⏳ Still waiting on Textract jobs. Scheduling another retry in 30s...`);
-
-          const baseUrl = process.env.NODE_ENV === 'production'
-            ? `https://${process.env.AWS_BRANCH || 'staging'}.d2l8hlr3sei3te.amplifyapp.com`
-            : 'http://localhost:3000';
-
-          setTimeout(() => {
-            fetch(`${baseUrl}/api/jobs/process`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                jobId: jobId,
-                autoTrigger: true,
-                source: 'textract-poll-rag-continue'
-              })
-            }).catch(err => {
-              console.error(`Failed to trigger continuation for RAG job ${jobId}:`, err);
-            });
-          }, 30000);
-
+          console.log(`⏳ Still waiting on Textract jobs. EventBridge poller will check again in 1 minute.`);
           return;
         }
       }
