@@ -170,13 +170,19 @@ async function processDocumentAnalysisJob(job: any, callerContext?: any) {
   }
 
   // If job was recently updated (within last 5 seconds), another instance is actively processing it
-  // Reduced from 30s to 5s to prevent EventBridge metadata updates from blocking legitimate processing
+  // EXCEPTION: Allow processing if called from textract-poller (it JUST updated metadata to signal completion)
   const recentlyUpdated = currentJob.updatedAt &&
     (Date.now() - new Date(currentJob.updatedAt).getTime() < 5000);
 
-  if (currentJob.status === JobStatus.PROCESSING && recentlyUpdated) {
+  const isFromTextractPoller = callerContext?.source === 'textract-poller-resume';
+
+  if (currentJob.status === JobStatus.PROCESSING && recentlyUpdated && !isFromTextractPoller) {
     console.log(`⚠️ Job ${job.id} is actively being processed (updated ${Math.floor((Date.now() - new Date(currentJob.updatedAt).getTime()) / 1000)}s ago) - skipping`);
     return { documentsProcessed: 0 };
+  }
+
+  if (isFromTextractPoller) {
+    console.log(`✅ Job ${job.id} triggered by textract-poller - bypassing recently-updated check`);
   }
 
   // Claim the job atomically - update updatedAt as our lock timestamp
