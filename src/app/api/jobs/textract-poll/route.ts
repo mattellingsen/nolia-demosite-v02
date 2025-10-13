@@ -23,20 +23,22 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Find all jobs with pending Textract jobs
-    const jobsWithTextract = await prisma.backgroundJob.findMany({
+    // Find all PENDING/PROCESSING jobs (we'll filter for textractJobs in JavaScript)
+    const allJobs = await prisma.backgroundJob.findMany({
       where: {
         status: {
           in: ['PENDING', 'PROCESSING']
-        },
-        metadata: {
-          path: ['textractJobs'],
-          not: undefined
         }
       }
     });
 
-    console.log(`📊 Found ${jobsWithTextract.length} job(s) with Textract jobs`);
+    // Filter for jobs that have textractJobs in metadata
+    const jobsWithTextract = allJobs.filter(job => {
+      const metadata = job.metadata as any;
+      return metadata?.textractJobs && Object.keys(metadata.textractJobs).length > 0;
+    });
+
+    console.log(`📊 Found ${jobsWithTextract.length} job(s) with Textract jobs (out of ${allJobs.length} total)`);
 
     if (jobsWithTextract.length === 0) {
       return NextResponse.json({
