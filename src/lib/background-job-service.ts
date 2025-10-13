@@ -139,6 +139,92 @@ export class BackgroundJobService {
 
       console.log(`Processing ${totalDocuments} documents for RAG indexing (${moduleType})`);
 
+      // CRITICAL: Check for pending Textract jobs and poll for completion
+      const textractJobs = (job.metadata as any)?.textractJobs || {};
+
+      if (Object.keys(textractJobs).length > 0) {
+        console.log(`🔍 Found ${Object.keys(textractJobs).length} Textract job(s) to check...`);
+        const { getTextractJobStatus, getTextractJobResults } = await import('./aws-textract');
+
+        let hasUpdates = false;
+        const updatedTextractJobs = { ...textractJobs };
+
+        for (const [docId, textractJob] of Object.entries(textractJobs) as [string, any][]) {
+          if (textractJob.status === 'IN_PROGRESS') {
+            try {
+              console.log(`📄 Checking Textract job ${textractJob.jobId} for ${textractJob.filename}...`);
+              const status = await getTextractJobStatus(textractJob.jobId);
+
+              if (status.status === 'SUCCEEDED') {
+                console.log(`✅ Textract job ${textractJob.jobId} completed! Retrieving results...`);
+                const extractedText = await getTextractJobResults(textractJob.jobId);
+
+                updatedTextractJobs[docId] = {
+                  ...textractJob,
+                  status: 'SUCCEEDED',
+                  completedAt: new Date().toISOString(),
+                  extractedText: extractedText,
+                  textLength: extractedText.length
+                };
+
+                hasUpdates = true;
+                console.log(`✅ Extracted ${extractedText.length} characters from ${textractJob.filename}`);
+              } else if (status.status === 'FAILED') {
+                console.error(`❌ Textract job ${textractJob.jobId} failed: ${status.statusMessage}`);
+                updatedTextractJobs[docId] = {
+                  ...textractJob,
+                  status: 'FAILED',
+                  completedAt: new Date().toISOString(),
+                  errorMessage: status.statusMessage
+                };
+                hasUpdates = true;
+              } else {
+                console.log(`⏳ Textract job ${textractJob.jobId} still in progress (${status.status})`);
+              }
+            } catch (error) {
+              console.error(`❌ Error checking Textract job ${textractJob.jobId}:`, error);
+            }
+          }
+        }
+
+        // If any Textract jobs completed, update metadata
+        if (hasUpdates) {
+          await this.updateJob(jobId, {
+            metadata: {
+              ...job.metadata,
+              textractJobs: updatedTextractJobs
+            }
+          });
+          console.log(`✅ Updated Textract job statuses in metadata`);
+        }
+
+        // If there are still IN_PROGRESS jobs, schedule another retry and exit
+        const stillPending = Object.values(updatedTextractJobs).some((tj: any) => tj.status === 'IN_PROGRESS');
+        if (stillPending) {
+          console.log(`⏳ Still waiting on Textract jobs. Scheduling another retry in 30s...`);
+
+          const baseUrl = process.env.NODE_ENV === 'production'
+            ? `https://${process.env.AWS_BRANCH || 'staging'}.d2l8hlr3sei3te.amplifyapp.com`
+            : 'http://localhost:3000';
+
+          setTimeout(() => {
+            fetch(`${baseUrl}/api/jobs/process`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                jobId: jobId,
+                autoTrigger: true,
+                source: 'textract-poll-rag-continue'
+              })
+            }).catch(err => {
+              console.error(`Failed to trigger continuation for RAG job ${jobId}:`, err);
+            });
+          }, 30000);
+
+          return;
+        }
+      }
+
       // Success tracking counters
       let successfulDocuments = 0;
       let failedDocuments = 0;
@@ -284,7 +370,6 @@ export class BackgroundJobService {
             console.log(`⏳ Saving Textract JobId to metadata for background polling`);
 
             // Save Textract JobId to metadata and mark job as PROCESSING (not FAILED)
-            // Background processor will poll for completion
             await this.updateJob(jobId, {
               status: 'PROCESSING',
               metadata: {
@@ -302,8 +387,29 @@ export class BackgroundJobService {
               }
             });
 
-            // Return early - background processor will continue this job
-            console.log(`⏳ Job ${jobId} paused for Textract completion. Background processor will resume.`);
+            // CRITICAL: Self-trigger retry in 30 seconds (serverless-compatible)
+            console.log(`⏳ Job ${jobId} paused for Textract completion. Scheduling retry in 30s...`);
+
+            // Determine the base URL
+            const baseUrl = process.env.NODE_ENV === 'production'
+              ? `https://${process.env.AWS_BRANCH || 'staging'}.d2l8hlr3sei3te.amplifyapp.com`
+              : 'http://localhost:3000';
+
+            // Schedule self-trigger (setTimeout will complete before Lambda terminates)
+            setTimeout(() => {
+              fetch(`${baseUrl}/api/jobs/process`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  jobId: jobId,
+                  autoTrigger: true,
+                  source: 'textract-poll-rag'
+                })
+              }).catch(err => {
+                console.error(`Failed to trigger retry for RAG job ${jobId}:`, err);
+              });
+            }, 30000);
+
             return { documentsProcessed: i };
           }
 
