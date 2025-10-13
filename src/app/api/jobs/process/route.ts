@@ -241,29 +241,10 @@ async function processDocumentAnalysisJob(job: any, callerContext?: any) {
       console.log(`✅ Updated Textract job statuses in metadata`);
     }
 
-    // If there are still IN_PROGRESS jobs, schedule another retry and exit
+    // If there are still IN_PROGRESS jobs, exit and let EventBridge poller continue checking
     const stillPending = Object.values(updatedTextractJobs).some((tj: any) => tj.status === 'IN_PROGRESS');
     if (stillPending) {
-      console.log(`⏳ Still waiting on Textract jobs. Scheduling another retry in 30s...`);
-
-      const baseUrl = process.env.NODE_ENV === 'production'
-        ? `https://${process.env.AWS_BRANCH || 'staging'}.d2l8hlr3sei3te.amplifyapp.com`
-        : 'http://localhost:3000';
-
-      setTimeout(() => {
-        fetch(`${baseUrl}/api/jobs/process`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            jobId: job.id,
-            autoTrigger: true,
-            source: 'textract-poll-continue'
-          })
-        }).catch(err => {
-          console.error(`Failed to trigger continuation for job ${job.id}:`, err);
-        });
-      }, 30000);
-
+      console.log(`⏳ Still waiting on Textract jobs. EventBridge poller will check again in 1 minute.`);
       return { documentsProcessed: 0 };
     }
   }
@@ -354,29 +335,10 @@ async function processDocumentAnalysisJob(job: any, callerContext?: any) {
           }
         });
 
-        // CRITICAL: Self-trigger retry in 30 seconds (serverless-compatible)
-        // Lambda terminates after this response, so we schedule the next check before returning
-        console.log(`⏳ Job ${job.id} paused for Textract completion. Scheduling retry in 30s...`);
-
-        // Determine the base URL
-        const baseUrl = process.env.NODE_ENV === 'production'
-          ? `https://${process.env.AWS_BRANCH || 'staging'}.d2l8hlr3sei3te.amplifyapp.com`
-          : 'http://localhost:3000';
-
-        // Schedule self-trigger (setTimeout will complete before Lambda terminates)
-        setTimeout(() => {
-          fetch(`${baseUrl}/api/jobs/process`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              jobId: job.id,
-              autoTrigger: true,
-              source: 'textract-poll'
-            })
-          }).catch(err => {
-            console.error(`Failed to trigger retry for job ${job.id}:`, err);
-          });
-        }, 30000);
+        // NOTE: EventBridge Scheduler will poll this job every 1 minute
+        // Once Textract completes, the poller will trigger job processing to continue
+        console.log(`⏳ Job ${job.id} paused for Textract completion.`);
+        console.log(`⏳ EventBridge poller will check status every 1 minute and resume when complete.`);
 
         return { documentsProcessed: processedCount };
       }
