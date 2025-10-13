@@ -115,82 +115,8 @@ class BackgroundProcessor {
         }
       });
 
-      // Check for jobs waiting on Textract completion
-      const textractPendingJobs = await prisma.backgroundJob.findMany({
-        where: {
-          status: JobStatus.PROCESSING,
-          metadata: {
-            path: ['textractJobs'],
-            not: undefined
-          }
-        }
-      });
-
-      // Poll Textract jobs for completion
-      for (const job of textractPendingJobs) {
-        const textractJobs = (job.metadata as any)?.textractJobs || {};
-        const { getTextractJobStatus, getTextractJobResults } = await import('./aws-textract');
-
-        let hasCompletedJobs = false;
-        const updatedTextractJobs = { ...textractJobs };
-
-        for (const [docId, textractJob] of Object.entries(textractJobs as any)) {
-          if (textractJob.status === 'IN_PROGRESS') {
-            try {
-              console.log(`📄 Checking Textract job ${textractJob.jobId} for ${textractJob.filename}...`);
-              const status = await getTextractJobStatus(textractJob.jobId);
-
-              if (status.status === 'SUCCEEDED') {
-                console.log(`✅ Textract job ${textractJob.jobId} completed! Retrieving results...`);
-                const extractedText = await getTextractJobResults(textractJob.jobId);
-
-                // Update metadata to mark this job as complete with extracted text
-                updatedTextractJobs[docId] = {
-                  ...textractJob,
-                  status: 'SUCCEEDED',
-                  completedAt: new Date().toISOString(),
-                  extractedText: extractedText,
-                  textLength: extractedText.length
-                };
-
-                hasCompletedJobs = true;
-                console.log(`✅ Extracted ${extractedText.length} characters from ${textractJob.filename}`);
-
-              } else if (status.status === 'FAILED') {
-                console.error(`❌ Textract job ${textractJob.jobId} failed: ${status.statusMessage}`);
-                updatedTextractJobs[docId] = {
-                  ...textractJob,
-                  status: 'FAILED',
-                  completedAt: new Date().toISOString(),
-                  errorMessage: status.statusMessage
-                };
-                hasCompletedJobs = true;
-              } else {
-                console.log(`⏳ Textract job ${textractJob.jobId} still in progress (${status.status})`);
-              }
-            } catch (error) {
-              console.error(`❌ Error checking Textract job ${textractJob.jobId}:`, error);
-            }
-          }
-        }
-
-        // If any Textract jobs completed, update metadata and trigger job continuation
-        if (hasCompletedJobs) {
-          await prisma.backgroundJob.update({
-            where: { id: job.id },
-            data: {
-              metadata: {
-                ...job.metadata,
-                textractJobs: updatedTextractJobs
-              }
-            }
-          });
-
-          // Trigger job processing to continue with the extracted text
-          console.log(`🔄 Textract job(s) completed for job ${job.id}, triggering continuation...`);
-          pendingJobs.push(job);
-        }
-      }
+      // NOTE: Textract polling is now handled by EventBridge Scheduler + Lambda
+      // (See /api/jobs/textract-poll endpoint)
 
       // Combine pending and stuck jobs
       const jobsToProcess = [...pendingJobs, ...stuckJobs];
