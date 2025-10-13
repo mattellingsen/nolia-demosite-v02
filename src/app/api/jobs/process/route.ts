@@ -184,7 +184,7 @@ async function processDocumentAnalysisJob(job: any, callerContext?: any) {
 
   if (Object.keys(textractJobs).length > 0) {
     console.log(`🔍 Found ${Object.keys(textractJobs).length} Textract job(s) to check...`);
-    const { getTextractJobStatus, getTextractJobResults } = await import('../../lib/aws-textract');
+    const { getTextractJobStatus, getTextractJobResults } = await import('@/lib/aws-textract');
 
     let hasUpdates = false;
     const updatedTextractJobs = { ...textractJobs };
