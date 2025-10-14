@@ -928,54 +928,97 @@ export class BackgroundJobService {
 
   /**
    * Analyze application form document using new Claude service
+   * Supports chunking for large documents (>30K chars) to avoid Lambda timeouts
    */
-  static async analyzeApplicationFormDocument(content: string, filename: string): Promise<any> {
+  static async analyzeApplicationFormDocument(
+    content: string,
+    filename: string,
+    onProgress?: (current: number, total: number) => Promise<void>
+  ): Promise<any> {
     try {
-      const response = await claudeService.executeTask({
-        task: 'analyze_application_form',
-        prompt: ClaudeService.createFocusedPrompt(
-          'Application Form Analysis',
-          content,
-          `
-            Analyze this application form document to understand its structure and required fields.
+      const CHUNK_THRESHOLD = 30000; // 30K characters
 
-            Extract information about:
-            1. Required fields and their types
-            2. Section organization
-            3. Validation requirements
-            4. Field labels and descriptions
-          `,
-          `
-            Respond with valid JSON only:
-            {
-              "status": "completed",
-              "fields": [
-                {
-                  "name": "field_name",
-                  "label": "Field Label",
-                  "type": "text|number|email|date|select",
-                  "required": true|false,
-                  "section": "section_name"
-                }
-              ],
-              "sections": [
-                {
-                  "name": "section_name",
-                  "title": "Section Title",
-                  "fields": ["field1", "field2"]
-                }
-              ]
-            }
-          `
-        ),
-        maxTokens: 32000,
-        temperature: 0.3,
-      });
+      // Check if we need to chunk
+      if (content.length <= CHUNK_THRESHOLD) {
+        // SMALL DOCUMENT: Use existing single-call logic (no chunking)
+        console.log(`📄 Document size: ${content.length} chars - processing as single document (no chunking)`);
 
-      if (response.success) {
-        return JSON.parse(response.content.match(/\{[\s\S]*\}/)?.[0] || '{}');
+        const response = await claudeService.executeTask({
+          task: 'analyze_application_form',
+          prompt: ClaudeService.createFocusedPrompt(
+            'Application Form Analysis',
+            content,
+            `
+              Analyze this application form document to understand its structure and required fields.
+
+              Extract information about:
+              1. Required fields and their types
+              2. Section organization
+              3. Validation requirements
+              4. Field labels and descriptions
+            `,
+            `
+              Respond with valid JSON only:
+              {
+                "status": "completed",
+                "fields": [
+                  {
+                    "name": "field_name",
+                    "label": "Field Label",
+                    "type": "text|number|email|date|select",
+                    "required": true|false,
+                    "section": "section_name"
+                  }
+                ],
+                "sections": [
+                  {
+                    "name": "section_name",
+                    "title": "Section Title",
+                    "fields": ["field1", "field2"]
+                  }
+                ]
+              }
+            `
+          ),
+          maxTokens: 32000,
+          temperature: 0.3,
+        });
+
+        if (response.success) {
+          return JSON.parse(response.content.match(/\{[\s\S]*\}/)?.[0] || '{}');
+        } else {
+          return { status: 'failed', error: 'Claude analysis failed' };
+        }
       } else {
-        return { status: 'failed', error: 'Claude analysis failed' };
+        // LARGE DOCUMENT: Use chunking approach
+        console.log(`📄 Document size: ${content.length} chars - chunking required (threshold: ${CHUNK_THRESHOLD})`);
+
+        const chunks = chunkTextForAnalysis(content, CHUNK_THRESHOLD);
+        console.log(`📄 Split into ${chunks.length} chunks for processing`);
+
+        const analyses: any[] = [];
+
+        // Process each chunk with retry logic
+        for (let i = 0; i < chunks.length; i++) {
+          const chunk = chunks[i];
+          console.log(`📝 Processing chunk ${i + 1}/${chunks.length}...`);
+
+          const analysis = await this.analyzeChunkWithRetry(
+            chunk,
+            'application_form',
+            chunks.length
+          );
+
+          analyses.push(analysis);
+
+          // Call progress callback if provided
+          if (onProgress) {
+            await onProgress(i + 1, chunks.length);
+          }
+        }
+
+        // Synthesize all chunk analyses into single result
+        return this.synthesizeAnalyses(analyses, 'application_form', content.length);
       }
     } catch (error) {
       console.error('Error in application form analysis:', error);
