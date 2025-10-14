@@ -1028,54 +1028,97 @@ export class BackgroundJobService {
 
   /**
    * Analyze selection criteria document using new Claude service
+   * Supports chunking for large documents (>30K chars) to avoid Lambda timeouts
    */
-  static async analyzeSelectionCriteriaDocument(content: string, filename: string): Promise<any> {
+  static async analyzeSelectionCriteriaDocument(
+    content: string,
+    filename: string,
+    onProgress?: (current: number, total: number) => Promise<void>
+  ): Promise<any> {
     try {
-      // Add 30-second timeout protection to prevent infinite hangs
-      const response = await Promise.race([
-        claudeService.executeTask({
-          task: 'analyze_selection_criteria',
-          prompt: ClaudeService.createFocusedPrompt(
-            'Selection Criteria Analysis',
-            content,
-            `
-              Analyze this selection criteria document to extract assessment criteria and scoring guidelines.
+      const CHUNK_THRESHOLD = 30000; // 30K characters
 
-              Extract information about:
-              1. Assessment criteria categories
-              2. Scoring ranges and weights
-              3. Key evaluation indicators
-              4. Assessment instructions
-            `,
-            `
-              Respond with valid JSON only:
-              {
-                "status": "completed",
-                "criteria": [
-                  {
-                    "name": "criterion_name",
-                    "description": "What this criterion evaluates",
-                    "weight": 25,
-                    "maxScore": 100,
-                    "keyIndicators": ["indicator1", "indicator2"]
-                  }
-                ],
-                "overallInstructions": "General assessment guidelines"
-              }
-            `
-          ),
-          maxTokens: 32000,
-          temperature: 0.3,
-        }),
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Claude AI analysis timeout after 5 minutes. Please try processing again.')), 300000)
-        )
-      ]);
+      // Check if we need to chunk
+      if (content.length <= CHUNK_THRESHOLD) {
+        // SMALL DOCUMENT: Use existing single-call logic (no chunking)
+        console.log(`📄 Document size: ${content.length} chars - processing as single document (no chunking)`);
 
-      if (response.success) {
-        return JSON.parse(response.content.match(/\{[\s\S]*\}/)?.[0] || '{}');
+        // Add 5-minute timeout protection to prevent infinite hangs
+        const response = await Promise.race([
+          claudeService.executeTask({
+            task: 'analyze_selection_criteria',
+            prompt: ClaudeService.createFocusedPrompt(
+              'Selection Criteria Analysis',
+              content,
+              `
+                Analyze this selection criteria document to extract assessment criteria and scoring guidelines.
+
+                Extract information about:
+                1. Assessment criteria categories
+                2. Scoring ranges and weights
+                3. Key evaluation indicators
+                4. Assessment instructions
+              `,
+              `
+                Respond with valid JSON only:
+                {
+                  "status": "completed",
+                  "criteria": [
+                    {
+                      "name": "criterion_name",
+                      "description": "What this criterion evaluates",
+                      "weight": 25,
+                      "maxScore": 100,
+                      "keyIndicators": ["indicator1", "indicator2"]
+                    }
+                  ],
+                  "overallInstructions": "General assessment guidelines"
+                }
+              `
+            ),
+            maxTokens: 32000,
+            temperature: 0.3,
+          }),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Claude AI analysis timeout after 5 minutes. Please try processing again.')), 300000)
+          )
+        ]);
+
+        if (response.success) {
+          return JSON.parse(response.content.match(/\{[\s\S]*\}/)?.[0] || '{}');
+        } else {
+          return { status: 'failed', error: 'Claude analysis failed' };
+        }
       } else {
-        return { status: 'failed', error: 'Claude analysis failed' };
+        // LARGE DOCUMENT: Use chunking approach
+        console.log(`📄 Document size: ${content.length} chars - chunking required (threshold: ${CHUNK_THRESHOLD})`);
+
+        const chunks = chunkTextForAnalysis(content, CHUNK_THRESHOLD);
+        console.log(`📄 Split into ${chunks.length} chunks for processing`);
+
+        const analyses: any[] = [];
+
+        // Process each chunk with retry logic
+        for (let i = 0; i < chunks.length; i++) {
+          const chunk = chunks[i];
+          console.log(`📝 Processing chunk ${i + 1}/${chunks.length}...`);
+
+          const analysis = await this.analyzeChunkWithRetry(
+            chunk,
+            'selection_criteria',
+            chunks.length
+          );
+
+          analyses.push(analysis);
+
+          // Call progress callback if provided
+          if (onProgress) {
+            await onProgress(i + 1, chunks.length);
+          }
+        }
+
+        // Synthesize all chunk analyses into single result
+        return this.synthesizeAnalyses(analyses, 'selection_criteria', content.length);
       }
     } catch (error) {
       console.error('Error in selection criteria analysis:', error);
