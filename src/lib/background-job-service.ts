@@ -368,29 +368,13 @@ export class BackgroundJobService {
               }
             });
 
-            // CRITICAL: Self-trigger retry in 30 seconds (serverless-compatible)
-            console.log(`⏳ Job ${jobId} paused for Textract completion. Scheduling retry in 30s...`);
+            // CRITICAL: Textract JobId is saved to metadata above (lines 354-369)
+            // EventBridge textract-poller runs every 60 seconds and will resume this job
+            console.log(`⏳ Job ${jobId} paused for Textract completion.`);
+            console.log(`⏳ EventBridge textract-poller will check status every 1 minute and resume when complete.`);
 
-            // Determine the base URL
-            const baseUrl = process.env.NODE_ENV === 'production'
-              ? `https://${process.env.AWS_BRANCH || 'staging'}.d2l8hlr3sei3te.amplifyapp.com`
-              : 'http://localhost:3000';
-
-            // Schedule self-trigger (setTimeout will complete before Lambda terminates)
-            setTimeout(() => {
-              fetch(`${baseUrl}/api/jobs/process`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  jobId: jobId,
-                  autoTrigger: true,
-                  source: 'textract-poll-rag'
-                })
-              }).catch(err => {
-                console.error(`Failed to trigger retry for RAG job ${jobId}:`, err);
-              });
-            }, 30000);
-
+            // Return immediately - Lambda can terminate gracefully
+            // EventBridge will detect completion and call /api/jobs/process to resume
             return { documentsProcessed: i };
           }
 
