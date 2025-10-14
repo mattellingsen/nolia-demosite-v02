@@ -60,7 +60,15 @@ export async function extractTextFromFile(file: any, s3Key?: string): Promise<st
         }
     } catch (error) {
         console.error('Error extracting text from file:', error);
-        throw new Error(`Failed to extract text from ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+
+        // CRITICAL: Don't wrap TEXTRACT_ASYNC_PENDING errors - they need to bubble up cleanly
+        // so the JobId can be extracted by the error handler in background-job-service.ts
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (errorMessage.includes('TEXTRACT_ASYNC_PENDING:')) {
+            throw error; // Re-throw as-is without wrapping
+        }
+
+        throw new Error(`Failed to extract text from ${file.name}: ${errorMessage}`);
     }
 }
 
