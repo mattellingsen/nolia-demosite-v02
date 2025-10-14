@@ -545,6 +545,44 @@ function inferPlaceholderType(placeholderText: string, context: string): string 
 async function processDocument(document: any, jobMetadata?: any, jobId?: string) {
   console.log(`Processing document: ${document.filename} (${document.documentType})`);
 
+  // Progress tracking helper for chunked analysis
+  const updateChunkProgress = async (currentChunk: number, totalChunks: number) => {
+    if (!jobId) return; // Skip if no jobId provided
+
+    try {
+      console.log(`📊 Chunk progress: ${currentChunk}/${totalChunks} (${Math.round(currentChunk/totalChunks*100)}%)`);
+
+      // Update job metadata with chunk progress
+      const currentJob = await prisma.backgroundJob.findUnique({
+        where: { id: jobId }
+      });
+
+      if (currentJob) {
+        const currentMetadata = currentJob.metadata as any || {};
+
+        await prisma.backgroundJob.update({
+          where: { id: jobId },
+          data: {
+            metadata: {
+              ...currentMetadata,
+              chunkProgress: {
+                documentId: document.id,
+                documentFilename: document.filename,
+                currentChunk,
+                totalChunks,
+                percentage: Math.round(currentChunk/totalChunks*100),
+                lastUpdated: new Date().toISOString()
+              }
+            }
+          }
+        });
+      }
+    } catch (error) {
+      console.error('⚠️ Failed to update chunk progress (non-critical):', error);
+      // Don't throw - progress tracking failures shouldn't fail the job
+    }
+  };
+
   // Check if Textract already extracted text (from async job)
   const textractJobs = jobMetadata?.textractJobs || {};
   const textractJob = textractJobs[document.id];
