@@ -694,7 +694,11 @@ async function processDocument(document: any, jobMetadata?: any, jobId?: string)
         }];
 
         const combinedText = textContent;
-        analysisResult = await BackgroundJobService.analyzeSelectionCriteriaDocument(combinedText, document.filename);
+        analysisResult = await BackgroundJobService.analyzeSelectionCriteriaDocument(
+          combinedText,
+          document.filename,
+          updateChunkProgress  // Pass progress callback for chunked documents
+        );
         analysisResult.analysisMode = 'CLAUDE_AI';
         console.log('✅ Claude AI analysis successful for selection criteria in background processing');
 
