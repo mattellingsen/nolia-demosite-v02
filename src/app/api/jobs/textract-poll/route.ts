@@ -33,11 +33,10 @@ export async function POST(request: NextRequest) {
     });
 
     // Filter for jobs that have textractJobs in metadata
-    // ONLY check DOCUMENT_ANALYSIS jobs - RAG_PROCESSING jobs inherit textractJobs but don't need polling
+    // Check BOTH DOCUMENT_ANALYSIS and RAG_PROCESSING jobs - both can start async Textract jobs
     const jobsWithTextract = allJobs.filter(job => {
       const metadata = job.metadata as any;
-      return job.type === 'DOCUMENT_ANALYSIS' &&
-             metadata?.textractJobs &&
+      return metadata?.textractJobs &&
              Object.keys(metadata.textractJobs).length > 0;
     });
 
