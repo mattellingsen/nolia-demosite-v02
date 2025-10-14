@@ -5,6 +5,7 @@ import { claudeService, ClaudeService } from './claude-service';
 import { storeDocumentVector, generateEmbedding, initializeOpenSearchIndex, chunkText, validateFundEmbeddings } from './aws-opensearch';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getAWSCredentials, AWS_REGION, S3_BUCKET } from './aws-credentials';
+import { chunkText as chunkTextForAnalysis, TextChunk } from './chunker';
 
 // Job types
 export type JobType = 'RAG_PROCESSING' | 'DOCUMENT_ANALYSIS';
@@ -1194,5 +1195,183 @@ export class BackgroundJobService {
     }
 
     return placeholders;
+  }
+
+  /**
+   * CHUNKING HELPERS - Added for large document processing
+   * These functions break documents into smaller pieces to avoid Lambda timeouts
+   */
+
+  /**
+   * Sleep helper for retry delays
+   */
+  private static sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Analyze a single chunk of document text with Claude
+   */
+  private static async analyzeChunk(
+    chunkText: string,
+    documentType: 'application_form' | 'selection_criteria',
+    chunkIndex: number,
+    totalChunks: number
+  ): Promise<any> {
+    console.log(`📝 Analyzing chunk ${chunkIndex + 1}/${totalChunks} (${chunkText.length} chars)`);
+
+    const taskName = documentType === 'application_form' ? 'analyze_application_form' : 'analyze_selection_criteria';
+    const sectionLabel = `Section ${chunkIndex + 1} of ${totalChunks}`;
+
+    const response = await claudeService.executeTask({
+      task: taskName,
+      prompt: ClaudeService.createFocusedPrompt(
+        `${documentType === 'application_form' ? 'Application Form' : 'Selection Criteria'} Analysis - ${sectionLabel}`,
+        chunkText,
+        documentType === 'application_form'
+          ? `
+            Analyze this section (part ${chunkIndex + 1} of ${totalChunks}) of an application form document.
+
+            Extract information about:
+            1. Required fields and their types in this section
+            2. Section organization
+            3. Validation requirements
+            4. Field labels and descriptions
+
+            Note: This is part of a larger document that's been split into ${totalChunks} sections for processing.
+          `
+          : `
+            Analyze this section (part ${chunkIndex + 1} of ${totalChunks}) of a selection criteria document.
+
+            Extract information about:
+            1. Assessment criteria categories in this section
+            2. Scoring ranges and weights
+            3. Key evaluation indicators
+            4. Assessment instructions
+
+            Note: This is part of a larger document that's been split into ${totalChunks} sections for processing.
+          `,
+        `
+          Respond with valid JSON only:
+          {
+            "status": "completed",
+            "sectionIndex": ${chunkIndex},
+            "content": ${documentType === 'application_form' ? '{"fields": [...], "sections": [...]}' : '{"criteria": [...], "categories": [...]}'}
+          }
+        `
+      ),
+      maxTokens: 32000,
+      temperature: 0.3,
+    });
+
+    if (response.success) {
+      const parsed = JSON.parse(response.content.match(/\{[\s\S]*\}/)?.[0] || '{}');
+      return parsed;
+    } else {
+      throw new Error(`Claude analysis failed for chunk ${chunkIndex + 1}: ${response.content}`);
+    }
+  }
+
+  /**
+   * Analyze chunk with retry logic (up to 3 attempts with exponential backoff)
+   */
+  private static async analyzeChunkWithRetry(
+    chunk: TextChunk,
+    documentType: 'application_form' | 'selection_criteria',
+    totalChunks: number,
+    maxRetries: number = 3
+  ): Promise<any> {
+    let lastError: Error | undefined;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await this.analyzeChunk(chunk.text, documentType, chunk.index, totalChunks);
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        console.error(`❌ Chunk ${chunk.index + 1} failed (attempt ${attempt}/${maxRetries}):`, lastError.message);
+
+        if (attempt < maxRetries) {
+          const delayMs = 5000 * attempt; // Exponential backoff: 5s, 10s, 15s
+          console.log(`⏳ Retrying chunk ${chunk.index + 1} in ${delayMs / 1000} seconds...`);
+          await this.sleep(delayMs);
+        }
+      }
+    }
+
+    // All retries failed
+    throw new Error(
+      `CHUNK_ANALYSIS_FAILED: Chunk ${chunk.index + 1}/${totalChunks} failed after ${maxRetries} attempts. ` +
+      `Chunk size: ${chunk.charCount} chars. ` +
+      `Error: ${lastError?.message || 'Unknown error'}`
+    );
+  }
+
+  /**
+   * Synthesize multiple chunk analyses into a single result
+   */
+  private static synthesizeAnalyses(
+    analyses: any[],
+    documentType: 'application_form' | 'selection_criteria',
+    totalChars: number
+  ): any {
+    console.log(`🔄 Synthesizing ${analyses.length} chunk analyses into single result`);
+
+    if (documentType === 'application_form') {
+      // Combine all fields and sections from chunks
+      const allFields: any[] = [];
+      const allSections: any[] = [];
+
+      analyses.forEach((analysis, index) => {
+        if (analysis.content?.fields) {
+          allFields.push(...analysis.content.fields);
+        }
+        if (analysis.content?.sections) {
+          allSections.push(...analysis.content.sections);
+        }
+      });
+
+      return {
+        status: 'completed',
+        fields: allFields,
+        sections: allSections,
+        metadata: {
+          wasChunked: true,
+          chunkCount: analyses.length,
+          characterCount: totalChars,
+          chunkAnalyses: analyses.map((a, i) => ({
+            index: i,
+            status: a.status
+          }))
+        }
+      };
+    } else {
+      // selection_criteria
+      const allCriteria: any[] = [];
+      const allCategories: any[] = [];
+
+      analyses.forEach((analysis) => {
+        if (analysis.content?.criteria) {
+          allCriteria.push(...analysis.content.criteria);
+        }
+        if (analysis.content?.categories) {
+          allCategories.push(...analysis.content.categories);
+        }
+      });
+
+      return {
+        status: 'completed',
+        criteria: allCriteria,
+        categories: allCategories,
+        metadata: {
+          wasChunked: true,
+          chunkCount: analyses.length,
+          characterCount: totalChars,
+          chunkAnalyses: analyses.map((a, i) => ({
+            index: i,
+            status: a.status
+          }))
+        }
+      };
+    }
   }
 }
