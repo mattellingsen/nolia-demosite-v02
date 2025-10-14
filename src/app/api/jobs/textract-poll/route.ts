@@ -123,37 +123,48 @@ export async function POST(request: NextRequest) {
           }
         });
         console.log(`  💾 Updated Textract job statuses in metadata for job ${job.id}`);
+      }
 
-        // If all Textract jobs are done (no more IN_PROGRESS), trigger job processing to continue
-        const stillPending = Object.values(updatedTextractJobs).some((tj: any) => tj.status === 'IN_PROGRESS');
+      // ROBUST CHECK: Check if ALL Textract jobs are in terminal state (SUCCEEDED or FAILED)
+      // This handles: missed transitions, jobs completed before first poll, partial success
+      const allTextractJobs = Object.values(updatedTextractJobs) as any[];
+      const allComplete = allTextractJobs.length > 0 && allTextractJobs.every((tj: any) =>
+        tj.status === 'SUCCEEDED' || tj.status === 'FAILED'
+      );
 
-        if (!stillPending) {
-          console.log(`  🚀 All Textract jobs complete for job ${job.id}. Triggering job processing...`);
+      // Check if parent job is stuck (still PROCESSING but hasn't progressed)
+      const jobStuck = job.status === 'PROCESSING';
 
-          // Trigger the job processor to continue processing
-          try {
-            const baseUrl = process.env.NODE_ENV === 'production'
-              ? `https://${process.env.AWS_BRANCH || 'staging'}.d2l8hlr3sei3te.amplifyapp.com`
-              : 'http://localhost:3000';
+      // If all Textract jobs complete AND parent job is stuck, trigger resume
+      if (allComplete && jobStuck) {
+        const succeededCount = allTextractJobs.filter((tj: any) => tj.status === 'SUCCEEDED').length;
+        const failedCount = allTextractJobs.filter((tj: any) => tj.status === 'FAILED').length;
 
-            const response = await fetch(`${baseUrl}/api/jobs/process`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                jobId: job.id,
-                autoTrigger: true,
-                source: 'textract-poller-resume'
-              })
-            });
+        console.log(`  🚀 All Textract jobs complete (${succeededCount} succeeded, ${failedCount} failed). Triggering job processing...`);
 
-            if (response.ok) {
-              console.log(`  ✅ Successfully triggered job processing for job ${job.id}`);
-            } else {
-              console.error(`  ⚠️ Failed to trigger job processing for job ${job.id}: ${response.status}`);
-            }
-          } catch (error) {
-            console.error(`  ⚠️ Error triggering job processing for job ${job.id}:`, error);
+        // Trigger the job processor to continue processing
+        try {
+          const baseUrl = process.env.NODE_ENV === 'production'
+            ? `https://${process.env.AWS_BRANCH || 'staging'}.d2l8hlr3sei3te.amplifyapp.com`
+            : 'http://localhost:3000';
+
+          const response = await fetch(`${baseUrl}/api/jobs/process`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jobId: job.id,
+              autoTrigger: true,
+              source: 'textract-poller-resume'
+            })
+          });
+
+          if (response.ok) {
+            console.log(`  ✅ Successfully triggered job processing for job ${job.id}`);
+          } else {
+            console.error(`  ⚠️ Failed to trigger job processing for job ${job.id}: ${response.status}`);
           }
+        } catch (error) {
+          console.error(`  ⚠️ Error triggering job processing for job ${job.id}:`, error);
         }
       }
     }
