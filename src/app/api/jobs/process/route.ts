@@ -639,7 +639,11 @@ async function processDocument(document: any, jobMetadata?: any, jobId?: string)
           extractedSections: []
         };
 
-        analysisResult = await BackgroundJobService.analyzeApplicationFormDocument(textContent, document.filename);
+        analysisResult = await BackgroundJobService.analyzeApplicationFormDocument(
+          textContent,
+          document.filename,
+          updateChunkProgress  // Pass progress callback for chunked documents
+        );
         analysisResult.analysisMode = 'CLAUDE_AI';
         console.log('✅ Claude AI analysis successful for application form in background processing');
 
