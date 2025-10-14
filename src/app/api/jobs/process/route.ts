@@ -607,7 +607,14 @@ async function processDocument(document: any, jobMetadata?: any) {
 
       } catch (claudeError) {
         console.error('❌ Claude AI analysis failed for application form - failing job:', claudeError);
-        throw new Error(`AI analysis failed for application form document "${document.filename}": ${claudeError.message}. Please try processing again.`);
+
+        // CRITICAL: Don't wrap TEXTRACT_ASYNC_PENDING errors - they need to bubble up cleanly
+        const errorMessage = claudeError instanceof Error ? claudeError.message : String(claudeError);
+        if (errorMessage.includes('TEXTRACT_ASYNC_PENDING:')) {
+          throw claudeError; // Re-throw as-is without wrapping
+        }
+
+        throw new Error(`AI analysis failed for application form document "${document.filename}": ${errorMessage}. Please try processing again.`);
       }
 
       // Update fund with application form analysis
@@ -651,7 +658,14 @@ async function processDocument(document: any, jobMetadata?: any) {
 
       } catch (claudeError) {
         console.error('❌ Claude AI analysis failed for selection criteria - failing job:', claudeError);
-        throw new Error(`AI analysis failed for selection criteria document "${document.filename}": ${claudeError.message}. Please try processing again.`);
+
+        // CRITICAL: Don't wrap TEXTRACT_ASYNC_PENDING errors - they need to bubble up cleanly
+        const errorMessage = claudeError instanceof Error ? claudeError.message : String(claudeError);
+        if (errorMessage.includes('TEXTRACT_ASYNC_PENDING:')) {
+          throw claudeError; // Re-throw as-is without wrapping
+        }
+
+        throw new Error(`AI analysis failed for selection criteria document "${document.filename}": ${errorMessage}. Please try processing again.`);
       }
 
       // Update fund with selection criteria analysis
@@ -695,7 +709,14 @@ async function processDocument(document: any, jobMetadata?: any) {
 
       } catch (claudeError) {
         console.error('❌ Claude AI analysis failed for good examples - failing job:', claudeError);
-        throw new Error(`AI analysis failed for good examples document "${document.filename}": ${claudeError.message}. Please try processing again.`);
+
+        // CRITICAL: Don't wrap TEXTRACT_ASYNC_PENDING errors - they need to bubble up cleanly
+        const errorMessage = claudeError instanceof Error ? claudeError.message : String(claudeError);
+        if (errorMessage.includes('TEXTRACT_ASYNC_PENDING:')) {
+          throw claudeError; // Re-throw as-is without wrapping
+        }
+
+        throw new Error(`AI analysis failed for good examples document "${document.filename}": ${errorMessage}. Please try processing again.`);
       }
       
       // Update fund with good examples analysis
@@ -742,7 +763,14 @@ async function processDocument(document: any, jobMetadata?: any) {
 
       } catch (claudeError) {
         console.error('❌ Claude AI analysis failed for output template - failing job:', claudeError);
-        throw new Error(`AI analysis failed for output template document "${document.filename}": ${claudeError.message}. Please try processing again.`);
+
+        // CRITICAL: Don't wrap TEXTRACT_ASYNC_PENDING errors - they need to bubble up cleanly
+        const errorMessage = claudeError instanceof Error ? claudeError.message : String(claudeError);
+        if (errorMessage.includes('TEXTRACT_ASYNC_PENDING:')) {
+          throw claudeError; // Re-throw as-is without wrapping
+        }
+
+        throw new Error(`AI analysis failed for output template document "${document.filename}": ${errorMessage}. Please try processing again.`);
       }
 
       console.log(`Output template processed: ${document.filename}`);
