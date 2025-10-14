@@ -65,8 +65,15 @@ export async function extractTextFromPDF(s3Key: string): Promise<string> {
   } catch (error) {
     console.error(`📄 Textract extraction failed for ${s3Key}:`, error);
 
+    // CRITICAL: Don't wrap TEXTRACT_ASYNC_PENDING errors - they need to bubble up cleanly
+    // so the JobId can be extracted by the error handler in background-job-service.ts
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes('TEXTRACT_ASYNC_PENDING:')) {
+      throw error; // Re-throw as-is without wrapping
+    }
+
     throw new Error(
-      `AWS Textract failed to extract text from PDF: ${error instanceof Error ? error.message : 'Unknown error'}`
+      `AWS Textract failed to extract text from PDF: ${errorMessage}`
     );
   }
 }
