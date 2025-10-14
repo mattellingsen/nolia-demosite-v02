@@ -305,7 +305,7 @@ async function processDocumentAnalysisJob(job: any, callerContext?: any) {
       console.log(`📄 Type: ${document.documentType}`);
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
-      await processDocument(document, job.metadata);
+      await processDocument(document, job.metadata, job.id);
       processedCount++;
 
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -542,7 +542,7 @@ function inferPlaceholderType(placeholderText: string, context: string): string 
   return 'text';
 }
 
-async function processDocument(document: any, jobMetadata?: any) {
+async function processDocument(document: any, jobMetadata?: any, jobId?: string) {
   console.log(`Processing document: ${document.filename} (${document.documentType})`);
 
   // Check if Textract already extracted text (from async job)
