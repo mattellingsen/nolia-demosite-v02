@@ -543,7 +543,8 @@ function inferPlaceholderType(placeholderText: string, context: string): string 
 }
 
 async function processDocument(document: any, jobMetadata?: any, jobId?: string) {
-  console.log(`Processing document: ${document.filename} (${document.documentType})`);
+  const startTime = Date.now();
+  console.log(`⏱️  Processing document: ${document.filename} (${document.documentType}) - Start time: ${new Date().toISOString()}`);
 
   // Progress tracking helper for chunked analysis
   const updateChunkProgress = async (currentChunk: number, totalChunks: number) => {
@@ -826,7 +827,12 @@ async function processDocument(document: any, jobMetadata?: any, jobId?: string)
       throw new Error(`Unknown document type: ${document.documentType}`);
   }
 
-  console.log(`Completed processing ${document.filename}: ${document.documentType}`);
+  const endTime = Date.now();
+  const durationSeconds = ((endTime - startTime) / 1000).toFixed(2);
+  const durationMinutes = (parseFloat(durationSeconds) / 60).toFixed(2);
+  console.log(`⏱️  Completed processing ${document.filename}: ${document.documentType}`);
+  console.log(`⏱️  Processing time: ${durationSeconds}s (${durationMinutes} minutes)`);
+
   return analysisResult;
 }
 
