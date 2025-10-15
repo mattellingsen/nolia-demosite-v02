@@ -497,48 +497,20 @@ export class BackgroundJobService {
           metadata: finalMetadata
         });
 
-        // Trigger brain assembly for modules that have brain endpoints
+        // REMOVED: Brain assembly trigger to prevent circular loop
+        // ISSUE: Triggering brain assembly here creates duplicate RAG jobs:
+        //   1. Brain assembly endpoint calls processRAGJob()
+        //   2. processRAGJob() completes and calls brain assembly AGAIN
+        //   3. This creates another RAG job, causing infinite loop
+        // SOLUTION: Brain assembly endpoints are responsible for:
+        //   1. Calling processRAGJob() themselves
+        //   2. Marking the fund as ACTIVE after completion
+        // This function should ONLY complete the RAG job, nothing more.
+
         const moduleType = fund.moduleType as 'FUNDING' | 'PROCUREMENT' | 'PROCUREMENT_ADMIN' | 'WORLDBANK' | 'WORLDBANK_ADMIN';
-        if (moduleType === 'PROCUREMENT_ADMIN' || moduleType === 'WORLDBANK' || moduleType === 'WORLDBANK_ADMIN') {
-          console.log(`🧠 Triggering brain assembly for ${moduleType} fund ${job.fundId}...`);
 
-          // Determine the correct brain endpoint for this module
-          let brainEndpoint: string;
-          if (moduleType === 'PROCUREMENT_ADMIN') {
-            brainEndpoint = `/api/procurement-brain/${job.fundId}/assemble`;
-          } else if (moduleType === 'WORLDBANK') {
-            brainEndpoint = `/api/worldbank-brain/${job.fundId}/assemble`;
-          } else if (moduleType === 'WORLDBANK_ADMIN') {
-            brainEndpoint = `/api/worldbank-admin-brain/${job.fundId}/assemble`;
-          }
-
-          // Call brain assembly endpoint (non-blocking)
-          // Auto-detect branch from AWS Amplify environment variable
-          let baseUrl = 'http://localhost:3000';
-          if (process.env.NODE_ENV === 'production') {
-            const branch = process.env.AWS_BRANCH || 'main';
-            const appId = 'd2l8hlr3sei3te';
-            baseUrl = `https://${branch}.${appId}.amplifyapp.com`;
-            console.log(`🔗 Brain assembly: Auto-detected branch ${branch}, using ${baseUrl}`);
-          }
-
-          fetch(`${baseUrl}${brainEndpoint}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-          })
-            .then(async (response) => {
-              if (response.ok) {
-                console.log(`✅ Brain assembly triggered successfully for fund ${job.fundId}`);
-              } else {
-                const text = await response.text();
-                console.error(`❌ Brain assembly failed for fund ${job.fundId}: ${response.status} - ${text}`);
-              }
-            })
-            .catch((error) => {
-              console.error(`❌ Error triggering brain assembly for fund ${job.fundId}:`, error);
-            });
-        } else {
-          // For FUNDING module (no brain endpoint), just mark as ACTIVE
+        // For FUNDING module only (no brain endpoint, legacy behavior)
+        if (moduleType === 'FUNDING') {
           await prisma.fund.update({
             where: { id: job.fundId },
             data: {
@@ -548,6 +520,10 @@ export class BackgroundJobService {
           });
 
           console.log(`✅ Fund ${job.fundId} status updated to ACTIVE with functional brain`);
+        } else {
+          // For PROCUREMENT_ADMIN, WORLDBANK, WORLDBANK_ADMIN:
+          // The brain assembly endpoint is responsible for marking fund as ACTIVE
+          console.log(`✅ RAG processing complete for ${moduleType} fund ${job.fundId} - waiting for brain assembly endpoint to mark as ACTIVE`);
         }
       }
       
