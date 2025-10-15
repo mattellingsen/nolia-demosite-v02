@@ -219,6 +219,27 @@ export class BackgroundJobService {
         chunkIndex?: number;
       }> = [];
 
+      // CRITICAL: Validate all documents have pre-extracted text from DOCUMENT_ANALYSIS phase
+      // RAG jobs should NEVER trigger Textract - that's DOCUMENT_ANALYSIS's responsibility
+      const missingText = documents.filter(doc => {
+        const textractJob = textractJobs[doc.id];
+        return !textractJob || textractJob.status !== 'SUCCEEDED' || !textractJob.extractedText;
+      });
+
+      if (missingText.length > 0) {
+        const errorMsg = `${missingText.length} document(s) missing text extraction. DOCUMENT_ANALYSIS must complete first: ${missingText.map(d => d.filename).join(', ')}`;
+        console.error(`❌ RAG Processing Failed: ${errorMsg}`);
+        await this.updateJob(jobId, {
+          status: 'FAILED',
+          progress: 0,
+          metadata: {
+            ...job.metadata,
+            error: errorMsg
+          }
+        });
+        return;
+      }
+
       // Process each document
       for (let i = 0; i < documents.length; i++) {
         const document = documents[i];
@@ -229,19 +250,10 @@ export class BackgroundJobService {
         try {
           console.log(`Processing document ${i + 1}/${totalDocuments}: ${document.filename}`);
 
-          // Check if Textract already extracted text (from async job)
-          const textractJobs = (job.metadata as any)?.textractJobs || {};
+          // Use pre-extracted text from DOCUMENT_ANALYSIS phase (already validated above)
           const textractJob = textractJobs[document.id];
-
-          let documentText: string;
-
-          if (textractJob?.status === 'SUCCEEDED' && textractJob.extractedText) {
-            console.log(`📄 Using pre-extracted Textract text for ${document.filename} (${textractJob.textLength} chars)`);
-            documentText = textractJob.extractedText;
-          } else {
-            // Extract text from S3
-            documentText = await this.extractTextFromS3Document(document.s3Key);
-          }
+          console.log(`📄 Using pre-extracted Textract text for ${document.filename} (${textractJob.textLength} chars)`);
+          const documentText = textractJob.extractedText;
 
           // Skip if no meaningful text (but don't fail the job)
           if (documentText.length < 10) {
@@ -344,41 +356,8 @@ export class BackgroundJobService {
         } catch (docError) {
           const errorMessage = docError instanceof Error ? docError.message : String(docError);
 
-          // Check for Textract async pending (large document still processing)
-          if (errorMessage.includes('TEXTRACT_ASYNC_PENDING:')) {
-            const match = errorMessage.match(/TEXTRACT_ASYNC_PENDING:([a-f0-9]+)/);
-            const textractJobId = match ? match[1] : errorMessage.split('TEXTRACT_ASYNC_PENDING:')[1].split(/[\s\.]/)[0];
-            console.log(`⏳ Document ${document.filename} has Textract job pending: ${textractJobId}`);
-            console.log(`⏳ Saving Textract JobId to metadata for background polling`);
-
-            // Save Textract JobId to metadata and mark job as PROCESSING (not FAILED)
-            await this.updateJob(jobId, {
-              status: 'PROCESSING',
-              metadata: {
-                ...job.metadata,
-                textractJobs: {
-                  ...(job.metadata?.textractJobs || {}),
-                  [document.id]: {
-                    jobId: textractJobId,
-                    s3Key: document.s3Key,
-                    filename: document.filename,
-                    startedAt: new Date().toISOString(),
-                    status: 'IN_PROGRESS'
-                  }
-                }
-              }
-            });
-
-            // CRITICAL: Textract JobId is saved to metadata above (lines 354-369)
-            // EventBridge textract-poller runs every 60 seconds and will resume this job
-            console.log(`⏳ Job ${jobId} paused for Textract completion.`);
-            console.log(`⏳ EventBridge textract-poller will check status every 1 minute and resume when complete.`);
-
-            // Return immediately - Lambda can terminate gracefully
-            // EventBridge will detect completion and call /api/jobs/process to resume
-            return { documentsProcessed: i };
-          }
-
+          // RAG jobs should never encounter Textract async - text should be pre-extracted
+          // If we hit this error, something went wrong in DOCUMENT_ANALYSIS phase
           console.error(`❌ Error processing document ${document.filename}:`, errorMessage);
           failedDocuments++;
           failedItems.push({
