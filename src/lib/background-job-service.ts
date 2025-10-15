@@ -509,24 +509,22 @@ export class BackgroundJobService {
 
         const moduleType = fund.moduleType as 'FUNDING' | 'PROCUREMENT' | 'PROCUREMENT_ADMIN' | 'WORLDBANK' | 'WORLDBANK_ADMIN';
 
-        // For FUNDING module only (no brain endpoint, legacy behavior)
-        if (moduleType === 'FUNDING') {
-          await prisma.fund.update({
-            where: { id: job.fundId },
-            data: {
-              status: 'ACTIVE',
-              brainAssembledAt: new Date()
-            }
-          });
+        // Mark fund as ACTIVE after successful RAG processing
+        // IMPORTANT: This MUST happen here (not in brain assembly endpoint) because:
+        // 1. Brain assembly endpoint uses fire-and-forget pattern
+        // 2. Lambda context terminates before .then() callbacks execute
+        // 3. This is the ONLY place that reliably executes after RAG completion
+        await prisma.fund.update({
+          where: { id: job.fundId },
+          data: {
+            status: 'ACTIVE',
+            brainAssembledAt: new Date()
+          }
+        });
 
-          console.log(`✅ Fund ${job.fundId} status updated to ACTIVE with functional brain`);
-        } else {
-          // For PROCUREMENT_ADMIN, WORLDBANK, WORLDBANK_ADMIN:
-          // The brain assembly endpoint is responsible for marking fund as ACTIVE
-          console.log(`✅ RAG processing complete for ${moduleType} fund ${job.fundId} - waiting for brain assembly endpoint to mark as ACTIVE`);
-        }
+        console.log(`✅ Fund ${job.fundId} (${moduleType}) marked as ACTIVE after successful RAG processing`);
       }
-      
+
     } catch (error) {
       console.error(`RAG job ${jobId} failed:`, error);
       
