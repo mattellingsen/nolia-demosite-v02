@@ -125,6 +125,22 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     console.log(`🚀 Starting RAG processing for worldbank base ${baseId} with ${documentCount} documents`);
 
+    // Get DOCUMENT_ANALYSIS job to copy textractJobs metadata to RAG job
+    const documentAnalysisJob = await prisma.backgroundJob.findFirst({
+      where: {
+        fundId: baseId,
+        type: 'DOCUMENT_ANALYSIS',
+        status: 'COMPLETED'
+      },
+      orderBy: {
+        completedAt: 'desc'
+      }
+    });
+
+    // Extract textractJobs from DOCUMENT_ANALYSIS job metadata
+    const textractJobs = (documentAnalysisJob?.metadata as any)?.textractJobs || {};
+    console.log(`📋 Found ${Object.keys(textractJobs).length} textract job(s) from DOCUMENT_ANALYSIS to copy to RAG job`);
+
     // Actually process the RAG job to generate embeddings and store in OpenSearch
     let brainJob;
     if (existingRagJob && existingRagJob.status === 'PENDING') {
@@ -182,6 +198,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           metadata: {
             brainVersion: updatedBase.brainVersion,
             createdAt: new Date().toISOString(),
+            textractJobs: textractJobs, // Copy extracted text from DOCUMENT_ANALYSIS job
           }
         }
       });
