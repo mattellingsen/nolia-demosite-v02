@@ -8,57 +8,29 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Fund {
-  id                        String          @id @default(uuid())
-  name                      String
-  description               String?
-  status                    FundStatus      @default(DRAFT)
-  moduleType                ModuleType      @default(FUNDING)
-  createdAt                 DateTime        @default(now())
-  updatedAt                 DateTime        @updatedAt
+model assessments {
+  id               String           @id
+  fundId           String
+  organizationName String
+  projectName      String?
+  assessmentType   AssessmentType   @default(AI_POWERED)
+  status           AssessmentStatus @default(COMPLETED)
+  overallScore     Decimal?         @db.Decimal(5, 2)
+  scoringResults   Json
+  assessmentData   Json
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime
+  moduleType       ModuleType       @default(FUNDING)
+  funds            funds            @relation(fields: [fundId], references: [id], onDelete: Cascade)
 
-  // Funding module analysis fields
-  applicationFormAnalysis   Json?
-  selectionCriteriaAnalysis Json?
-  goodExamplesAnalysis      Json?
-  outputTemplatesAnalysis   Json?
-
-  // Worldbank-admin module analysis fields (global procurement knowledge base)
-  policyDocumentAnalysis       Json?
-  procurementRuleAnalysis      Json?
-  complianceStandardAnalysis   Json?
-  procurementTemplateAnalysis  Json?
-
-  brainAssembledAt          DateTime?
-  brainVersion              Int             @default(1)
-  fundBrain                 Json?
-  openSearchIndex           String?         // OpenSearch index name for RAG embeddings
-  backgroundJobs            BackgroundJob[]
-  documents                 FundDocument[]
-  assessments               Assessment[]
-
+  @@index([createdAt])
+  @@index([fundId])
   @@index([moduleType])
-  @@map("funds")
+  @@index([status])
 }
 
-model FundDocument {
-  id           String       @id @default(uuid())
-  fundId       String
-  documentType DocumentType
-  filename     String
-  mimeType     String
-  fileSize     Int
-  s3Key        String
-  moduleType   ModuleType   @default(FUNDING)
-  uploadedAt   DateTime     @default(now())
-  fund         Fund         @relation(fields: [fundId], references: [id], onDelete: Cascade)
-
-  @@index([moduleType])
-  @@map("fund_documents")
-}
-
-model BackgroundJob {
-  id                 String     @id @default(uuid())
+model background_jobs {
+  id                 String     @id
   fundId             String
   type               JobType
   status             JobStatus  @default(PENDING)
@@ -69,49 +41,76 @@ model BackgroundJob {
   errorMessage       String?
   startedAt          DateTime?
   completedAt        DateTime?
-  moduleType         ModuleType @default(FUNDING)
   createdAt          DateTime   @default(now())
-  updatedAt          DateTime   @updatedAt
-  fund               Fund       @relation(fields: [fundId], references: [id], onDelete: Cascade)
+  updatedAt          DateTime
+  moduleType         ModuleType @default(FUNDING)
+  funds              funds      @relation(fields: [fundId], references: [id], onDelete: Cascade)
 
   @@index([fundId])
+  @@index([moduleType])
   @@index([status])
   @@index([type])
-  @@index([moduleType])
-  @@map("background_jobs")
 }
 
-model Assessment {
-  id               String           @id @default(uuid())
-  fundId           String
-  organizationName String
-  projectName      String?
-  assessmentType   AssessmentType   @default(AI_POWERED)
-  status           AssessmentStatus @default(COMPLETED)
-  overallScore     Decimal?         @db.Decimal(5, 2)
-  scoringResults   Json
-  assessmentData   Json
-  moduleType       ModuleType       @default(FUNDING)
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
-  fund             Fund             @relation(fields: [fundId], references: [id], onDelete: Cascade)
+model fund_documents {
+  id           String       @id
+  fundId       String
+  documentType DocumentType
+  filename     String
+  mimeType     String
+  fileSize     Int
+  s3Key        String
+  uploadedAt   DateTime     @default(now())
+  moduleType   ModuleType   @default(FUNDING)
+  funds        funds        @relation(fields: [fundId], references: [id], onDelete: Cascade)
 
-  @@index([fundId])
-  @@index([status])
-  @@index([createdAt])
   @@index([moduleType])
-  @@map("assessments")
+}
+
+model funds {
+  id                          String            @id
+  name                        String
+  description                 String?
+  status                      FundStatus        @default(DRAFT)
+  createdAt                   DateTime          @default(now())
+  updatedAt                   DateTime
+  applicationFormAnalysis     Json?
+  selectionCriteriaAnalysis   Json?
+  goodExamplesAnalysis        Json?
+  brainAssembledAt            DateTime?
+  brainVersion                Int               @default(1)
+  fundBrain                   Json?
+  outputTemplatesAnalysis     Json?
+  moduleType                  ModuleType        @default(FUNDING)
+  openSearchIndex             String?
+  procurementRuleAnalysis     Json?
+  complianceStandardAnalysis  Json?
+  procurementTemplateAnalysis Json?
+  assessments                 assessments[]
+  background_jobs             background_jobs[]
+  fund_documents              fund_documents[]
+
+  @@index([moduleType])
+}
+
+enum AssessmentStatus {
+  DRAFT
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+enum AssessmentType {
+  AI_POWERED
+  PATTERN_BASED
+  MANUAL
 }
 
 enum DocumentType {
-  // Funding module document types
   APPLICATION_FORM
   SELECTION_CRITERIA
   GOOD_EXAMPLES
   OUTPUT_TEMPLATES
-
-  // Worldbank-admin module document types (global procurement knowledge base)
-  POLICY_DOCUMENT
   PROCUREMENT_RULE
   COMPLIANCE_STANDARD
   PROCUREMENT_TEMPLATE
@@ -133,19 +132,6 @@ enum JobStatus {
 enum JobType {
   RAG_PROCESSING
   DOCUMENT_ANALYSIS
-}
-
-enum AssessmentType {
-  AI_POWERED
-  PATTERN_BASED
-  MANUAL
-}
-
-enum AssessmentStatus {
-  DRAFT
-  IN_PROGRESS
-  COMPLETED
-  FAILED
 }
 
 enum ModuleType {
