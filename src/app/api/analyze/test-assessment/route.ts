@@ -345,9 +345,9 @@ async function handleFundBasedAssessment(file: File, fundId: string) {
 
     try {
         // Get the fund with its analyzed data
-        const fund = await prisma.fund.findUnique({
+        const fund = await prisma.funds.findUnique({
             where: { id: fundId },
-            include: { documents: true }
+            include: { fund_documents: true }
         });
 
         if (!fund) {

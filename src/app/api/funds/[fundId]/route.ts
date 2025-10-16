@@ -41,7 +41,7 @@ export async function GET(
         applicationFormAnalysis: fund.applicationFormAnalysis,
         selectionCriteriaAnalysis: fund.selectionCriteriaAnalysis,
         goodExamplesAnalysis: fund.goodExamplesAnalysis,
-        documents: fund.documents.map(doc => ({
+        documents: fund.fund_documents.map(doc => ({
           id: doc.id,
           documentType: doc.documentType,
           filename: doc.filename,
@@ -69,9 +69,9 @@ export async function DELETE(
     const { fundId } = await params;
     
     // First check if the fund exists with its documents
-    const fund = await prisma.fund.findUnique({
+    const fund = await prisma.funds.findUnique({
       where: { id: fundId },
-      include: { documents: true }
+      include: { fund_documents: true }
     });
     
     if (!fund) {
@@ -82,8 +82,8 @@ export async function DELETE(
     }
 
     // Delete all documents from S3
-    if (fund.documents.length > 0) {
-      const deletePromises = fund.documents.map(async (doc) => {
+    if (fund.fund_documents.length > 0) {
+      const deletePromises = fund.fund_documents.map(async (doc) => {
         try {
           await getS3Client().send(new DeleteObjectCommand({
             Bucket: S3_BUCKET,
@@ -99,7 +99,7 @@ export async function DELETE(
     }
 
     // Delete the fund from database (this will cascade delete documents and background jobs)
-    await prisma.fund.delete({
+    await prisma.funds.delete({
       where: { id: fundId }
     });
 

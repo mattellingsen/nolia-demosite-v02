@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
 
   try {
     // Find all PENDING/PROCESSING jobs (we'll filter for textractJobs in JavaScript)
-    const allJobs = await prisma.backgroundJob.findMany({
+    const allJobs = await prisma.background_jobs.findMany({
       where: {
         status: {
           in: ['PENDING', 'PROCESSING']
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
 
       // Update job metadata if any Textract jobs completed
       if (hasUpdates) {
-        await prisma.backgroundJob.update({
+        await prisma.background_jobs.update({
           where: { id: job.id },
           data: {
             metadata: {

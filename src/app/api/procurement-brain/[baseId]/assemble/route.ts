@@ -28,7 +28,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Get procurement base with all analyses
-    const procurementBase = await prisma.fund.findUnique({
+    const procurementBase = await prisma.funds.findUnique({
       where: {
         id: baseId,
         moduleType: 'PROCUREMENT_ADMIN'
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Check if document analysis is complete
-    if (!procurementBase.backgroundJobs.length) {
+    if (!procurementBase.background_jobs.length) {
       return NextResponse.json({
         error: 'Document analysis not completed yet'
       }, { status: 400 });
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     });
 
     // Update procurement base with assembled brain
-    const updatedBase = await prisma.fund.update({
+    const updatedBase = await prisma.funds.update({
       where: { id: baseId },
       data: {
         fundBrain: procurementBrain,
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     });
 
     // Check if there's already a RAG_PROCESSING job for this base
-    const existingRagJob = await prisma.backgroundJob.findFirst({
+    const existingRagJob = await prisma.background_jobs.findFirst({
       where: {
         fundId: baseId,
         type: 'RAG_PROCESSING',
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     });
 
     // Get actual document count
-    const documentCount = procurementBase.documents.length;
+    const documentCount = procurementBase.fund_documents.length;
 
     console.log(`🚀 Starting RAG processing for procurement base ${baseId} with ${documentCount} documents`);
 
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         .then(() => {
           console.log(`✅ RAG processing completed for job ${existingRagJob.id}`);
           // Update fund status to ACTIVE after RAG completes
-          return prisma.fund.update({
+          return prisma.funds.update({
             where: { id: baseId },
             data: {
               status: 'ACTIVE',
@@ -148,7 +148,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       brainJob = existingRagJob;
 
       // Update status to ACTIVE if not already
-      await prisma.fund.update({
+      await prisma.funds.update({
         where: { id: baseId },
         data: {
           status: 'ACTIVE',
@@ -158,7 +158,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     } else {
       // No job exists - create one and process it
       console.log(`Creating new RAG_PROCESSING job for ${baseId}`);
-      brainJob = await prisma.backgroundJob.create({
+      brainJob = await prisma.background_jobs.create({
         data: {
           fundId: baseId,
           type: 'RAG_PROCESSING',
@@ -181,7 +181,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         .then(() => {
           console.log(`✅ RAG processing completed for job ${brainJob.id}`);
           // Update fund status to ACTIVE after RAG completes
-          return prisma.fund.update({
+          return prisma.funds.update({
             where: { id: baseId },
             data: {
               status: 'ACTIVE',
@@ -223,7 +223,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { baseId } = await params;
 
-    const procurementBase = await prisma.fund.findUnique({
+    const procurementBase = await prisma.funds.findUnique({
       where: {
         id: baseId,
         moduleType: 'PROCUREMENT_ADMIN'

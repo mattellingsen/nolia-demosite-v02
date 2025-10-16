@@ -11,7 +11,7 @@ export async function POST(
     const { fundId } = await params;
     
     // Check if fund exists and has required analysis data
-    const existingFund = await prisma.fund.findUnique({
+    const existingFund = await prisma.funds.findUnique({
       where: { id: fundId },
       include: {
         documents: true
@@ -35,7 +35,7 @@ export async function POST(
       );
     }
 
-    if (existingFund.documents.length === 0) {
+    if (existingFund.fund_documents.length === 0) {
       return NextResponse.json(
         { error: 'Fund cannot be activated - no documents uploaded' },
         { status: 400 }
@@ -43,7 +43,7 @@ export async function POST(
     }
 
     // Activate the fund
-    const activatedFund = await prisma.fund.update({
+    const activatedFund = await prisma.funds.update({
       where: { id: fundId },
       data: {
         status: 'ACTIVE',

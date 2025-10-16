@@ -20,7 +20,7 @@ export async function GET(
     const jobs = await BackgroundJobService.getFundJobs(projectId);
 
     // Get actual document counts from database
-    const documentCounts = await prisma.fundDocument.groupBy({
+    const documentCounts = await prisma.fund_documents.groupBy({
       by: ['documentType'],
       where: {
         fundId: projectId,
@@ -40,7 +40,7 @@ export async function GET(
     };
 
     // Get individual document details for display
-    const documents = await prisma.fundDocument.findMany({
+    const documents = await prisma.fund_documents.findMany({
       where: {
         fundId: projectId,
         moduleType: 'WORLDBANK'
@@ -59,7 +59,7 @@ export async function GET(
     });
 
     // Check if project has a brain already
-    const project = await prisma.fund.findUnique({
+    const project = await prisma.funds.findUnique({
       where: { id: projectId },
       select: {
         fundBrain: true,

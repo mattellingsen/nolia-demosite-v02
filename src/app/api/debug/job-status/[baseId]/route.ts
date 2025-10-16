@@ -9,7 +9,7 @@ export async function GET(
     const { baseId } = params;
 
     // Get fund and base info
-    const fund = await prisma.fund.findFirst({
+    const fund = await prisma.funds.findFirst({
       where: { worldbankBaseId: baseId },
       include: {
         worldbankBase: {
@@ -25,7 +25,7 @@ export async function GET(
     }
 
     // Get background job
-    const job = await prisma.backgroundJob.findFirst({
+    const job = await prisma.background_jobs.findFirst({
       where: { fundId: fund.id },
       orderBy: { createdAt: 'desc' },
     });
@@ -56,9 +56,9 @@ export async function GET(
         status: fund.worldbankBase?.status,
         createdAt: fund.worldbankBase?.createdAt,
         updatedAt: fund.worldbankBase?.updatedAt,
-        documentCount: fund.worldbankBase?.documents.length,
+        documentCount: fund.worldbankBase?.fund_documents.length,
       },
-      documents: fund.worldbankBase?.documents.map(doc => ({
+      documents: fund.worldbankBase?.fund_documents.map(doc => ({
         id: doc.id,
         filename: doc.filename,
         documentType: doc.documentType,

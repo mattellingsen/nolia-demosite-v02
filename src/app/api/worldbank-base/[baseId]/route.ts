@@ -11,13 +11,13 @@ export async function GET(
   try {
     const { baseId } = await params;
 
-    const base = await prisma.fund.findFirst({
+    const base = await prisma.funds.findFirst({
       where: {
         id: baseId,
         moduleType: 'WORLDBANK_ADMIN'
       },
       include: {
-        documents: {
+        fund_documents: {
           select: {
             id: true,
             documentType: true,
@@ -26,7 +26,7 @@ export async function GET(
             uploadedAt: true
           }
         },
-        backgroundJobs: {
+        background_jobs: {
           select: {
             id: true,
             type: true,
@@ -63,15 +63,15 @@ export async function GET(
       updatedAt: base.updatedAt.toISOString(),
       brainAssembledAt: base.brainAssembledAt?.toISOString(),
       brainVersion: base.brainVersion,
-      documentsCount: base.documents.length,
-      documents: base.documents.map(doc => ({
+      documentsCount: base.fund_documents.length,
+      documents: base.fund_documents.map(doc => ({
         id: doc.id,
         documentType: doc.documentType,
         filename: doc.filename,
         fileSize: doc.fileSize,
         uploadedAt: doc.uploadedAt.toISOString()
       })),
-      backgroundJobs: base.backgroundJobs.map(job => ({
+      backgroundJobs: base.background_jobs.map(job => ({
         id: job.id,
         type: job.type,
         status: job.status,
@@ -106,7 +106,7 @@ export async function DELETE(
     const { baseId } = await params;
 
     // Check if base exists and is a worldbank admin base
-    const base = await prisma.fund.findFirst({
+    const base = await prisma.funds.findFirst({
       where: {
         id: baseId,
         moduleType: 'WORLDBANK_ADMIN'
@@ -121,7 +121,7 @@ export async function DELETE(
     }
 
     // Delete the base (cascade will handle related records)
-    await prisma.fund.delete({
+    await prisma.funds.delete({
       where: { id: baseId }
     });
 

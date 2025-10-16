@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Check if a procurement base with this name already exists
-    const existingBase = await prisma.fund.findFirst({
+    const existingBase = await prisma.funds.findFirst({
       where: {
         name: {
           equals: name.trim(),

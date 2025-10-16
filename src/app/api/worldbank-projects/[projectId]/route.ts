@@ -23,7 +23,7 @@ export async function GET(
   try {
     const { projectId } = await params;
 
-    const project = await prisma.fund.findUnique({
+    const project = await prisma.funds.findUnique({
       where: {
         id: projectId,
         moduleType: 'WORLDBANK' // KEY: Ensure only worldbank projects
@@ -53,7 +53,7 @@ export async function GET(
         applicationFormAnalysis: project.applicationFormAnalysis,
         selectionCriteriaAnalysis: project.selectionCriteriaAnalysis,
         goodExamplesAnalysis: project.goodExamplesAnalysis,
-        documents: project.documents.map(doc => ({
+        documents: project.fund_documents.map(doc => ({
           id: doc.id,
           documentType: doc.documentType,
           filename: doc.filename,
@@ -90,7 +90,7 @@ export async function PATCH(
     }
 
     // First check if project exists and is worldbank module
-    const existingProject = await prisma.fund.findUnique({
+    const existingProject = await prisma.funds.findUnique({
       where: {
         id: projectId,
         moduleType: 'WORLDBANK' // KEY: Ensure only worldbank projects
@@ -105,7 +105,7 @@ export async function PATCH(
     }
 
     // Update project status
-    const updatedProject = await prisma.fund.update({
+    const updatedProject = await prisma.funds.update({
       where: { id: projectId },
       data: { status }
     });
@@ -139,12 +139,12 @@ export async function DELETE(
     const { projectId } = await params;
 
     // First check if the project exists with its documents
-    const project = await prisma.fund.findUnique({
+    const project = await prisma.funds.findUnique({
       where: {
         id: projectId,
         moduleType: 'WORLDBANK' // KEY: Ensure only worldbank projects
       },
-      include: { documents: true }
+      include: { fund_documents: true }
     });
 
     if (!project) {
@@ -155,8 +155,8 @@ export async function DELETE(
     }
 
     // Delete all documents from S3
-    if (project.documents.length > 0) {
-      const deletePromises = project.documents.map(async (doc) => {
+    if (project.fund_documents.length > 0) {
+      const deletePromises = project.fund_documents.map(async (doc) => {
         try {
           await getS3Client().send(new DeleteObjectCommand({
             Bucket: S3_BUCKET,
@@ -172,7 +172,7 @@ export async function DELETE(
     }
 
     // Delete the project from database (this will cascade delete documents and background jobs)
-    await prisma.fund.delete({
+    await prisma.funds.delete({
       where: { id: projectId }
     });
 

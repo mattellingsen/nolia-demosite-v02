@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   try {
     // Fetch only procurement module tenders
-    const tenders = await prisma.fund.findMany({
+    const tenders = await prisma.funds.findMany({
       where: {
         moduleType: 'PROCUREMENT' // KEY: Filter by moduleType
       },
@@ -169,7 +169,7 @@ export async function GET() {
         status: tender.status,
         createdAt: tender.createdAt,
         updatedAt: tender.updatedAt,
-        documentsCount: tender._count.documents
+        documentsCount: tender._count.fund_documents
       }))
     });
 

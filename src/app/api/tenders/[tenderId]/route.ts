@@ -19,7 +19,7 @@ export async function GET(
   try {
     const { tenderId } = await params;
 
-    const tender = await prisma.fund.findUnique({
+    const tender = await prisma.funds.findUnique({
       where: {
         id: tenderId,
         moduleType: 'PROCUREMENT' // KEY: Ensure only procurement tenders
@@ -49,7 +49,7 @@ export async function GET(
         applicationFormAnalysis: tender.applicationFormAnalysis,
         selectionCriteriaAnalysis: tender.selectionCriteriaAnalysis,
         goodExamplesAnalysis: tender.goodExamplesAnalysis,
-        documents: tender.documents.map(doc => ({
+        documents: tender.fund_documents.map(doc => ({
           id: doc.id,
           documentType: doc.documentType,
           filename: doc.filename,
@@ -86,7 +86,7 @@ export async function PATCH(
     }
 
     // First check if tender exists and is procurement module
-    const existingTender = await prisma.fund.findUnique({
+    const existingTender = await prisma.funds.findUnique({
       where: {
         id: tenderId,
         moduleType: 'PROCUREMENT' // KEY: Ensure only procurement tenders
@@ -101,7 +101,7 @@ export async function PATCH(
     }
 
     // Update tender status
-    const updatedTender = await prisma.fund.update({
+    const updatedTender = await prisma.funds.update({
       where: { id: tenderId },
       data: { status }
     });
@@ -135,12 +135,12 @@ export async function DELETE(
     const { tenderId } = await params;
 
     // First check if the tender exists with its documents
-    const tender = await prisma.fund.findUnique({
+    const tender = await prisma.funds.findUnique({
       where: {
         id: tenderId,
         moduleType: 'PROCUREMENT' // KEY: Ensure only procurement tenders
       },
-      include: { documents: true }
+      include: { fund_documents: true }
     });
 
     if (!tender) {
@@ -151,8 +151,8 @@ export async function DELETE(
     }
 
     // Delete all documents from S3
-    if (tender.documents.length > 0) {
-      const deletePromises = tender.documents.map(async (doc) => {
+    if (tender.fund_documents.length > 0) {
+      const deletePromises = tender.fund_documents.map(async (doc) => {
         try {
           await getS3Client().send(new DeleteObjectCommand({
             Bucket: S3_BUCKET,
@@ -168,7 +168,7 @@ export async function DELETE(
     }
 
     // Delete the tender from database (this will cascade delete documents and background jobs)
-    await prisma.fund.delete({
+    await prisma.funds.delete({
       where: { id: tenderId }
     });
 

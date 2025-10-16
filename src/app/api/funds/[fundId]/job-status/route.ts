@@ -20,7 +20,7 @@ export async function GET(
     const jobs = await BackgroundJobService.getFundJobs(fundId);
     
     // Get actual document counts by type from database
-    const documentCounts = await prisma.fundDocument.groupBy({
+    const documentCounts = await prisma.fund_documents.groupBy({
       by: ['documentType'],
       where: { fundId },
       _count: {
@@ -37,7 +37,7 @@ export async function GET(
     };
     
     // Check if fund has a brain already (emergency fix scenario)
-    const fund = await prisma.fund.findUnique({
+    const fund = await prisma.funds.findUnique({
       where: { id: fundId },
       select: { fundBrain: true, brainAssembledAt: true, moduleType: true }
     });

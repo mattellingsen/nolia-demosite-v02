@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Get DOCUMENT_ANALYSIS job
-  const docJob = await prisma.backgroundJob.findFirst({
+  const docJob = await prisma.background_jobs.findFirst({
     where: {
       fundId,
       type: 'DOCUMENT_ANALYSIS',
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   });
 
   // Get RAG job
-  const ragJob = await prisma.backgroundJob.findFirst({
+  const ragJob = await prisma.background_jobs.findFirst({
     where: {
       fundId,
       type: 'RAG_PROCESSING'

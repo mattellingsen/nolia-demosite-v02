@@ -40,7 +40,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     // Get fund brain status if this is a completed document analysis job
     let brainStatus = null;
     if (job.type === 'DOCUMENT_ANALYSIS' && job.status === 'COMPLETED') {
-      const fund = await prisma.fund.findUnique({
+      const fund = await prisma.funds.findUnique({
         where: { id: job.fundId },
         select: {
           fundBrain: true,

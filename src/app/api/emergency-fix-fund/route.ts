@@ -16,9 +16,9 @@ export async function POST(request: NextRequest) {
         console.log('🚨 Emergency fund fix starting for:', fundId);
 
         // Get the fund and its documents
-        const fund = await prisma.fund.findUnique({
+        const fund = await prisma.funds.findUnique({
             where: { id: fundId },
-            include: { documents: true }
+            include: { fund_documents: true }
         });
 
         if (!fund) {
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        console.log('📋 Found fund:', fund.name, 'with', fund.documents.length, 'documents');
+        console.log('📋 Found fund:', fund.name, 'with', fund.fund_documents.length, 'documents');
 
         // Check if fund needs processing (DRAFT, PROCESSING, or ACTIVE with no fundBrain)
         const needsProcessing = fund.status === 'DRAFT' ||
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
         console.log('📄 Processing documents through RAG database...');
 
         const processedDocuments = [];
-        for (const doc of fund.documents) {
+        for (const doc of fund.fund_documents) {
             try {
                 console.log(`Processing document: ${doc.filename} (${doc.type})`);
 
@@ -96,10 +96,10 @@ export async function POST(request: NextRequest) {
 
         const fundBrain = {
             knowledgeBase: {
-                totalDocuments: fund.documents.length,
+                totalDocuments: fund.fund_documents.length,
                 processedSuccessfully: successfulDocs.length,
                 failed: failedDocs.length,
-                documentTypes: fund.documents.reduce((acc, doc) => {
+                documentTypes: fund.fund_documents.reduce((acc, doc) => {
                     acc[doc.documentType || 'unknown'] = (acc[doc.documentType || 'unknown'] || 0) + 1;
                     return acc;
                 }, {} as Record<string, number>),
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
         // Step 3: Update fund with brain and set to ACTIVE
         console.log('🔄 Updating fund with brain and activating...');
 
-        const updatedFund = await prisma.fund.update({
+        const updatedFund = await prisma.funds.update({
             where: { id: fundId },
             data: {
                 status: 'ACTIVE',
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
         // Step 4: Mark any background jobs as completed
         console.log('✅ Marking background jobs as completed...');
 
-        await prisma.backgroundJob.updateMany({
+        await prisma.background_jobs.updateMany({
             where: {
                 fundId: fundId,
                 status: { in: ['PENDING', 'RUNNING'] }
@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
                 processedAt: updatedFund.processedAt
             },
             processing: {
-                totalDocuments: fund.documents.length,
+                totalDocuments: fund.fund_documents.length,
                 processed: successfulDocs.length,
                 failed: failedDocs.length,
                 knowledgeBaseReady: successfulDocs.length > 0

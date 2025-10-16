@@ -8,7 +8,7 @@ export async function GET(
   try {
     const { assessmentId } = await params;
 
-    const assessment = await prisma.assessment.findUnique({
+    const assessment = await prisma.assessments.findUnique({
       where: { id: assessmentId },
       include: {
         fund: {
@@ -48,7 +48,7 @@ export async function DELETE(
   try {
     const { assessmentId } = await params;
 
-    const assessment = await prisma.assessment.findUnique({
+    const assessment = await prisma.assessments.findUnique({
       where: { id: assessmentId }
     });
 
@@ -58,7 +58,7 @@ export async function DELETE(
       }, { status: 404 });
     }
 
-    await prisma.assessment.delete({
+    await prisma.assessments.delete({
       where: { id: assessmentId }
     });
 

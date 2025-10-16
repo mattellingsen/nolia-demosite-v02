@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Find PENDING RAG_PROCESSING jobs
-    const stalePendingJobs = await prisma.backgroundJob.findMany({
+    const stalePendingJobs = await prisma.background_jobs.findMany({
       where: whereConditions,
       include: {
         fund: {
@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
  */
 export async function GET() {
   try {
-    const stalePendingJobs = await prisma.backgroundJob.findMany({
+    const stalePendingJobs = await prisma.background_jobs.findMany({
       where: {
         type: 'RAG_PROCESSING',
         status: JobStatus.PENDING,

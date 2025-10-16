@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     const startTime = Date.now();
 
     // Create fund first - minimal data only
-    const fund = await prisma.fund.create({
+    const fund = await prisma.funds.create({
       data: {
         name,
         description,

@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify tender exists and is procurement module
-    const tender = await prisma.fund.findUnique({
+    const tender = await prisma.funds.findUnique({
       where: {
         id: tenderId,
         moduleType: 'PROCUREMENT' // KEY: Ensure only procurement tenders
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
 
     // Create assessment record
     console.log('💾 Creating procurement assessment in database...');
-    const assessment = await prisma.assessment.create({
+    const assessment = await prisma.assessments.create({
       data: {
         fundId: tenderId, // Note: In database, we still use fundId but it refers to tender
         organizationName,
@@ -112,7 +112,7 @@ export async function GET(request: NextRequest) {
       ...(tenderId ? { fundId: tenderId } : {})
     };
 
-    const assessments = await prisma.assessment.findMany({
+    const assessments = await prisma.assessments.findMany({
       where,
       include: {
         fund: {
@@ -139,7 +139,7 @@ export async function GET(request: NextRequest) {
     }));
 
     // Get total count for pagination
-    const total = await prisma.assessment.count({ where });
+    const total = await prisma.assessments.count({ where });
 
     console.log(`📊 Total procurement assessments in database: ${total}`);
 

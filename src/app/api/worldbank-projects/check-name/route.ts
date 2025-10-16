@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if a project with this name already exists (WORLDBANK module)
-    const existingProject = await prisma.fund.findFirst({
+    const existingProject = await prisma.funds.findFirst({
       where: {
         name: {
           equals: name.trim(),

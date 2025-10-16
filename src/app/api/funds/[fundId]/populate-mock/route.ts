@@ -11,7 +11,7 @@ export async function POST(
     const { fundId } = await params;
     
     // Check if fund exists
-    const existingFund = await prisma.fund.findUnique({
+    const existingFund = await prisma.funds.findUnique({
       where: { id: fundId }
     });
     
@@ -104,7 +104,7 @@ export async function POST(
     };
 
     // Update the fund with mock analysis data
-    const updatedFund = await prisma.fund.update({
+    const updatedFund = await prisma.funds.update({
       where: { id: fundId },
       data: {
         applicationFormAnalysis: mockApplicationFormAnalysis,
@@ -169,7 +169,7 @@ export async function POST(
     ];
 
     // Insert mock documents
-    await prisma.fundDocument.createMany({
+    await prisma.fund_documents.createMany({
       data: mockDocuments
     });
 

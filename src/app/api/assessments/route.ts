@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify fund exists
-    const fund = await prisma.fund.findUnique({
+    const fund = await prisma.funds.findUnique({
       where: { id: fundId }
     });
 
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
 
     // Create assessment record
     console.log('💾 Creating assessment in database...');
-    const assessment = await prisma.assessment.create({
+    const assessment = await prisma.assessments.create({
       data: {
         fundId,
         organizationName,
@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
     // Build where clause
     const where = fundId ? { fundId } : {};
 
-    const assessments = await prisma.assessment.findMany({
+    const assessments = await prisma.assessments.findMany({
       where,
       include: {
         fund: {
@@ -132,7 +132,7 @@ export async function GET(request: NextRequest) {
     }));
 
     // Get total count for pagination
-    const total = await prisma.assessment.count({ where });
+    const total = await prisma.assessments.count({ where });
 
     console.log(`📊 Total assessments in database: ${total}`);
 

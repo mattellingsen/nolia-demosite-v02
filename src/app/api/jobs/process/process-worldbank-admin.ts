@@ -57,14 +57,14 @@ export async function processWorldbankAdminDocument(
     try {
       console.log(`📊 Chunk progress: ${currentChunk}/${totalChunks} (${Math.round(currentChunk/totalChunks*100)}%)`);
 
-      const currentJob = await prisma.backgroundJob.findUnique({
+      const currentJob = await prisma.background_jobs.findUnique({
         where: { id: jobId }
       });
 
       if (currentJob) {
         const currentMetadata = currentJob.metadata as any || {};
 
-        await prisma.backgroundJob.update({
+        await prisma.background_jobs.update({
           where: { id: jobId },
           data: {
             metadata: {
@@ -148,7 +148,7 @@ export async function processWorldbankAdminDocument(
         console.log('✅ POLICY_DOCUMENT analysis complete');
 
         // Save to database
-        await prisma.fund.update({
+        await prisma.funds.update({
           where: { id: document.fundId },
           data: {
             policyDocumentAnalysis: analysisResult
@@ -167,7 +167,7 @@ export async function processWorldbankAdminDocument(
         console.log('✅ PROCUREMENT_RULE analysis complete');
 
         // Save to database
-        await prisma.fund.update({
+        await prisma.funds.update({
           where: { id: document.fundId },
           data: {
             procurementRuleAnalysis: analysisResult
@@ -186,7 +186,7 @@ export async function processWorldbankAdminDocument(
         console.log('✅ COMPLIANCE_STANDARD analysis complete');
 
         // Save to database
-        await prisma.fund.update({
+        await prisma.funds.update({
           where: { id: document.fundId },
           data: {
             complianceStandardAnalysis: analysisResult
@@ -205,7 +205,7 @@ export async function processWorldbankAdminDocument(
         console.log('✅ PROCUREMENT_TEMPLATE analysis complete');
 
         // Save to database
-        await prisma.fund.update({
+        await prisma.funds.update({
           where: { id: document.fundId },
           data: {
             procurementTemplateAnalysis: analysisResult

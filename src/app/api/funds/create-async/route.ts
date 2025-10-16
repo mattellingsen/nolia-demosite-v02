@@ -153,7 +153,7 @@ export async function POST(request: NextRequest) {
       }));
 
       // Create document record
-      const documentRecord = await prisma.fundDocument.create({
+      const documentRecord = await prisma.fund_documents.create({
         data: {
           fundId: fund.id,
           documentType: doc.documentType,

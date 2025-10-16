@@ -16,7 +16,7 @@ export async function POST(
     }
 
     // Check if fund exists
-    const fund = await prisma.fund.findUnique({
+    const fund = await prisma.funds.findUnique({
       where: { id: fundId }
     });
 
@@ -28,7 +28,7 @@ export async function POST(
     }
 
     // Find any failed background jobs for this fund
-    const failedJobs = await prisma.backgroundJob.findMany({
+    const failedJobs = await prisma.background_jobs.findMany({
       where: {
         fundId,
         status: 'FAILED'
@@ -46,7 +46,7 @@ export async function POST(
     // Reset the most recent failed job to pending
     const latestFailedJob = failedJobs[0];
 
-    await prisma.backgroundJob.update({
+    await prisma.background_jobs.update({
       where: { id: latestFailedJob.id },
       data: {
         status: 'PENDING',

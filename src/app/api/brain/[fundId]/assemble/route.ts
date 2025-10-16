@@ -27,7 +27,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Get fund with all analyses
-    const fund = await prisma.fund.findUnique({
+    const fund = await prisma.funds.findUnique({
       where: { id: fundId },
       include: {
         documents: true,
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Check if document analysis is complete
-    if (!fund.backgroundJobs.length) {
+    if (!fund.background_jobs.length) {
       return NextResponse.json({
         error: 'Document analysis not completed yet'
       }, { status: 400 });
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     });
 
     // Update fund with assembled brain
-    const updatedFund = await prisma.fund.update({
+    const updatedFund = await prisma.funds.update({
       where: { id: fundId },
       data: {
         fundBrain,
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     });
 
     // Check if there's already a RAG_PROCESSING job for this fund
-    const existingRagJob = await prisma.backgroundJob.findFirst({
+    const existingRagJob = await prisma.background_jobs.findFirst({
       where: {
         fundId,
         type: 'RAG_PROCESSING',
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     let brainJob;
     if (existingRagJob) {
       // Update existing job to completed
-      brainJob = await prisma.backgroundJob.update({
+      brainJob = await prisma.background_jobs.update({
         where: { id: existingRagJob.id },
         data: {
           status: 'COMPLETED',
@@ -134,7 +134,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       console.log(`Updated existing RAG_PROCESSING job ${existingRagJob.id} to completed`);
     } else {
       // Create new brain assembly job record for tracking
-      brainJob = await prisma.backgroundJob.create({
+      brainJob = await prisma.background_jobs.create({
         data: {
           fundId,
           type: 'RAG_PROCESSING',
@@ -155,7 +155,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Update fund status to ACTIVE when brain assembly is complete
-    await prisma.fund.update({
+    await prisma.funds.update({
       where: { id: fundId },
       data: { status: 'ACTIVE' }
     });
@@ -188,7 +188,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { fundId } = await params;
 
-    const fund = await prisma.fund.findUnique({
+    const fund = await prisma.funds.findUnique({
       where: { id: fundId },
       select: {
         id: true,

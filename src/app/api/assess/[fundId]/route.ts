@@ -157,7 +157,7 @@ async function getFundWithBrain(fundId: string): Promise<{
 }> {
   try {
     // Test basic fund access first
-    const basicFund = await prisma.fund.findUnique({
+    const basicFund = await prisma.funds.findUnique({
       where: { id: fundId },
       select: { id: true, name: true }
     });
@@ -173,7 +173,7 @@ async function getFundWithBrain(fundId: string): Promise<{
     console.log(`📋 Found fund: ${basicFund.name}`);
 
     // Get full fund data
-    const fund = await prisma.fund.findUnique({
+    const fund = await prisma.funds.findUnique({
       where: { id: fundId },
       select: {
         id: true,

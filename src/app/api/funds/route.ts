@@ -153,7 +153,7 @@ export async function GET() {
         status: fund.status,
         createdAt: fund.createdAt,
         updatedAt: fund.updatedAt,
-        documentsCount: fund._count.documents
+        documentsCount: fund._count.fund_documents
       }))
     });
 

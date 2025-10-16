@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
 
     // Step 2: Test basic fund creation (no files)
     const step2Start = Date.now();
-    const testFund = await prisma.fund.create({
+    const testFund = await prisma.funds.create({
       data: {
         name: `Debug Test Fund ${Date.now()}`,
         description: 'Debug test fund for performance testing'
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
     // Step 4: Test document creation
     const step4Start = Date.now();
     try {
-      const testDocument = await prisma.fundDocument.create({
+      const testDocument = await prisma.fund_documents.create({
         data: {
           fundId: testFund.id,
           documentType: 'APPLICATION_FORM',
@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
     // Step 5: Test background job creation
     const step5Start = Date.now();
     try {
-      const testJob = await prisma.backgroundJob.create({
+      const testJob = await prisma.background_jobs.create({
         data: {
           fundId: testFund.id,
           type: 'RAG_PROCESSING',
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
     // Cleanup test data
     const cleanupStart = Date.now();
     try {
-      await prisma.fund.delete({ where: { id: testFund.id } }); // Cascade will delete related records
+      await prisma.funds.delete({ where: { id: testFund.id } }); // Cascade will delete related records
       stepResults.push({
         step: 6,
         name: 'Cleanup',

@@ -11,7 +11,7 @@ export async function DELETE(
     const { fundId } = await params;
     
     // Check if fund exists
-    const existingFund = await prisma.fund.findUnique({
+    const existingFund = await prisma.funds.findUnique({
       where: { id: fundId },
       include: {
         documents: true
@@ -26,12 +26,12 @@ export async function DELETE(
     }
 
     // Delete all related documents first (cascade should handle this, but being explicit)
-    await prisma.fundDocument.deleteMany({
+    await prisma.fund_documents.deleteMany({
       where: { fundId: fundId }
     });
 
     // Delete the fund
-    await prisma.fund.delete({
+    await prisma.funds.delete({
       where: { id: fundId }
     });
 
@@ -41,7 +41,7 @@ export async function DELETE(
       deletedFund: {
         id: existingFund.id,
         name: existingFund.name,
-        documentsDeleted: existingFund.documents.length
+        documentsDeleted: existingFund.fund_documents.length
       }
     });
 

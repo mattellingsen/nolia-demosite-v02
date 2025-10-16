@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate fund exists
-    const fund = await prisma.fund.findUnique({
+    const fund = await prisma.funds.findUnique({
       where: { id: fundId }
     });
 
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
       const s3Key = `${folder}/${crypto.randomUUID()}-${doc.filename}`;
 
       // Create document record in database
-      const documentRecord = await prisma.fundDocument.create({
+      const documentRecord = await prisma.fund_documents.create({
         data: {
           fundId,
           documentType: doc.documentType as DocumentType,

@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   try {
     // Fetch only worldbank module projects
-    const projects = await prisma.fund.findMany({
+    const projects = await prisma.funds.findMany({
       where: {
         moduleType: 'WORLDBANK' // KEY: Filter by moduleType
       },
@@ -169,7 +169,7 @@ export async function GET() {
         status: project.status,
         createdAt: project.createdAt,
         updatedAt: project.updatedAt,
-        documentsCount: project._count.documents
+        documentsCount: project._count.fund_documents
       }))
     });
 

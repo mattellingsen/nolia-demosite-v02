@@ -17,7 +17,7 @@ export async function POST(request: NextRequest, { params }: { params: { fundId:
     }
 
     // Get fund and current jobs
-    const fund = await prisma.fund.findUnique({
+    const fund = await prisma.funds.findUnique({
       where: { id: fundId },
       include: {
         backgroundJobs: {
@@ -36,13 +36,13 @@ export async function POST(request: NextRequest, { params }: { params: { fundId:
       }, { status: 404 });
     }
 
-    console.log(`🚨 EMERGENCY: Force completing fund ${fundId} - ${fund.backgroundJobs.length} stuck jobs`);
+    console.log(`🚨 EMERGENCY: Force completing fund ${fundId} - ${fund.background_jobs.length} stuck jobs`);
 
     // Complete all pending/processing jobs for this fund
     const updateResults = [];
 
-    for (const job of fund.backgroundJobs) {
-      const updatedJob = await prisma.backgroundJob.update({
+    for (const job of fund.background_jobs) {
+      const updatedJob = await prisma.background_jobs.update({
         where: { id: job.id },
         data: {
           status: JobStatus.COMPLETED,
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest, { params }: { params: { fundId:
     // Update fund status if it's still in DRAFT
     let fundUpdated = false;
     if (fund.status === FundStatus.DRAFT) {
-      await prisma.fund.update({
+      await prisma.funds.update({
         where: { id: fundId },
         data: {
           status: FundStatus.ACTIVE,

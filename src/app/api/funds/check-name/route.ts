@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if a fund with this name already exists
-    const existingFund = await prisma.fund.findFirst({
+    const existingFund = await prisma.funds.findFirst({
       where: {
         name: {
           equals: name.trim(),

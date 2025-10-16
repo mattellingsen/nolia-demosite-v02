@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   try {
     // Force cache refresh - deployment timestamp
     console.log('🔄 API called at:', new Date().toISOString());
-    const bases = await prisma.fund.findMany({
+    const bases = await prisma.funds.findMany({
       where: {
         moduleType: 'WORLDBANK_ADMIN'
       },
@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
         updatedAt: true,
         brainAssembledAt: true,
         brainVersion: true,
-        documents: {
+        fund_documents: {
           select: {
             id: true,
             documentType: true,
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
       status: base.status,
       createdAt: base.createdAt.toISOString(),
       updatedAt: base.updatedAt.toISOString(),
-      documentsCount: base.documents.length,
+      documentsCount: base.fund_documents.length,
       brainAssembledAt: base.brainAssembledAt?.toISOString(),
       brainVersion: base.brainVersion
     }));
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if name already exists
-    const existingBase = await prisma.fund.findFirst({
+    const existingBase = await prisma.funds.findFirst({
       where: {
         name: name.trim(),
         moduleType: 'WORLDBANK_ADMIN'
@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Create the worldbank base
-    const base = await prisma.fund.create({
+    const base = await prisma.funds.create({
       data: {
         name: name.trim(),
         description: description || null,

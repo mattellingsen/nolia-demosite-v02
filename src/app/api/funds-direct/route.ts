@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     const startTime = Date.now();
 
     // Create fund with minimal data first
-    const fund = await prisma.fund.create({
+    const fund = await prisma.funds.create({
       data: {
         name,
         description,
@@ -157,7 +157,7 @@ async function processFileDirectly(file: File, fundId: string, documentType: str
     );
     
     // Create document record
-    await prisma.fundDocument.create({
+    await prisma.fund_documents.create({
       data: {
         fundId,
         documentType: documentType as any,

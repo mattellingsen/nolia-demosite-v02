@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
     console.log('🗑️ Starting cleanup of procurement-admin data...');
 
     // Get all procurement admin funds
-    const procurementFunds = await prisma.fund.findMany({
+    const procurementFunds = await prisma.funds.findMany({
       where: {
         moduleType: 'PROCUREMENT_ADMIN'
       },
@@ -27,25 +27,25 @@ export async function POST(req: NextRequest) {
       console.log(`Deleting fund: ${fund.name} (${fund.id})`);
 
       // Delete background jobs first
-      await prisma.backgroundJob.deleteMany({
+      await prisma.background_jobs.deleteMany({
         where: {
           fundId: fund.id
         }
       });
-      deletedJobs += fund.backgroundJobs.length;
-      console.log(`  ✅ Deleted ${fund.backgroundJobs.length} background jobs`);
+      deletedJobs += fund.background_jobs.length;
+      console.log(`  ✅ Deleted ${fund.background_jobs.length} background jobs`);
 
       // Delete documents
-      await prisma.fundDocument.deleteMany({
+      await prisma.fund_documents.deleteMany({
         where: {
           fundId: fund.id
         }
       });
-      deletedDocuments += fund.documents.length;
-      console.log(`  ✅ Deleted ${fund.documents.length} documents`);
+      deletedDocuments += fund.fund_documents.length;
+      console.log(`  ✅ Deleted ${fund.fund_documents.length} documents`);
 
       // Delete the fund itself
-      await prisma.fund.delete({
+      await prisma.funds.delete({
         where: {
           id: fund.id
         }
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
 // GET: Check what would be cleaned up without deleting
 export async function GET(req: NextRequest) {
   try {
-    const procurementFunds = await prisma.fund.findMany({
+    const procurementFunds = await prisma.funds.findMany({
       where: {
         moduleType: 'PROCUREMENT_ADMIN'
       },
@@ -93,14 +93,14 @@ export async function GET(req: NextRequest) {
 
     const summary = {
       fundsFound: procurementFunds.length,
-      totalDocuments: procurementFunds.reduce((sum, fund) => sum + fund.documents.length, 0),
-      totalJobs: procurementFunds.reduce((sum, fund) => sum + fund.backgroundJobs.length, 0),
+      totalDocuments: procurementFunds.reduce((sum, fund) => sum + fund.fund_documents.length, 0),
+      totalJobs: procurementFunds.reduce((sum, fund) => sum + fund.background_jobs.length, 0),
       funds: procurementFunds.map(fund => ({
         id: fund.id,
         name: fund.name,
         status: fund.status,
-        documentsCount: fund.documents.length,
-        jobsCount: fund.backgroundJobs.length,
+        documentsCount: fund.fund_documents.length,
+        jobsCount: fund.background_jobs.length,
         createdAt: fund.createdAt
       }))
     };

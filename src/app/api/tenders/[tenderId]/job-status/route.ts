@@ -20,7 +20,7 @@ export async function GET(
     const jobs = await BackgroundJobService.getFundJobs(tenderId);
 
     // Get actual document counts from database
-    const documentCounts = await prisma.fundDocument.groupBy({
+    const documentCounts = await prisma.fund_documents.groupBy({
       by: ['documentType'],
       where: {
         fundId: tenderId,
@@ -40,7 +40,7 @@ export async function GET(
     };
 
     // Get individual document details for display
-    const documents = await prisma.fundDocument.findMany({
+    const documents = await prisma.fund_documents.findMany({
       where: {
         fundId: tenderId,
         moduleType: 'PROCUREMENT'
@@ -59,7 +59,7 @@ export async function GET(
     });
 
     // Check if tender has a brain already
-    const tender = await prisma.fund.findUnique({
+    const tender = await prisma.funds.findUnique({
       where: { id: tenderId },
       select: {
         fundBrain: true,

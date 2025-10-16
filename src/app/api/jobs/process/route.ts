@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
 
     if (force) {
       // Process all pending document analysis jobs
-      const pendingJobs = await prisma.backgroundJob.findMany({
+      const pendingJobs = await prisma.background_jobs.findMany({
         where: {
           type: JobType.DOCUMENT_ANALYSIS,
           status: {
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
         try {
           const result = await processDocumentAnalysisJob(job, callerContext);
           processedJobs++;
-          processedDocuments += result.documentsProcessed;
+          processedDocuments += result.fund_documentsProcessed;
         } catch (error) {
           console.error(`Failed to process job ${job.id}:`, error);
           await sqsService.markJobFailed(job.id, error instanceof Error ? error.message : 'Unknown error');
@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
 
     } else if (jobId) {
       // Process specific job
-      const job = await prisma.backgroundJob.findUnique({
+      const job = await prisma.background_jobs.findUnique({
         where: { id: jobId },
         include: {
           fund: {
@@ -118,11 +118,11 @@ export async function POST(request: NextRequest) {
 
       const result = await processDocumentAnalysisJob(job, callerContext);
       processedJobs = 1;
-      processedDocuments = result.documentsProcessed;
+      processedDocuments = result.fund_documentsProcessed;
 
     } else if (documentId) {
       // Process specific document
-      const document = await prisma.fundDocument.findUnique({
+      const document = await prisma.fund_documents.findUnique({
         where: { id: documentId },
         include: {
           fund: true
@@ -160,7 +160,7 @@ async function processDocumentAnalysisJob(job: any, callerContext?: any) {
 
   // CRITICAL: Atomic job claiming with distributed lock
   // Refresh the job record to check current status before attempting to claim it
-  const currentJob = await prisma.backgroundJob.findUnique({
+  const currentJob = await prisma.background_jobs.findUnique({
     where: { id: job.id }
   });
 
@@ -187,7 +187,7 @@ async function processDocumentAnalysisJob(job: any, callerContext?: any) {
 
   // Claim the job atomically - update updatedAt as our lock timestamp
   try {
-    await prisma.backgroundJob.update({
+    await prisma.background_jobs.update({
       where: {
         id: job.id,
         updatedAt: currentJob.updatedAt // Only succeed if updatedAt hasn't changed (optimistic locking)
@@ -256,7 +256,7 @@ async function processDocumentAnalysisJob(job: any, callerContext?: any) {
 
     // If any Textract jobs completed, update metadata
     if (hasUpdates) {
-      await prisma.backgroundJob.update({
+      await prisma.background_jobs.update({
         where: { id: job.id },
         data: {
           metadata: {
@@ -287,7 +287,7 @@ async function processDocumentAnalysisJob(job: any, callerContext?: any) {
   console.log(`📋 Querying database for documents...`);
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
-  const documents = await prisma.fundDocument.findMany({
+  const documents = await prisma.fund_documents.findMany({
     where: {
       id: { in: documentIds },
       fundId: job.fundId
@@ -357,14 +357,14 @@ async function processDocumentAnalysisJob(job: any, callerContext?: any) {
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
         // Get current job metadata
-        const currentJob = await prisma.backgroundJob.findUnique({
+        const currentJob = await prisma.background_jobs.findUnique({
           where: { id: job.id }
         });
 
         const currentMetadata = currentJob?.metadata as any || {};
 
         // Save Textract JobId to metadata and mark job as PROCESSING (not FAILED)
-        await prisma.backgroundJob.update({
+        await prisma.background_jobs.update({
           where: { id: job.id },
           data: {
             status: JobStatus.PROCESSING,
@@ -577,14 +577,14 @@ async function processDocument(document: any, jobMetadata?: any, jobId?: string)
       console.log(`📊 Chunk progress: ${currentChunk}/${totalChunks} (${Math.round(currentChunk/totalChunks*100)}%)`);
 
       // Update job metadata with chunk progress
-      const currentJob = await prisma.backgroundJob.findUnique({
+      const currentJob = await prisma.background_jobs.findUnique({
         where: { id: jobId }
       });
 
       if (currentJob) {
         const currentMetadata = currentJob.metadata as any || {};
 
-        await prisma.backgroundJob.update({
+        await prisma.background_jobs.update({
           where: { id: jobId },
           data: {
             metadata: {
@@ -684,7 +684,7 @@ async function processDocument(document: any, jobMetadata?: any, jobId?: string)
       }
 
       // Update fund with application form analysis
-      await prisma.fund.update({
+      await prisma.funds.update({
         where: { id: document.fundId },
         data: {
           applicationFormAnalysis: analysisResult
@@ -739,7 +739,7 @@ async function processDocument(document: any, jobMetadata?: any, jobId?: string)
       }
 
       // Update fund with selection criteria analysis
-      await prisma.fund.update({
+      await prisma.funds.update({
         where: { id: document.fundId },
         data: {
           selectionCriteriaAnalysis: analysisResult
@@ -790,7 +790,7 @@ async function processDocument(document: any, jobMetadata?: any, jobId?: string)
       }
       
       // Update fund with good examples analysis
-      await prisma.fund.update({
+      await prisma.funds.update({
         where: { id: document.fundId },
         data: {
           goodExamplesAnalysis: analysisResult
@@ -824,7 +824,7 @@ async function processDocument(document: any, jobMetadata?: any, jobId?: string)
         console.log('✅ Claude AI analysis successful for output template in background processing');
 
         // Update fund with output template analysis
-        await prisma.fund.update({
+        await prisma.funds.update({
           where: { id: document.fundId },
           data: {
             outputTemplatesAnalysis: analysisResult
@@ -863,7 +863,7 @@ async function processDocument(document: any, jobMetadata?: any, jobId?: string)
 // GET endpoint to check processing status and pending jobs
 export async function GET() {
   try {
-    const pendingJobs = await prisma.backgroundJob.findMany({
+    const pendingJobs = await prisma.background_jobs.findMany({
       where: {
         status: {
           in: [JobStatus.PENDING, JobStatus.PROCESSING]
@@ -882,13 +882,13 @@ export async function GET() {
       }
     });
 
-    const completedJobs = await prisma.backgroundJob.count({
+    const completedJobs = await prisma.background_jobs.count({
       where: {
         status: JobStatus.COMPLETED
       }
     });
 
-    const failedJobs = await prisma.backgroundJob.count({
+    const failedJobs = await prisma.background_jobs.count({
       where: {
         status: JobStatus.FAILED
       }

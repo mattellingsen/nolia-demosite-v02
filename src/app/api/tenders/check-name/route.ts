@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if a tender with this name already exists (PROCUREMENT module)
-    const existingTender = await prisma.fund.findFirst({
+    const existingTender = await prisma.funds.findFirst({
       where: {
         name: {
           equals: name.trim(),

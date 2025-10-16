@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify project exists and is worldbank module
-    const project = await prisma.fund.findUnique({
+    const project = await prisma.funds.findUnique({
       where: {
         id: projectId,
         moduleType: 'WORLDBANK' // KEY: Ensure only worldbank projects
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
 
     // Create assessment record
     console.log('💾 Creating worldbank assessment in database...');
-    const assessment = await prisma.assessment.create({
+    const assessment = await prisma.assessments.create({
       data: {
         fundId: projectId, // Note: In database, we still use fundId but it refers to project
         organizationName,
@@ -112,7 +112,7 @@ export async function GET(request: NextRequest) {
       ...(projectId ? { fundId: projectId } : {})
     };
 
-    const assessments = await prisma.assessment.findMany({
+    const assessments = await prisma.assessments.findMany({
       where,
       include: {
         fund: {
@@ -139,7 +139,7 @@ export async function GET(request: NextRequest) {
     }));
 
     // Get total count for pagination
-    const total = await prisma.assessment.count({ where });
+    const total = await prisma.assessments.count({ where });
 
     console.log(`📊 Total worldbank assessments in database: ${total}`);
 

@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if name already exists
-    const existingBase = await prisma.fund.findFirst({
+    const existingBase = await prisma.funds.findFirst({
       where: {
         name: name.trim(),
         moduleType: 'WORLDBANK_ADMIN'
@@ -194,7 +194,7 @@ export async function POST(req: NextRequest) {
         });
 
         // Create document record
-        const document = await prisma.fundDocument.create({
+        const document = await prisma.fund_documents.create({
           data: {
             fundId: base.id,
             documentType: file.documentType,
@@ -279,7 +279,7 @@ export async function POST(req: NextRequest) {
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
         // Create a placeholder job in the database so frontend has something to track
-        job = await prisma.backgroundJob.create({
+        job = await prisma.background_jobs.create({
           data: {
             fundId: base.id,
             type: 'DOCUMENT_ANALYSIS',
@@ -302,7 +302,7 @@ export async function POST(req: NextRequest) {
     // Keep status as DRAFT until brain building completes
     const finalStatus = documentUploads.length > 0 ? 'DRAFT' : 'ACTIVE';
 
-    await prisma.fund.update({
+    await prisma.funds.update({
       where: { id: base.id },
       data: { status: finalStatus }
     });

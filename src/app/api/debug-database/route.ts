@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
         console.log('✅ Database connection test passed:', connectionTest);
 
         // Test 2: List all funds to see what's available
-        const funds = await prisma.fund.findMany({
+        const funds = await prisma.funds.findMany({
             select: {
                 id: true,
                 name: true,
@@ -30,9 +30,9 @@ export async function GET(request: NextRequest) {
         let specificFundTest = null;
         if (funds.length > 0) {
             const firstFundId = funds[0].id;
-            specificFundTest = await prisma.fund.findUnique({
+            specificFundTest = await prisma.funds.findUnique({
                 where: { id: firstFundId },
-                include: { documents: true }
+                include: { fund_documents: true }
             });
             console.log('🎯 Specific fund query test passed for:', firstFundId);
         }

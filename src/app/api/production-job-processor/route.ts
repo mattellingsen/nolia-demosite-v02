@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     console.log('🔧 Production job processor: Starting manual job processing...');
 
     // Find all stuck or pending jobs
-    const stuckJobs = await prisma.backgroundJob.findMany({
+    const stuckJobs = await prisma.background_jobs.findMany({
       where: {
         OR: [
           {
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
  */
 export async function GET() {
   try {
-    const stuckJobs = await prisma.backgroundJob.findMany({
+    const stuckJobs = await prisma.background_jobs.findMany({
       where: {
         OR: [
           {
