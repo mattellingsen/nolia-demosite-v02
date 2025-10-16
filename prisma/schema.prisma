@@ -16,13 +16,22 @@ model Fund {
   moduleType                ModuleType      @default(FUNDING)
   createdAt                 DateTime        @default(now())
   updatedAt                 DateTime        @updatedAt
+
+  // Funding module analysis fields
   applicationFormAnalysis   Json?
   selectionCriteriaAnalysis Json?
   goodExamplesAnalysis      Json?
+  outputTemplatesAnalysis   Json?
+
+  // Worldbank-admin module analysis fields (global procurement knowledge base)
+  policyDocumentAnalysis       Json?
+  procurementRuleAnalysis      Json?
+  complianceStandardAnalysis   Json?
+  procurementTemplateAnalysis  Json?
+
   brainAssembledAt          DateTime?
   brainVersion              Int             @default(1)
   fundBrain                 Json?
-  outputTemplatesAnalysis   Json?
   openSearchIndex           String?         // OpenSearch index name for RAG embeddings
   backgroundJobs            BackgroundJob[]
   documents                 FundDocument[]
@@ -95,10 +104,17 @@ model Assessment {
 }
 
 enum DocumentType {
+  // Funding module document types
   APPLICATION_FORM
   SELECTION_CRITERIA
   GOOD_EXAMPLES
   OUTPUT_TEMPLATES
+
+  // Worldbank-admin module document types (global procurement knowledge base)
+  POLICY_DOCUMENT
+  PROCUREMENT_RULE
+  COMPLIANCE_STANDARD
+  PROCUREMENT_TEMPLATE
 }
 
 enum FundStatus {
