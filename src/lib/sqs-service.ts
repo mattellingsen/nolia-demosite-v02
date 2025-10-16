@@ -200,6 +200,22 @@ export class SQSService {
         return existingJob;
       }
 
+      // Get DOCUMENT_ANALYSIS job to copy textractJobs metadata to RAG job
+      const documentAnalysisJob = await tx.backgroundJob.findFirst({
+        where: {
+          fundId,
+          type: JobType.DOCUMENT_ANALYSIS,
+          status: JobStatus.COMPLETED
+        },
+        orderBy: {
+          completedAt: 'desc'
+        }
+      });
+
+      // Extract textractJobs from DOCUMENT_ANALYSIS job metadata
+      const textractJobs = (documentAnalysisJob?.metadata as any)?.textractJobs || {};
+      console.log(`📋 Found ${Object.keys(textractJobs).length} textract job(s) from DOCUMENT_ANALYSIS to copy to RAG job`);
+
       // Create brain assembly job WITH moduleType from fund
       const job = await tx.backgroundJob.create({
         data: {
@@ -212,6 +228,7 @@ export class SQSService {
           metadata: {
             triggerType,
             queuedAt: new Date().toISOString(),
+            textractJobs: textractJobs, // Copy extracted text from DOCUMENT_ANALYSIS job
           },
         },
       });
