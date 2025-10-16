@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/database-s3';
 
 export async function GET(request: NextRequest) {
   const fundId = request.nextUrl.searchParams.get('fundId');
