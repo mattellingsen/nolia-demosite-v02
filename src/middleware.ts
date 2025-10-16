@@ -12,8 +12,14 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith('/api/jobs/') ||
     request.nextUrl.pathname.startsWith('/api/brain/') ||
     request.nextUrl.pathname.startsWith('/api/procurement-brain/') ||
+    request.nextUrl.pathname.startsWith('/api/procurement-base/') ||
     request.nextUrl.pathname.startsWith('/api/worldbank-brain/') ||
-    request.nextUrl.pathname.startsWith('/api/worldbank-admin-brain/')
+    request.nextUrl.pathname.startsWith('/api/worldbank-admin-brain/') ||
+    request.nextUrl.pathname.startsWith('/api/worldbank-base/') ||
+    request.nextUrl.pathname.startsWith('/api/worldbank-projects/') ||
+    request.nextUrl.pathname.startsWith('/api/tenders/') ||
+    request.nextUrl.pathname.startsWith('/api/funds/') ||
+    request.nextUrl.pathname.startsWith('/api/documents/')
   ) {
     return NextResponse.next();
   }
