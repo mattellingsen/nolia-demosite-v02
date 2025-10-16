@@ -8,18 +8,19 @@ export async function middleware(request: NextRequest) {
   // Allow login page and auth API routes without authentication
   if (
     request.nextUrl.pathname === '/login' ||
-    request.nextUrl.pathname.startsWith('/api/auth/') ||
-    request.nextUrl.pathname.startsWith('/api/jobs/') ||
-    request.nextUrl.pathname.startsWith('/api/brain/') ||
-    request.nextUrl.pathname.startsWith('/api/procurement-brain/') ||
-    request.nextUrl.pathname.startsWith('/api/procurement-base/') ||
-    request.nextUrl.pathname.startsWith('/api/worldbank-brain/') ||
-    request.nextUrl.pathname.startsWith('/api/worldbank-admin-brain/') ||
-    request.nextUrl.pathname.startsWith('/api/worldbank-base/') ||
-    request.nextUrl.pathname.startsWith('/api/worldbank-projects/') ||
-    request.nextUrl.pathname.startsWith('/api/tenders/') ||
-    request.nextUrl.pathname.startsWith('/api/funds/') ||
-    request.nextUrl.pathname.startsWith('/api/documents/')
+    request.nextUrl.pathname.startsWith('/api/auth') ||
+    request.nextUrl.pathname.startsWith('/api/jobs') ||
+    request.nextUrl.pathname.startsWith('/api/brain') ||
+    request.nextUrl.pathname.startsWith('/api/procurement-brain') ||
+    request.nextUrl.pathname.startsWith('/api/procurement-base') ||
+    request.nextUrl.pathname.startsWith('/api/worldbank-brain') ||
+    request.nextUrl.pathname.startsWith('/api/worldbank-admin-brain') ||
+    request.nextUrl.pathname.startsWith('/api/worldbank-base') ||
+    request.nextUrl.pathname.startsWith('/api/worldbank-projects') ||
+    request.nextUrl.pathname.startsWith('/api/tenders') ||
+    request.nextUrl.pathname.startsWith('/api/funds') ||
+    request.nextUrl.pathname.startsWith('/api/documents') ||
+    request.nextUrl.pathname.startsWith('/api/debug')
   ) {
     return NextResponse.next();
   }
