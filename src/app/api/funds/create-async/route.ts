@@ -43,14 +43,17 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Create fund record
-    const fund = await prisma.fund.create({
-      data: {
-        name,
-        description: description || 'Fund innovative businesses to employ tertiary-level students as full-time interns over their summer break.',
-        status: FundStatus.DRAFT,
-      },
-    });
+    // Create fund record using raw SQL to avoid Prisma schema mismatch
+    const fundId = crypto.randomUUID();
+    await prisma.$executeRaw`
+      INSERT INTO funds (id, name, description, status, "createdAt", "updatedAt")
+      VALUES (${fundId}, ${name}, ${description || 'Fund innovative businesses to employ tertiary-level students as full-time interns over their summer break.'}, 'DRAFT', NOW(), NOW())
+    `;
+
+    // Fetch the created fund
+    const fund: any = await prisma.$queryRaw`
+      SELECT * FROM funds WHERE id = ${fundId}
+    `.then((rows: any[]) => rows[0]);
 
     // Collect all files for async processing
     const documentsToProcess: Array<{

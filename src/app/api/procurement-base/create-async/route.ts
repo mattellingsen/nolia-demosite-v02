@@ -79,16 +79,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create the procurement base
-    const base = await prisma.fund.create({
-      data: {
-        name: name.trim(),
-        description: description || null,
-        status: 'DRAFT',
-        moduleType: 'PROCUREMENT_ADMIN',
-        brainVersion: 1
-      }
-    });
+    // Create the procurement base using raw SQL to avoid Prisma schema mismatch
+    const baseId = crypto.randomUUID();
+    await prisma.$executeRaw`
+      INSERT INTO funds (id, name, description, status, "moduleType", "brainVersion", "createdAt", "updatedAt")
+      VALUES (${baseId}, ${name.trim()}, ${description || null}, 'DRAFT', 'PROCUREMENT_ADMIN', 1, NOW(), NOW())
+    `;
+
+    // Fetch the created base
+    const base: any = await prisma.$queryRaw`
+      SELECT * FROM funds WHERE id = ${baseId}
+    `.then((rows: any[]) => rows[0]);
 
     // Process and upload documents
     const documentUploads = [];

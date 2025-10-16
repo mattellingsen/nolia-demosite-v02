@@ -87,16 +87,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create the procurement tender (project-specific knowledgebase)
-    const tender = await prisma.fund.create({
-      data: {
-        name: name.trim(),
-        description: description || null,
-        status: 'DRAFT',
-        moduleType: 'PROCUREMENT',
-        brainVersion: 1
-      }
-    });
+    // Create the procurement tender using raw SQL to avoid Prisma schema mismatch
+    const tenderId = crypto.randomUUID();
+    await prisma.$executeRaw`
+      INSERT INTO funds (id, name, description, status, "moduleType", "brainVersion", "createdAt", "updatedAt")
+      VALUES (${tenderId}, ${name.trim()}, ${description || null}, 'DRAFT', 'PROCUREMENT', 1, NOW(), NOW())
+    `;
+
+    // Fetch the created tender
+    const tender: any = await prisma.$queryRaw`
+      SELECT * FROM funds WHERE id = ${tenderId}
+    `.then((rows: any[]) => rows[0]);
 
     // Process and upload documents
     const documentUploads = [];

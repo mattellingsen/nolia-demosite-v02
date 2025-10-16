@@ -87,16 +87,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create the worldbank project (project-specific knowledgebase)
-    const project = await prisma.fund.create({
-      data: {
-        name: name.trim(),
-        description: description || null,
-        status: 'DRAFT',
-        moduleType: 'WORLDBANK',
-        brainVersion: 1
-      }
-    });
+    // Create the worldbank project using raw SQL to avoid Prisma schema mismatch
+    const projectId = crypto.randomUUID();
+    await prisma.$executeRaw`
+      INSERT INTO funds (id, name, description, status, "moduleType", "brainVersion", "createdAt", "updatedAt")
+      VALUES (${projectId}, ${name.trim()}, ${description || null}, 'DRAFT', 'WORLDBANK', 1, NOW(), NOW())
+    `;
+
+    // Fetch the created project
+    const project: any = await prisma.$queryRaw`
+      SELECT * FROM funds WHERE id = ${projectId}
+    `.then((rows: any[]) => rows[0]);
 
     // Process and upload documents
     const documentUploads = [];
