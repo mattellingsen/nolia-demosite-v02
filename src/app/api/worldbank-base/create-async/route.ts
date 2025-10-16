@@ -108,11 +108,12 @@ export async function POST(req: NextRequest) {
       governanceFiles: governanceFiles?.length || 0
     });
 
+    // Map worldbank-admin file categories to correct document types
     const allFiles = [
-      ...(policyFiles || []).map((f: any) => ({ ...f, documentType: 'APPLICATION_FORM' })), // Reuse enum
-      ...(complianceFiles || []).map((f: any) => ({ ...f, documentType: 'SELECTION_CRITERIA' })),
-      ...(templateFiles || []).map((f: any) => ({ ...f, documentType: 'GOOD_EXAMPLES' })),
-      ...(governanceFiles || []).map((f: any) => ({ ...f, documentType: 'OUTPUT_TEMPLATES' }))
+      ...(policyFiles || []).map((f: any) => ({ ...f, documentType: 'POLICY_DOCUMENT' })),
+      ...(complianceFiles || []).map((f: any) => ({ ...f, documentType: 'COMPLIANCE_STANDARD' })),
+      ...(templateFiles || []).map((f: any) => ({ ...f, documentType: 'PROCUREMENT_TEMPLATE' })),
+      ...(governanceFiles || []).map((f: any) => ({ ...f, documentType: 'PROCUREMENT_RULE' }))
     ];
 
     console.log('📋 Processed file array:', allFiles?.length || 0, 'files');

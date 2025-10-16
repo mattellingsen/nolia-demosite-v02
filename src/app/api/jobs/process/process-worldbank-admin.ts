@@ -214,7 +214,11 @@ export async function processWorldbankAdminDocument(
         break;
 
       default:
-        throw new Error(`Unknown worldbank-admin document type: ${document.documentType}`);
+        throw new Error(
+          `Unknown worldbank-admin document type: ${document.documentType}\n` +
+          `Expected one of: POLICY_DOCUMENT, PROCUREMENT_RULE, COMPLIANCE_STANDARD, PROCUREMENT_TEMPLATE\n` +
+          `Fund ID: ${document.fundId} | Document: ${document.filename}`
+        );
     }
 
   } catch (error) {
