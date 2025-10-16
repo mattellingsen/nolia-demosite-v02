@@ -193,15 +193,21 @@ export const WorldBankAdminSetupDashboard = () => {
                                                     </span>
                                                 </div>
                                             </div>
-                                            <ButtonUtility
-                                                size="xs"
-                                                color="tertiary"
-                                                tooltip="Delete"
-                                                icon={Trash01}
-                                                className="text-white hover:text-gray-200 !bg-transparent !border-0"
-                                                onClick={(e) => handleDeleteBase(base.id, e)}
-                                                isDisabled={deleteWorldBankBase.isPending}
-                                            />
+                                            <div className="relative z-10 pointer-events-auto">
+                                                <ButtonUtility
+                                                    size="xs"
+                                                    color="tertiary"
+                                                    tooltip="Delete"
+                                                    icon={Trash01}
+                                                    className="text-white hover:text-gray-200 !bg-transparent !border-0"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        e.preventDefault();
+                                                        handleDeleteBase(base.id, e);
+                                                    }}
+                                                    isDisabled={deleteWorldBankBase.isPending}
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
