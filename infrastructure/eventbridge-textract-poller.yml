@@ -1,0 +1,98 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'EventBridge scheduled rule to poll Textract jobs every 1 minute'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: staging
+    AllowedValues:
+      - staging
+      - production
+    Description: Deployment environment
+
+  AmplifyAppId:
+    Type: String
+    Default: d2l8hlr3sei3te
+    Description: AWS Amplify App ID
+
+Resources:
+  # EventBridge Rule - triggers every 1 minute
+  TextractPollerRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub 'textract-poller-${Environment}'
+      Description: !Sub 'Poll pending Textract jobs every 1 minute (${Environment})'
+      ScheduleExpression: 'rate(1 minute)'
+      State: ENABLED
+      Targets:
+        - Id: TextractPollerTarget
+          Arn: !GetAtt TextractPollerConnection.Arn
+          RoleArn: !GetAtt EventBridgeInvokeRole.Arn
+          HttpParameters:
+            HeaderParameters:
+              Content-Type: application/json
+            QueryStringParameters: {}
+          Input: !Sub |
+            {
+              "autoTrigger": true,
+              "source": "eventbridge-textract-poller",
+              "environment": "${Environment}"
+            }
+
+  # API Destination Connection (for HTTPS endpoint)
+  TextractPollerConnection:
+    Type: AWS::Events::Connection
+    Properties:
+      Name: !Sub 'textract-poller-connection-${Environment}'
+      Description: Connection to Amplify Next.js API
+      AuthorizationType: API_KEY
+      AuthParameters:
+        ApiKeyAuthParameters:
+          ApiKeyName: X-EventBridge-Source
+          ApiKeyValue: textract-poller
+
+  # API Destination (HTTPS endpoint to call)
+  TextractPollerDestination:
+    Type: AWS::Events::ApiDestination
+    Properties:
+      Name: !Sub 'textract-poller-destination-${Environment}'
+      Description: !Sub 'Amplify API endpoint (${Environment})'
+      ConnectionArn: !GetAtt TextractPollerConnection.Arn
+      InvocationEndpoint: !Sub 'https://${Environment}.${AmplifyAppId}.amplifyapp.com/api/jobs/process'
+      HttpMethod: POST
+      InvocationRateLimitPerSecond: 10
+
+  # IAM Role for EventBridge to invoke API Destination
+  EventBridgeInvokeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'eventbridge-textract-poller-${Environment}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: InvokeApiDestination
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - events:InvokeApiDestination
+                Resource: !GetAtt TextractPollerDestination.Arn
+
+Outputs:
+  RuleName:
+    Description: EventBridge Rule Name
+    Value: !Ref TextractPollerRule
+
+  RuleArn:
+    Description: EventBridge Rule ARN
+    Value: !GetAtt TextractPollerRule.Arn
+
+  ApiDestinationEndpoint:
+    Description: API Destination Endpoint
+    Value: !Sub 'https://${Environment}.${AmplifyAppId}.amplifyapp.com/api/jobs/process'

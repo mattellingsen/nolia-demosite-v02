@@ -117,19 +117,26 @@ exports.handler = async (event) => {
         });
         
         console.log('Created brain assembly job:', brainJob.id);
-        
-        // Complete brain assembly immediately (simulate processing)
-        await prisma.backgroundJob.update({
-          where: { id: brainJob.id },
-          data: {
-            processedDocuments: 1,
-            progress: 100,
-            status: 'COMPLETED',
-            completedAt: new Date()
-          }
+
+        // Trigger actual RAG processing via API endpoint
+        console.log('Calling /api/jobs/process to start RAG processing...');
+
+        const apiUrl = 'https://staging.d2l8hlr3sei3te.amplifyapp.com/api/jobs/process';
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jobId: brainJob.id,
+            autoTrigger: true,
+            source: 'lambda-document-complete'
+          })
         });
-        
-        console.log('Brain assembly job completed:', brainJob.id);
+
+        if (response.ok) {
+          console.log('✅ Successfully triggered RAG processing for job:', brainJob.id);
+        } else {
+          console.error('❌ Failed to trigger RAG processing:', response.status, await response.text());
+        }
       }
     }
     

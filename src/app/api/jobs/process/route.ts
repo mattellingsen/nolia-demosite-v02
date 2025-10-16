@@ -279,6 +279,14 @@ async function processDocumentAnalysisJob(job: any, callerContext?: any) {
   // Get documents for this job
   const documentIds = jobMetadata?.documentIds || [];
 
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log(`🔍 DOCUMENT QUERY DIAGNOSTIC`);
+  console.log(`📋 Job ID: ${job.id}`);
+  console.log(`📋 Fund ID: ${job.fundId}`);
+  console.log(`📋 Document IDs from metadata: ${JSON.stringify(documentIds)}`);
+  console.log(`📋 Querying database for documents...`);
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
   const documents = await prisma.fundDocument.findMany({
     where: {
       id: { in: documentIds },
@@ -292,9 +300,14 @@ async function processDocumentAnalysisJob(job: any, callerContext?: any) {
   let processedCount = 0;
 
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log(`📋 DOCUMENT LOOP: Starting processing ${documents.length} documents`);
+  console.log(`📋 DOCUMENT QUERY RESULT: Found ${documents.length} documents`);
   console.log(`📋 Job ID: ${job.id}`);
-  console.log(`📋 Documents: ${documents.map(d => d.filename).join(', ')}`);
+  if (documents.length === 0) {
+    console.log(`🚨 WARNING: No documents found! DocumentIds in metadata: ${documentIds.length}`);
+    console.log(`🚨 This means documents don't exist OR transaction not committed yet`);
+  } else {
+    console.log(`📋 Documents: ${documents.map(d => d.filename).join(', ')}`);
+  }
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
   // Process each document
