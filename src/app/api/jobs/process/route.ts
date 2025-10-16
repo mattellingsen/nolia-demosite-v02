@@ -316,9 +316,19 @@ async function processDocumentAnalysisJob(job: any, callerContext?: any) {
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       console.log(`📄 DOCUMENT ${processedCount + 1}/${documents.length}: Starting ${document.filename}`);
       console.log(`📄 Type: ${document.documentType}`);
+      console.log(`📄 Module: ${document.fund.moduleType}`);
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
-      await processDocument(document, job.metadata, job.id);
+      // Route to module-specific processor
+      if (document.fund.moduleType === 'WORLDBANK_ADMIN') {
+        console.log(`🔀 Routing to worldbank-admin processor`);
+        const { processWorldbankAdminDocument } = await import('./process-worldbank-admin');
+        await processWorldbankAdminDocument(document, job.metadata, job.id);
+      } else {
+        // Default: funding processor (existing logic)
+        console.log(`🔀 Routing to funding processor (default)`);
+        await processDocument(document, job.metadata, job.id);
+      }
       processedCount++;
 
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
