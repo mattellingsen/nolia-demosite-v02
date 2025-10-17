@@ -14,7 +14,7 @@ export async function DELETE(
     const existingFund = await prisma.funds.findUnique({
       where: { id: fundId },
       include: {
-        documents: true
+        fund_documents: true
       }
     });
     

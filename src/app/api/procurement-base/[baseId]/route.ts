@@ -17,7 +17,7 @@ export async function GET(
         moduleType: 'PROCUREMENT_ADMIN'
       },
       include: {
-        documents: {
+        fund_documents: {
           select: {
             id: true,
             documentType: true,
@@ -26,7 +26,7 @@ export async function GET(
             uploadedAt: true
           }
         },
-        backgroundJobs: {
+        background_jobs: {
           select: {
             id: true,
             type: true,
@@ -71,7 +71,7 @@ export async function GET(
         fileSize: doc.fileSize,
         uploadedAt: doc.uploadedAt.toISOString()
       })),
-      backgroundJobs: base.background_jobs.map(job => ({
+      background_jobs: base.background_jobs.map(job => ({
         id: job.id,
         type: job.type,
         status: job.status,

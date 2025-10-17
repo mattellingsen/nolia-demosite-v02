@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
         include: {
           fund: {
             include: {
-              documents: true
+              fund_documents: true
             }
           }
         }
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
         include: {
           fund: {
             include: {
-              documents: true
+              fund_documents: true
             }
           }
         }

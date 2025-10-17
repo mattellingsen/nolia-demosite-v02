@@ -12,8 +12,8 @@ export async function POST(req: NextRequest) {
         moduleType: 'PROCUREMENT_ADMIN'
       },
       include: {
-        documents: true,
-        backgroundJobs: true
+        fund_documents: true,
+        background_jobs: true
       }
     });
 
@@ -86,8 +86,8 @@ export async function GET(req: NextRequest) {
         moduleType: 'PROCUREMENT_ADMIN'
       },
       include: {
-        documents: true,
-        backgroundJobs: true
+        fund_documents: true,
+        background_jobs: true
       }
     });
 

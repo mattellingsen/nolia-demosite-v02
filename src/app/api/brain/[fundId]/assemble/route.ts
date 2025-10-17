@@ -30,8 +30,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const fund = await prisma.funds.findUnique({
       where: { id: fundId },
       include: {
-        documents: true,
-        backgroundJobs: {
+        fund_documents: true,
+        background_jobs: {
           where: {
             type: 'DOCUMENT_ANALYSIS',
             status: 'COMPLETED'

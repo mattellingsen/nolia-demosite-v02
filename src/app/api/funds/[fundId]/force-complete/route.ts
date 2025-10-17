@@ -20,7 +20,7 @@ export async function POST(request: NextRequest, { params }: { params: { fundId:
     const fund = await prisma.funds.findUnique({
       where: { id: fundId },
       include: {
-        backgroundJobs: {
+        background_jobs: {
           where: {
             status: {
               in: [JobStatus.PENDING, JobStatus.PROCESSING]

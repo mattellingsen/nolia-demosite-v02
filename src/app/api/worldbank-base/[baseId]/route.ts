@@ -71,7 +71,7 @@ export async function GET(
         fileSize: doc.fileSize,
         uploadedAt: doc.uploadedAt.toISOString()
       })),
-      backgroundJobs: base.background_jobs.map(job => ({
+      background_jobs: base.background_jobs.map(job => ({
         id: job.id,
         type: job.type,
         status: job.status,

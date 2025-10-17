@@ -25,7 +25,7 @@ export async function GET(
         moduleType: 'PROCUREMENT' // KEY: Ensure only procurement tenders
       },
       include: {
-        documents: true
+        fund_documents: true
       }
     });
 

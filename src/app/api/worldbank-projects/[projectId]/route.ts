@@ -29,7 +29,7 @@ export async function GET(
         moduleType: 'WORLDBANK' // KEY: Ensure only worldbank projects
       },
       include: {
-        documents: true
+        fund_documents: true
       }
     });
 

@@ -14,7 +14,7 @@ export async function GET(
       include: {
         worldbankBase: {
           include: {
-            documents: true,
+            fund_documents: true,
           },
         },
       },

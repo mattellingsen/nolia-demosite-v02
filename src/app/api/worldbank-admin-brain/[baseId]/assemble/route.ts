@@ -34,8 +34,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         moduleType: 'WORLDBANK_ADMIN'
       },
       include: {
-        documents: true,
-        backgroundJobs: {
+        fund_documents: true,
+        background_jobs: {
           where: {
             type: 'DOCUMENT_ANALYSIS',
             status: 'COMPLETED'

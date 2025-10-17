@@ -151,7 +151,7 @@ export async function GET() {
       include: {
         _count: {
           select: {
-            documents: true
+            fund_documents: true
           }
         }
       },

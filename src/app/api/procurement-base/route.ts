@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
         updatedAt: true,
         brainAssembledAt: true,
         brainVersion: true,
-        documents: {
+        fund_documents: {
           select: {
             id: true,
             documentType: true,
