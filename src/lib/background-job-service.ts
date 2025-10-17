@@ -34,7 +34,7 @@ export class BackgroundJobService {
    * Create a new background job
    */
   static async createJob(fundId: string, type: JobType, metadata: any = {}): Promise<BackgroundJobData> {
-    const job = await prisma.backgroundJob.create({
+    const job = await prisma.background_jobs.create({
       data: {
         fundId,
         type,
@@ -54,7 +54,7 @@ export class BackgroundJobService {
     jobId: string, 
     updates: Partial<BackgroundJobData>
   ): Promise<BackgroundJobData> {
-    const job = await prisma.backgroundJob.update({
+    const job = await prisma.background_jobs.update({
       where: { id: jobId },
       data: {
         ...updates,
@@ -69,7 +69,7 @@ export class BackgroundJobService {
    * Get job status
    */
   static async getJob(jobId: string): Promise<BackgroundJobData | null> {
-    const job = await prisma.backgroundJob.findUnique({
+    const job = await prisma.background_jobs.findUnique({
       where: { id: jobId }
     });
     
@@ -80,7 +80,7 @@ export class BackgroundJobService {
    * Get all jobs for a fund
    */
   static async getFundJobs(fundId: string): Promise<BackgroundJobData[]> {
-    const jobs = await prisma.backgroundJob.findMany({
+    const jobs = await prisma.background_jobs.findMany({
       where: { fundId },
       orderBy: { createdAt: 'desc' }
     });
@@ -824,7 +824,7 @@ export class BackgroundJobService {
    */
   static async processNextJob(): Promise<boolean> {
     // Find the next pending job
-    const job = await prisma.backgroundJob.findFirst({
+    const job = await prisma.background_jobs.findFirst({
       where: { status: 'PENDING' },
       orderBy: { createdAt: 'asc' }
     });
