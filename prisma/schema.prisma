@@ -1,4 +1,3 @@
-// Force Prisma regeneration - deployed 2025-10-16T11:40:00Z
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native", "rhel-openssl-1.0.x"]
@@ -115,6 +114,7 @@ enum DocumentType {
   PROCUREMENT_RULE
   COMPLIANCE_STANDARD
   PROCUREMENT_TEMPLATE
+  POLICY_DOCUMENT
 }
 
 enum FundStatus {
