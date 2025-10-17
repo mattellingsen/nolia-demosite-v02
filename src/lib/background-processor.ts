@@ -94,7 +94,7 @@ class BackgroundProcessor {
           status: JobStatus.PENDING
         },
         include: {
-          fund: {
+          funds: {
             select: {
               id: true,
               name: true,

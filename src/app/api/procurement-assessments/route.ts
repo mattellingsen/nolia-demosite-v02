@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
         moduleType: 'PROCUREMENT' // KEY: Set moduleType to PROCUREMENT
       },
       include: {
-        fund: {
+        funds: {
           select: {
             id: true,
             name: true,
@@ -115,7 +115,7 @@ export async function GET(request: NextRequest) {
     const assessments = await prisma.assessments.findMany({
       where,
       include: {
-        fund: {
+        funds: {
           select: {
             id: true,
             name: true,
