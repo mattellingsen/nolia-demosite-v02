@@ -89,7 +89,7 @@ class BackgroundProcessor {
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
       // Find PENDING jobs (newly created, never started)
-      const pendingJobs = await prisma.backgroundJob.findMany({
+      const pendingJobs = await prisma.background_jobs.findMany({
         where: {
           status: JobStatus.PENDING
         },
@@ -106,7 +106,7 @@ class BackgroundProcessor {
 
       // Find jobs that are stuck (PROCESSING status but no progress for > 5 minutes)
       // Increased from 2 to 5 minutes to account for large PDF Textract processing time
-      const stuckJobs = await prisma.backgroundJob.findMany({
+      const stuckJobs = await prisma.background_jobs.findMany({
         where: {
           status: JobStatus.PROCESSING,
           startedAt: {
@@ -133,7 +133,7 @@ class BackgroundProcessor {
 
       // Find recently failed jobs that might be retryable (failed < 10 minutes ago)
       // Include ALL module types: FUNDING, PROCUREMENT, PROCUREMENT_ADMIN
-      const retryableFailedJobs = await prisma.backgroundJob.findMany({
+      const retryableFailedJobs = await prisma.background_jobs.findMany({
         where: {
           status: JobStatus.FAILED,
           completedAt: {
@@ -248,7 +248,7 @@ class BackgroundProcessor {
 
       // Also check for PENDING jobs (> 30 seconds old)
       // Include ALL module types: FUNDING, PROCUREMENT, PROCUREMENT_ADMIN
-      const stalePendingJobs = await prisma.backgroundJob.findMany({
+      const stalePendingJobs = await prisma.background_jobs.findMany({
         where: {
           status: JobStatus.PENDING,
           createdAt: {

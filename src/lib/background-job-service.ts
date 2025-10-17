@@ -113,7 +113,7 @@ export class BackgroundJobService {
       }
       
       // Legacy approach: Get fund and documents from database
-      const fund = await prisma.fund.findUnique({
+      const fund = await prisma.funds.findUnique({
         where: { id: job.fundId },
         include: { documents: true }
       });
@@ -427,7 +427,7 @@ export class BackgroundJobService {
         });
 
         // Mark fund as ACTIVE but with warning
-        await prisma.fund.update({
+        await prisma.funds.update({
           where: { id: job.fundId },
           data: {
             status: 'ACTIVE',
@@ -453,7 +453,7 @@ export class BackgroundJobService {
         });
 
         // Mark fund as ACTIVE but log warning
-        await prisma.fund.update({
+        await prisma.funds.update({
           where: { id: job.fundId },
           data: {
             status: 'ACTIVE',
@@ -493,7 +493,7 @@ export class BackgroundJobService {
         // 1. Brain assembly endpoint uses fire-and-forget pattern
         // 2. Lambda context terminates before .then() callbacks execute
         // 3. This is the ONLY place that reliably executes after RAG completion
-        await prisma.fund.update({
+        await prisma.funds.update({
           where: { id: job.fundId },
           data: {
             status: 'ACTIVE',
@@ -544,7 +544,7 @@ export class BackgroundJobService {
           const s3Key = await this.uploadBufferToS3(buffer, fileData.filename, fileData.mimeType, fileData.type.toLowerCase());
           
           // Create document record
-          const document = await prisma.fundDocument.create({
+          const document = await prisma.fund_documents.create({
             data: {
               fundId: job.fundId,
               documentType: fileData.type,
@@ -597,7 +597,7 @@ export class BackgroundJobService {
       });
 
       // Update fund status to ACTIVE when RAG processing completes
-      await prisma.fund.update({
+      await prisma.funds.update({
         where: { id: job.fundId },
         data: {
           status: 'ACTIVE',
@@ -632,7 +632,7 @@ export class BackgroundJobService {
    * Update fund analysis from processed documents
    */
   private static async updateFundAnalysisFromDocuments(fundId: string): Promise<void> {
-    const fund = await prisma.fund.findUnique({
+    const fund = await prisma.funds.findUnique({
       where: { id: fundId },
       include: { documents: true }
     });
@@ -659,7 +659,7 @@ export class BackgroundJobService {
     }
     
     if (Object.keys(updates).length > 0) {
-      await prisma.fund.update({
+      await prisma.funds.update({
         where: { id: fundId },
         data: updates
       });
@@ -670,7 +670,7 @@ export class BackgroundJobService {
    * Perform document analysis for a fund
    */
   private static async performDocumentAnalysis(fundId: string): Promise<void> {
-    const fund = await prisma.fund.findUnique({
+    const fund = await prisma.funds.findUnique({
       where: { id: fundId },
       include: { documents: true }
     });
@@ -766,7 +766,7 @@ export class BackgroundJobService {
     }
 
     // Update fund with analysis results
-    await prisma.fund.update({
+    await prisma.funds.update({
       where: { id: fundId },
       data: {
         applicationFormAnalysis,

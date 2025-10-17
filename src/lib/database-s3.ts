@@ -161,7 +161,7 @@ export async function saveFundWithDocuments(fundData: {
     }
   }
 
-  const fund = await prisma.fund.create({
+  const fund = await prisma.funds.create({
     data: {
       name,
       description,
@@ -210,7 +210,7 @@ export async function saveFundWithDocuments(fundData: {
  * Get a fund with all its documents
  */
 export async function getFundWithDocuments(fundId: string) {
-  return await prisma.fund.findUnique({
+  return await prisma.funds.findUnique({
     where: { id: fundId },
     include: {
       documents: true
@@ -222,7 +222,7 @@ export async function getFundWithDocuments(fundId: string) {
  * Get all funds with document counts
  */
 export async function getAllFunds() {
-  return await prisma.fund.findMany({
+  return await prisma.funds.findMany({
     where: {
       moduleType: 'FUNDING'
     },
@@ -249,7 +249,7 @@ export async function fileToBuffer(file: File): Promise<Buffer> {
  * Get document by ID and return download URL
  */
 export async function getDocumentForDownload(documentId: string) {
-  const document = await prisma.fundDocument.findUnique({
+  const document = await prisma.fund_documents.findUnique({
     where: { id: documentId },
     include: { fund: true }
   });

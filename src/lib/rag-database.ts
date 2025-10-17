@@ -280,7 +280,7 @@ export async function findSimilarApplications(
  */
 export async function updateDocumentRAG(documentId: string, newContent: string) {
   try {
-    const document = await prisma.fundDocument.findUnique({
+    const document = await prisma.fund_documents.findUnique({
       where: { id: documentId },
       include: { fund: true }
     });

@@ -54,7 +54,7 @@ export class SQSService {
     mimeType: string;
   }>) {
     // Get fund to retrieve moduleType
-    const fund = await prisma.fund.findUnique({
+    const fund = await prisma.funds.findUnique({
       where: { id: fundId },
       select: { moduleType: true }
     });
@@ -64,7 +64,7 @@ export class SQSService {
     }
 
     // Create background job in database WITH moduleType from fund
-    const job = await prisma.backgroundJob.create({
+    const job = await prisma.background_jobs.create({
       data: {
         fundId,
         type: JobType.DOCUMENT_ANALYSIS,
@@ -261,7 +261,7 @@ export class SQSService {
    * Update job progress (called by processors)
    */
   async updateJobProgress(jobId: string, processedDocuments: number, metadata?: any) {
-    const job = await prisma.backgroundJob.findUnique({
+    const job = await prisma.background_jobs.findUnique({
       where: { id: jobId },
     });
 
@@ -272,7 +272,7 @@ export class SQSService {
     const progress = Math.round((processedDocuments / job.totalDocuments) * 100);
     const isComplete = processedDocuments >= job.totalDocuments;
 
-    await prisma.backgroundJob.update({
+    await prisma.background_jobs.update({
       where: { id: jobId },
       data: {
         processedDocuments,
@@ -309,7 +309,7 @@ export class SQSService {
   async markJobFailed(jobId: string, errorMessage: string) {
     console.error(`❌ Marking job ${jobId} as failed: ${errorMessage}`);
 
-    await prisma.backgroundJob.update({
+    await prisma.background_jobs.update({
       where: { id: jobId },
       data: {
         status: JobStatus.FAILED,
@@ -326,7 +326,7 @@ export class SQSService {
    * Get job status
    */
   async getJobStatus(jobId: string) {
-    return await prisma.backgroundJob.findUnique({
+    return await prisma.background_jobs.findUnique({
       where: { id: jobId },
       include: {
         fund: {
@@ -343,7 +343,7 @@ export class SQSService {
    * Get all jobs for a fund
    */
   async getFundJobs(fundId: string) {
-    return await prisma.backgroundJob.findMany({
+    return await prisma.background_jobs.findMany({
       where: { fundId },
       orderBy: { createdAt: 'desc' },
     });
@@ -353,7 +353,7 @@ export class SQSService {
    * Retry a failed job by resetting it to PENDING status
    */
   async retryFailedJob(jobId: string) {
-    const job = await prisma.backgroundJob.findUnique({
+    const job = await prisma.background_jobs.findUnique({
       where: { id: jobId },
     });
 
@@ -366,7 +366,7 @@ export class SQSService {
     }
 
     // Reset job to PENDING status
-    await prisma.backgroundJob.update({
+    await prisma.background_jobs.update({
       where: { id: jobId },
       data: {
         status: JobStatus.PENDING,
