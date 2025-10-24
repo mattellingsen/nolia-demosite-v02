@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { ArrowLeft, CheckDone01, Edit05, CheckCircle, Shield01, FileCheck02 } from "@untitledui/icons";
 import { SidebarNavigationSlim } from "@/components/application/app-navigation/sidebar-navigation/sidebar-slim";
@@ -173,7 +173,7 @@ Long-term financing mechanisms for recurrent costs are not clearly articulated, 
 While this project has several strong components, particularly around community health workers, there are notable gaps in infrastructure planning and long-term sustainability that require attention before proceeding to implementation.`
 };
 
-export default function WorldBankGroupAssessmentDetailPage() {
+function WorldBankGroupAssessmentDetailPage() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const assessmentId = searchParams?.get('assessmentId') || '';
@@ -284,5 +284,14 @@ export default function WorldBankGroupAssessmentDetailPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+// Wrap in Suspense to handle useSearchParams
+export default function WorldBankGroupAssessmentDetailPageWrapper() {
+    return (
+        <Suspense fallback={<div className="flex h-screen items-center justify-center"><div className="text-tertiary">Loading...</div></div>}>
+            <WorldBankGroupAssessmentDetailPage />
+        </Suspense>
     );
 }
