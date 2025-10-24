@@ -83,6 +83,7 @@ model funds {
   outputTemplatesAnalysis     Json?
   moduleType                  ModuleType        @default(FUNDING)
   openSearchIndex             String?
+  policyDocumentAnalysis      Json?
   procurementRuleAnalysis     Json?
   complianceStandardAnalysis  Json?
   procurementTemplateAnalysis Json?
@@ -141,4 +142,6 @@ enum ModuleType {
   PROCUREMENT_ADMIN
   WORLDBANK
   WORLDBANK_ADMIN
+  WORLDBANKGROUP
+  WORLDBANKGROUP_ADMIN
 }
