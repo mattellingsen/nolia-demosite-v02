@@ -16,24 +16,80 @@ function getS3Client(): S3Client {
   });
 }
 
-// POST: Upload file and create PROCESSING assessment
+// POST: Create PROCESSING assessment (file already uploaded to S3 via presigned URL)
 export async function POST(req: NextRequest) {
   try {
-    console.log('[WorldBankGroup Assessment Upload] Starting file upload and assessment creation');
+    console.log('[WorldBankGroup Assessment Upload] Creating assessment record');
 
-    const formData = await req.formData();
-    const file = formData.get('file') as File;
-    const projectId = formData.get('projectId') as string;
-    const projectName = formData.get('projectName') as string;
+    const contentType = req.headers.get('content-type');
 
-    if (!file || !projectId || !projectName) {
+    // Support both old FormData flow (for backward compatibility) and new JSON flow
+    let projectId: string;
+    let projectName: string;
+    let fileName: string;
+    let fileSize: number;
+    let fileType: string;
+    let documentKey: string;
+
+    if (contentType?.includes('application/json')) {
+      // New presigned URL flow - file already in S3
+      const body = await req.json();
+      projectId = body.projectId;
+      projectName = body.projectName;
+      fileName = body.fileName;
+      fileSize = body.fileSize;
+      fileType = body.fileType;
+      documentKey = body.documentKey;
+
+      console.log(`📄 File already uploaded to S3: ${documentKey}`);
+    } else {
+      // Old FormData flow - upload file to S3 (kept for backward compatibility)
+      const formData = await req.formData();
+      const file = formData.get('file') as File;
+      projectId = formData.get('projectId') as string;
+      projectName = formData.get('projectName') as string;
+
+      if (!file) {
+        return NextResponse.json(
+          { error: 'Missing file in FormData' },
+          { status: 400 }
+        );
+      }
+
+      fileName = file.name;
+      fileSize = file.size;
+      fileType = file.type;
+      documentKey = `worldbankgroup-assessments/${projectId}/${crypto.randomUUID()}-${file.name}`;
+
+      console.log(`📄 File details: ${file.name} (${file.size} bytes, ${file.type})`);
+
+      // Upload file to S3
+      try {
+        const fileBuffer = Buffer.from(await file.arrayBuffer());
+
+        await getS3Client().send(new PutObjectCommand({
+          Bucket: process.env.S3_BUCKET_DOCUMENTS!,
+          Key: documentKey,
+          Body: fileBuffer,
+          ContentType: file.type,
+        }));
+
+        console.log(`✅ File uploaded to S3: ${documentKey}`);
+      } catch (uploadError) {
+        console.error('❌ S3 upload failed:', uploadError);
+        return NextResponse.json(
+          { error: 'Failed to upload file to S3' },
+          { status: 500 }
+        );
+      }
+    }
+
+    if (!projectId || !projectName || !fileName) {
       return NextResponse.json(
-        { error: 'Missing required fields: file, projectId, or projectName' },
+        { error: 'Missing required fields: projectId, projectName, or fileName' },
         { status: 400 }
       );
     }
-
-    console.log(`📄 File details: ${file.name} (${file.size} bytes, ${file.type})`);
 
     // Verify project exists
     const project = await prisma.funds.findFirst({
@@ -47,28 +103,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: 'WorldBankGroup project not found' },
         { status: 404 }
-      );
-    }
-
-    // Upload file to S3
-    const documentKey = `worldbankgroup-assessments/${projectId}/${crypto.randomUUID()}-${file.name}`;
-
-    try {
-      const fileBuffer = Buffer.from(await file.arrayBuffer());
-
-      await getS3Client().send(new PutObjectCommand({
-        Bucket: process.env.S3_BUCKET_DOCUMENTS!,
-        Key: documentKey,
-        Body: fileBuffer,
-        ContentType: file.type,
-      }));
-
-      console.log(`✅ File uploaded to S3: ${documentKey}`);
-    } catch (uploadError) {
-      console.error('❌ S3 upload failed:', uploadError);
-      return NextResponse.json(
-        { error: 'Failed to upload file to S3' },
-        { status: 500 }
       );
     }
 
@@ -86,8 +120,8 @@ export async function POST(req: NextRequest) {
         scoringResults: { status: 'processing' },
         assessmentData: {
           evaluationReportS3Key: documentKey,
-          evaluationReportFilename: file.name,
-          fileSize: file.size,
+          evaluationReportFilename: fileName,
+          fileSize: fileSize,
           uploadedAt: new Date().toISOString()
         },
         moduleType: 'WORLDBANKGROUP',
@@ -104,8 +138,8 @@ export async function POST(req: NextRequest) {
         id: assessment.id,
         fundId: assessment.fundId,
         projectName: projectName,
-        filename: file.name,
-        fileSize: file.size,
+        filename: fileName,
+        fileSize: fileSize,
         status: 'PROCESSING',
         createdAt: assessment.createdAt.toISOString()
       }
@@ -115,7 +149,7 @@ export async function POST(req: NextRequest) {
     console.error('[WorldBankGroup Assessment Upload] Error:', error);
     return NextResponse.json(
       {
-        error: 'Failed to upload file and create assessment',
+        error: 'Failed to create assessment',
         details: error instanceof Error ? error.message : String(error)
       },
       { status: 500 }

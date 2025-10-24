@@ -179,27 +179,78 @@ const ApplicationsUploadPage = () => {
             return;
         }
 
-        // Upload file to S3 and create PROCESSING assessment
+        // Upload file using presigned URL to bypass API Gateway size limits
         try {
             const file = fileArray[0]; // For demo, we only handle single file
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('projectId', selectedProject.id);
-            formData.append('projectName', selectedProject.name);
 
-            const response = await fetch('/api/worldbankgroup-assessments/upload', {
+            console.log('📤 Step 1: Requesting presigned URL...');
+
+            // Step 1: Get presigned URL from API
+            const presignedResponse = await fetch('/api/worldbankgroup-assessments/presigned-url', {
                 method: 'POST',
-                body: formData,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    projectId: selectedProject.id,
+                    fileName: file.name,
+                    fileType: file.type,
+                }),
             });
 
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('❌ Upload failed with status:', response.status, errorText);
-                throw new Error(`Failed to upload file: ${response.status} - ${errorText.substring(0, 200)}`);
+            if (!presignedResponse.ok) {
+                const errorText = await presignedResponse.text();
+                console.error('❌ Failed to get presigned URL:', presignedResponse.status, errorText);
+                throw new Error(`Failed to get presigned URL: ${presignedResponse.status}`);
             }
 
-            const result = await response.json();
-            console.log('✅ File uploaded and assessment created:', result);
+            const { presignedUrl, documentKey } = await presignedResponse.json();
+            console.log('✅ Presigned URL received');
+
+            console.log('📤 Step 2: Uploading file directly to S3...');
+
+            // Step 2: Upload file directly to S3 using presigned URL
+            const uploadResponse = await fetch(presignedUrl, {
+                method: 'PUT',
+                body: file,
+                headers: {
+                    'Content-Type': file.type,
+                },
+            });
+
+            if (!uploadResponse.ok) {
+                console.error('❌ S3 upload failed:', uploadResponse.status);
+                throw new Error(`S3 upload failed: ${uploadResponse.status}`);
+            }
+
+            console.log('✅ File uploaded to S3 successfully');
+
+            console.log('📤 Step 3: Creating assessment record...');
+
+            // Step 3: Create assessment record in database
+            const createResponse = await fetch('/api/worldbankgroup-assessments/upload', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    projectId: selectedProject.id,
+                    projectName: selectedProject.name,
+                    fileName: file.name,
+                    fileSize: file.size,
+                    fileType: file.type,
+                    documentKey: documentKey,
+                }),
+            });
+
+            if (!createResponse.ok) {
+                const errorText = await createResponse.text();
+                console.error('❌ Failed to create assessment:', createResponse.status, errorText);
+                throw new Error(`Failed to create assessment: ${createResponse.status}`);
+            }
+
+            const result = await createResponse.json();
+            console.log('✅ Assessment created:', result);
 
             // Move to processing state
             setCurrentStep('processing');
