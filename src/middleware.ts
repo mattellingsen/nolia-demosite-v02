@@ -8,6 +8,7 @@ export async function middleware(request: NextRequest) {
   // Allow login page and auth API routes without authentication
   if (
     request.nextUrl.pathname === '/login' ||
+    request.nextUrl.pathname === '/login-wbg' ||
     request.nextUrl.pathname.startsWith('/api/auth') ||
     request.nextUrl.pathname.startsWith('/api/jobs') ||
     request.nextUrl.pathname.startsWith('/api/brain') ||

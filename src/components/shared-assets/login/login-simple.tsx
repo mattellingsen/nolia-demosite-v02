@@ -10,7 +10,11 @@ import { BackgroundPattern } from "@/components/shared-assets/background-pattern
 
 
 
-export const LoginSimple = () => {
+interface LoginSimpleProps {
+    redirectPath?: string;
+}
+
+export const LoginSimple = ({ redirectPath = '/' }: LoginSimpleProps) => {
     const router = useRouter();
     const [error, setError] = useState<string>('');
     const [isLoading, setIsLoading] = useState(false);
@@ -34,8 +38,8 @@ export const LoginSimple = () => {
             const data = await response.json();
 
             if (data.success) {
-                // Redirect to home page on successful login
-                router.push('/');
+                // Redirect to specified path on successful login
+                router.push(redirectPath);
                 router.refresh();
             } else {
                 setError(data.error || 'Invalid credentials');
