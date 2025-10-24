@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { ArrowLeft, Clock } from "@untitledui/icons";
 import { SidebarNavigationSlim } from "@/components/application/app-navigation/sidebar-navigation/sidebar-slim";
@@ -551,4 +551,11 @@ const ApplicationsUploadPage = () => {
     );
 };
 
-export default ApplicationsUploadPage;
+// Wrap in Suspense to handle useSearchParams
+export default function ApplicationsUploadPageWrapper() {
+    return (
+        <Suspense fallback={<div className="flex h-screen items-center justify-center"><div className="text-tertiary">Loading...</div></div>}>
+            <ApplicationsUploadPage />
+        </Suspense>
+    );
+}
