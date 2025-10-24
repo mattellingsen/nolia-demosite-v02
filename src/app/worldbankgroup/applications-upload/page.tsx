@@ -210,38 +210,58 @@ const ApplicationsUploadPage = () => {
             console.log('📤 Step 2: Uploading file directly to S3...');
 
             // Step 2: Upload file directly to S3 using presigned URL
-            const uploadResponse = await fetch(presignedUrl, {
-                method: 'PUT',
-                body: file,
-                headers: {
-                    'Content-Type': file.type,
-                },
-            });
+            let s3UploadSuccess = false;
+            try {
+                const uploadResponse = await fetch(presignedUrl, {
+                    method: 'PUT',
+                    body: file,
+                    headers: {
+                        'Content-Type': file.type,
+                    },
+                });
 
-            if (!uploadResponse.ok) {
-                console.error('❌ S3 upload failed:', uploadResponse.status);
-                throw new Error(`S3 upload failed: ${uploadResponse.status}`);
+                if (uploadResponse.ok) {
+                    console.log('✅ File uploaded to S3 successfully via presigned URL');
+                    s3UploadSuccess = true;
+                } else {
+                    console.warn('⚠️ Presigned URL upload failed, falling back to FormData upload');
+                }
+            } catch (presignedError) {
+                console.warn('⚠️ Presigned URL upload failed (likely CORS on localhost), falling back to FormData upload');
             }
-
-            console.log('✅ File uploaded to S3 successfully');
 
             console.log('📤 Step 3: Creating assessment record...');
 
-            // Step 3: Create assessment record in database
-            const createResponse = await fetch('/api/worldbankgroup-assessments/upload', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    projectId: selectedProject.id,
-                    projectName: selectedProject.name,
-                    fileName: file.name,
-                    fileSize: file.size,
-                    fileType: file.type,
-                    documentKey: documentKey,
-                }),
-            });
+            let createResponse;
+            if (s3UploadSuccess) {
+                // Step 3a: Create assessment record (file already in S3)
+                createResponse = await fetch('/api/worldbankgroup-assessments/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        projectId: selectedProject.id,
+                        projectName: selectedProject.name,
+                        fileName: file.name,
+                        fileSize: file.size,
+                        fileType: file.type,
+                        documentKey: documentKey,
+                    }),
+                });
+            } else {
+                // Step 3b: Fallback - upload via FormData (works on localhost)
+                console.log('📤 Using FormData fallback (file will upload through API)');
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('projectId', selectedProject.id);
+                formData.append('projectName', selectedProject.name);
+
+                createResponse = await fetch('/api/worldbankgroup-assessments/upload', {
+                    method: 'POST',
+                    body: formData,
+                });
+            }
 
             if (!createResponse.ok) {
                 const errorText = await createResponse.text();
