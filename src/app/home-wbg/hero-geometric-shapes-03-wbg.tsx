@@ -39,10 +39,10 @@ export const HeroGeometricShapes03WBG = () => {
                         </p>
 
                         <div className="mt-8 flex w-full flex-col-reverse items-stretch gap-3 sm:flex-row sm:items-start md:mt-12">
-                            <Button href="/worldbankgroup-admin" color="secondary" size="xl">
+                            <Button href="/worldbankgroup-admin/setup" color="secondary" size="xl">
                                 World Bank Group Admin
                             </Button>
-                            <Button href="/worldbankgroup" size="xl">World Bank Group</Button>
+                            <Button href="/worldbankgroup/setup" size="xl">World Bank Group</Button>
                         </div>
                     </div>
                 </div>
