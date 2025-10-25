@@ -88,8 +88,8 @@ export async function GET(
       );
     }
 
-    // SPECIAL CASE: This specific baseId shows as ACTIVE (completed)
-    const isCompletedDemo = baseId === '789befa3-1df7-4a40-a101-a36e3cdfaf0d';
+    // SPECIAL CASE: Show as ACTIVE (completed) if base status is ACTIVE in database
+    const isCompletedDemo = base.status === 'ACTIVE';
 
     // Calculate progress based on elapsed time for processing bases
     const totalDocs = Object.values(documentsUploaded).reduce((sum, count) => sum + count, 0);

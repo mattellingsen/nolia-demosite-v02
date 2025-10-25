@@ -195,6 +195,20 @@ export const WorldBankGroupAdminSetupDashboard = () => {
                         </div>
                     ) : (
                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            {/* Setup new global knowledgebase card - FIRST */}
+                            <a href="/worldbankgroup-admin/setup/setup-worldbank-base" className="w-full h-50 relative flex cursor-pointer hover:opacity-90 transition-opacity">
+                                <div className="w-full h-full flex flex-col justify-center items-center overflow-hidden rounded-2xl p-4 bg-gray-800">
+                                    <div className="flex flex-col items-center justify-center gap-3 text-center">
+                                        <div className="rounded-full bg-white bg-opacity-20 p-3">
+                                            <Plus className="w-8 h-8 text-gray-800" />
+                                        </div>
+                                        <p className="text-sm font-semibold text-white">
+                                            Setup New Global Knowledge Base
+                                        </p>
+                                    </div>
+                                </div>
+                            </a>
+
                             {bases.map((base: any, index: number) => (
                                 <div key={base.id} className="w-full h-50 relative flex cursor-pointer hover:opacity-90 transition-opacity" onClick={() => handleBaseCardClick(base.id)}>
                                     <div className={`w-full h-full relative overflow-hidden rounded-2xl p-4 bg-linear-to-b ${generateGradient(index)} before:pointer-events-none before:absolute before:inset-0 before:z-1 before:rounded-[inherit] before:mask-linear-135 before:mask-linear-to-white/20 before:ring-1 before:ring-white/30 before:ring-inset`}>
@@ -203,14 +217,14 @@ export const WorldBankGroupAdminSetupDashboard = () => {
                                         <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-3">
                                             <div className="flex min-w-0 flex-col">
                                                 <div className="text-md leading-[normal] font-semibold text-white mb-1">{base.name}</div>
-                                                <p className="text-xs text-white/70 mb-3">
-                                                    {base.documentsCount || 0} documents
-                                                </p>
                                                 {base.description && (
-                                                    <p className="text-xs leading-snug font-light text-white mb-5 line-clamp-2" style={{wordBreak: "break-word"}}>
+                                                    <p className="text-xs leading-snug font-light text-white mb-3 line-clamp-2" style={{wordBreak: "break-word"}}>
                                                         {base.description}
                                                     </p>
                                                 )}
+                                                <p className="text-xs text-white/70 mb-5">
+                                                    {base.documentsCount || 0} documents
+                                                </p>
                                                 <div className="flex items-center gap-2">
                                                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                                                         base.status === 'ACTIVE' ? 'bg-green-500/20 text-green-200' :
@@ -243,20 +257,6 @@ export const WorldBankGroupAdminSetupDashboard = () => {
                                     </div>
                                 </div>
                             ))}
-
-                            {/* Setup new global knowledgebase card */}
-                            <a href="/worldbankgroup-admin/setup/setup-worldbank-base" className="w-full h-50 relative flex cursor-pointer hover:opacity-90 transition-opacity">
-                                <div className="w-full h-full flex flex-col justify-center items-center overflow-hidden rounded-2xl p-4 bg-gray-800">
-                                    <div className="flex flex-col items-center justify-center gap-3 text-center">
-                                        <div className="rounded-full bg-white bg-opacity-20 p-3">
-                                            <Plus className="w-8 h-8 text-gray-800" />
-                                        </div>
-                                        <p className="text-sm font-semibold text-white">
-                                            Setup New Global Knowledge Base
-                                        </p>
-                                    </div>
-                                </div>
-                            </a>
                         </div>
                     )}
                     </div>
