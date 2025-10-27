@@ -8,7 +8,7 @@
  * but with procurement-focused prompts for worldbank-admin document types.
  */
 
-import { callClaude } from './claude-service';
+import { claudeService } from './claude-service';
 
 // ============================================================================
 // POLICY_DOCUMENT Analysis
@@ -115,11 +115,18 @@ Document content:
 ${textContent}
 `;
 
-  const response = await callClaude({
-    systemPrompt: 'You are an expert in procurement policy analysis. Extract structured procurement rules and requirements from policy documents.',
-    userPrompt: prompt,
+  const result = await claudeService.executeTask({
+    task: `Analyze policy document: ${filename}${chunkInfo}`,
+    prompt: `You are an expert in procurement policy analysis. Extract structured procurement rules and requirements from policy documents.\n\n${prompt}`,
     temperature: 0.3,
+    maxTokens: 4000,
   });
+
+  if (!result.success) {
+    throw new Error(`Claude analysis failed: ${result.error}`);
+  }
+
+  const response = result.content;
 
   // Parse JSON response
   try {
@@ -231,11 +238,18 @@ Document content:
 ${textContent}
 `;
 
-  const response = await callClaude({
-    systemPrompt: 'You are an expert in procurement rules and compliance. Extract actionable rules from procurement documents.',
-    userPrompt: prompt,
+  const result = await claudeService.executeTask({
+    task: `Analyze procurement rule: ${filename}${chunkInfo}`,
+    prompt: `You are an expert in procurement rules and compliance. Extract actionable rules from procurement documents.\n\n${prompt}`,
     temperature: 0.3,
+    maxTokens: 4000,
   });
+
+  if (!result.success) {
+    throw new Error(`Claude analysis failed: ${result.error}`);
+  }
+
+  const response = result.content;
 
   try {
     const cleanedResponse = response.trim().replace(/```json\n?/g, '').replace(/```\n?/g, '');
@@ -335,11 +349,18 @@ Document content:
 ${textContent}
 `;
 
-  const response = await callClaude({
-    systemPrompt: 'You are an expert in procurement compliance and audit requirements. Extract compliance standards from documents.',
-    userPrompt: prompt,
+  const result = await claudeService.executeTask({
+    task: `Analyze compliance standard: ${filename}${chunkInfo}`,
+    prompt: `You are an expert in procurement compliance and audit requirements. Extract compliance standards from documents.\n\n${prompt}`,
     temperature: 0.3,
+    maxTokens: 4000,
   });
+
+  if (!result.success) {
+    throw new Error(`Claude analysis failed: ${result.error}`);
+  }
+
+  const response = result.content;
 
   try {
     const cleanedResponse = response.trim().replace(/```json\n?/g, '').replace(/```\n?/g, '');
@@ -411,11 +432,18 @@ Document content:
 ${textContent}
 `;
 
-  const response = await callClaude({
-    systemPrompt: 'You are an expert in procurement templates and forms. Extract template structure and requirements.',
-    userPrompt: prompt,
+  const result = await claudeService.executeTask({
+    task: `Analyze procurement template: ${filename}`,
+    prompt: `You are an expert in procurement templates and forms. Extract template structure and requirements.\n\n${prompt}`,
     temperature: 0.3,
+    maxTokens: 4000,
   });
+
+  if (!result.success) {
+    throw new Error(`Claude analysis failed: ${result.error}`);
+  }
+
+  const response = result.content;
 
   try {
     const cleanedResponse = response.trim().replace(/```json\n?/g, '').replace(/```\n?/g, '');

@@ -7,7 +7,9 @@ const prisma = new PrismaClient();
 export async function GET(req: NextRequest) {
   try {
     console.log('🔄 [WorldBankGroup Projects] API called at:', new Date().toISOString());
-    const projects = await prisma.funds.findMany({
+
+    // Fetch all projects
+    const allProjects = await prisma.funds.findMany({
       where: {
         moduleType: 'WORLDBANKGROUP'
       },
@@ -28,11 +30,21 @@ export async function GET(req: NextRequest) {
             filename: true
           }
         }
-      },
-      orderBy: {
-        createdAt: 'desc'
       }
     });
+
+    // Separate PROCESSING and ACTIVE projects
+    const processingProjects = allProjects.filter(p => p.status !== 'ACTIVE');
+    const activeProjects = allProjects.filter(p => p.status === 'ACTIVE');
+
+    // Sort PROCESSING by createdAt DESC (newest first)
+    processingProjects.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+    // Sort ACTIVE by createdAt ASC (oldest first) - this will give us the custom order
+    activeProjects.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+
+    // Combine: PROCESSING first, then ACTIVE
+    const projects = [...processingProjects, ...activeProjects];
 
     const transformedProjects = projects.map(project => ({
       id: project.id,

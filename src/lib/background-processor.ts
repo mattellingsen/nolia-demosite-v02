@@ -115,7 +115,7 @@ class BackgroundProcessor {
           completedAt: null // Still not completed
         },
         include: {
-          fund: {
+          funds: {
             select: {
               id: true,
               name: true,
@@ -165,7 +165,7 @@ class BackgroundProcessor {
         for (const job of jobsToProcess) {
           console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
           console.log(`🎯 JOB PICKUP: Found job ${job.id} to process`);
-          console.log(`🎯 Fund: ${job.fund.name} (${job.fund.moduleType})`);
+          console.log(`🎯 Fund: ${job.funds.name} (${job.funds.moduleType})`);
           console.log(`🎯 Job Status: ${job.status}`);
           console.log(`🎯 Progress: ${job.processedDocuments}/${job.totalDocuments}`);
           console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -182,7 +182,7 @@ class BackgroundProcessor {
 
             console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
             console.log(`🤖 BACKGROUND PROCESSOR: Triggering job ${job.id}`);
-            console.log(`🤖 Fund: ${job.fund.name} (${job.fund.moduleType})`);
+            console.log(`🤖 Fund: ${job.funds.name} (${job.funds.moduleType})`);
             console.log(`🤖 Detected Branch: ${callerContext.detectedBranch}`);
             console.log(`🤖 Calling: ${targetUrl}`);
             console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -218,7 +218,7 @@ class BackgroundProcessor {
         console.log(`🔄 Found ${retryableFailedJobs.length} retryable failed job(s) with connection pool errors...`);
 
         for (const job of retryableFailedJobs) {
-          console.log(`🔄 Retrying failed job: ${job.id} for fund "${job.fund.name}"`);
+          console.log(`🔄 Retrying failed job: ${job.id} for fund "${job.funds.name}"`);
 
           try {
             // Use SQS service retry mechanism to reset job to PENDING
@@ -271,17 +271,17 @@ class BackgroundProcessor {
 
         for (const job of stalePendingJobs) {
           try {
-            console.log(`🔧 Processing stale ${job.type} job for ${job.fund?.moduleType} module: ${job.fund?.name}`);
+            console.log(`🔧 Processing stale ${job.type} job for ${job.funds?.moduleType} module: ${job.funds?.name}`);
 
             if (job.type === 'RAG_PROCESSING') {
               // Trigger brain assembly directly for RAG jobs - use module-specific endpoints
               let assemblyUrl;
-              if (job.fund?.moduleType === 'PROCUREMENT_ADMIN') {
+              if (job.funds?.moduleType === 'PROCUREMENT_ADMIN') {
                 // FIXED: procurement-brain endpoint expects baseId parameter, not fundId
-                assemblyUrl = `${this.getBaseUrl()}/api/procurement-brain/${job.fund.id}/assemble`;
-              } else if (job.fund?.moduleType === 'WORLDBANK') {
+                assemblyUrl = `${this.getBaseUrl()}/api/procurement-brain/${job.funds.id}/assemble`;
+              } else if (job.funds?.moduleType === 'WORLDBANK') {
                 // WORLDBANK projects use worldbank-brain endpoint
-                assemblyUrl = `${this.getBaseUrl()}/api/worldbank-brain/${job.fund.id}/assemble`;
+                assemblyUrl = `${this.getBaseUrl()}/api/worldbank-brain/${job.funds.id}/assemble`;
               } else {
                 assemblyUrl = `${this.getBaseUrl()}/api/brain/${job.fundId}/assemble`;
               }
@@ -294,10 +294,10 @@ class BackgroundProcessor {
               });
 
               if (response.ok) {
-                console.log(`✅ Successfully triggered ${job.fund?.moduleType} brain assembly for job ${job.id}`);
+                console.log(`✅ Successfully triggered ${job.funds?.moduleType} brain assembly for job ${job.id}`);
               } else {
                 const errorData = await response.json();
-                console.error(`❌ Failed to trigger ${job.fund?.moduleType} brain assembly for job ${job.id}:`, errorData.error);
+                console.error(`❌ Failed to trigger ${job.funds?.moduleType} brain assembly for job ${job.id}:`, errorData.error);
               }
             } else {
               // Trigger document processing for other jobs

@@ -187,6 +187,20 @@ export const WorldBankGroupSetupDashboard = () => {
                         </div>
 
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            {/* Setup new project card - ALWAYS FIRST */}
+                            <a href="/worldbankgroup/setup/setup-new-project" className="w-full h-50 relative flex cursor-pointer hover:opacity-90 transition-opacity">
+                                <div className="w-full h-full flex flex-col justify-center items-center overflow-hidden rounded-2xl p-4 bg-gray-800">
+                                    <div className="flex flex-col items-center justify-center gap-3 text-center">
+                                        <div className="rounded-full bg-white bg-opacity-20 p-3">
+                                            <Plus className="w-8 h-8 text-gray-800" />
+                                        </div>
+                                        <p className="text-sm font-semibold text-white">
+                                            Setup new project
+                                        </p>
+                                    </div>
+                                </div>
+                            </a>
+
                             {/* Real project cards */}
                             {projectsLoading ? (
                                 // Loading skeletons
@@ -243,20 +257,6 @@ export const WorldBankGroupSetupDashboard = () => {
                                     </div>
                                 ))
                             )}
-
-                            {/* Setup new project card */}
-                            <a href="/worldbankgroup/setup/setup-new-project" className="w-full h-50 relative flex cursor-pointer hover:opacity-90 transition-opacity">
-                                <div className="w-full h-full flex flex-col justify-center items-center overflow-hidden rounded-2xl p-4 bg-gray-800">
-                                    <div className="flex flex-col items-center justify-center gap-3 text-center">
-                                        <div className="rounded-full bg-white bg-opacity-20 p-3">
-                                            <Plus className="w-8 h-8 text-gray-800" />
-                                        </div>
-                                        <p className="text-sm font-semibold text-white">
-                                            Setup new project
-                                        </p>
-                                    </div>
-                                </div>
-                            </a>
                         </div>
                     </div>
                 </div>

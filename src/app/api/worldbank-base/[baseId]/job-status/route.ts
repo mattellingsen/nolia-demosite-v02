@@ -19,12 +19,20 @@ export async function GET(
     // Get all jobs for this worldbank base
     const jobs = await BackgroundJobService.getFundJobs(baseId);
 
+    // Check base module type first
+    const baseInfo = await prisma.funds.findUnique({
+      where: { id: baseId },
+      select: { moduleType: true }
+    });
+
+    const moduleType = baseInfo?.moduleType || 'WORLDBANK_ADMIN';
+
     // Get actual document counts from database
     const documentCounts = await prisma.fund_documents.groupBy({
       by: ['documentType'],
       where: {
         fundId: baseId,
-        moduleType: 'WORLDBANK_ADMIN'
+        moduleType: moduleType as any
       },
       _count: {
         id: true
@@ -43,7 +51,7 @@ export async function GET(
     const documents = await prisma.fund_documents.findMany({
       where: {
         fundId: baseId,
-        moduleType: 'WORLDBANK_ADMIN'
+        moduleType: moduleType as any
       },
       select: {
         id: true,
@@ -79,6 +87,9 @@ export async function GET(
       );
     }
 
+    // SPECIAL CASE: If base status is ACTIVE in database, treat as completed
+    const isCompletedByStatus = base.status === 'ACTIVE';
+
     // Get overall status
     let ragJob = jobs.find(job => job.type === 'RAG_PROCESSING');
 
@@ -113,24 +124,33 @@ export async function GET(
       }
     }
 
-    // If no RAG job but fundBrain exists, create a virtual completed job
-    if (!ragJob && base?.fundBrain) {
+    // If no RAG job but fundBrain exists OR status is ACTIVE, create a virtual completed job
+    if (!ragJob && (base?.fundBrain || isCompletedByStatus)) {
+      const totalDocs = Object.values(documentsUploaded).reduce((sum, count) => sum + count, 0);
       ragJob = {
         id: 'virtual-completed',
         fundId: baseId,
         type: 'RAG_PROCESSING',
         status: 'COMPLETED',
         progress: 100,
-        processedDocuments: Object.values(documentsUploaded).reduce((sum, count) => sum + count, 0),
-        totalDocuments: Object.values(documentsUploaded).reduce((sum, count) => sum + count, 0),
+        processedDocuments: totalDocs,
+        totalDocuments: totalDocs,
         errorMessage: null,
-        startedAt: base.brainAssembledAt,
-        completedAt: base.brainAssembledAt,
-        createdAt: base.brainAssembledAt,
-        updatedAt: base.brainAssembledAt,
-        metadata: { virtualJob: true, reason: 'Brain already assembled' }
+        startedAt: base.brainAssembledAt || base.createdAt,
+        completedAt: base.brainAssembledAt || new Date(),
+        createdAt: base.brainAssembledAt || base.createdAt,
+        updatedAt: base.brainAssembledAt || new Date(),
+        metadata: {
+          virtualJob: true,
+          reason: isCompletedByStatus ? 'Base status is ACTIVE' : 'Brain already assembled'
+        }
       };
       jobs.push(ragJob);
+    } else if (ragJob && isCompletedByStatus) {
+      // Override existing job status if base is marked ACTIVE
+      ragJob.status = 'COMPLETED';
+      ragJob.progress = 100;
+      ragJob.completedAt = ragJob.completedAt || new Date();
     }
 
     const overallStatus = getOverallStatus(jobs);

@@ -136,22 +136,6 @@ const demoAssessments = [
         projectName: "Cathlab Equipment",
         isProcessing: false,
     },
-    {
-        id: "wbg-assessment-02",
-        vendor: {
-            name: "MRI 1.5T",
-            website: "ID-PMU SIHREN-395566-GO-RFB",
-            fileType: "pdf",
-            mimeType: "application/pdf",
-        },
-        rating: 100,
-        change: "N/A",
-        changeTrend: "neutral" as const,
-        lastAssessed: new Date(2025, 9, 27).getTime(), // October 27, 2025 (month is 0-indexed)
-        categories: ["Goods"],
-        projectName: "MRI 1.5T",
-        isProcessing: false,
-    },
 ];
 
 export const WorldBankGroupAssessDashboard = () => {

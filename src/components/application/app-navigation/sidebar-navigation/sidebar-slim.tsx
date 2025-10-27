@@ -1,7 +1,7 @@
 "use client";
 
 import type { FC } from "react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { LifeBuoy01, LogOut01, Settings01 } from "@untitledui/icons";
 import { AnimatePresence, motion } from "motion/react";
 import { Button as AriaButton, DialogTrigger as AriaDialogTrigger, Popover as AriaPopover } from "react-aria-components";
@@ -37,6 +37,16 @@ export const SidebarNavigationSlim = ({ activeUrl, items, footerItems = [], hide
     const [currentItem, setCurrentItem] = useState(activeItem || items[1]);
     const [isHovering, setIsHovering] = useState(false);
 
+    // Determine logo link based on current URL (client-side only to avoid hydration mismatch)
+    const [logoHref, setLogoHref] = useState('/');
+
+    useEffect(() => {
+        // Only run on client side after hydration
+        const pathname = window.location.pathname;
+        const href = pathname.startsWith('/worldbankgroup') ? '/home-wbg' : '/';
+        setLogoHref(href);
+    }, []);
+
     const isSecondarySidebarVisible = isHovering && Boolean(currentItem.items?.length);
 
     const MAIN_SIDEBAR_WIDTH = 68;
@@ -56,7 +66,7 @@ export const SidebarNavigationSlim = ({ activeUrl, items, footerItems = [], hide
                 )}
             >
                 <div className="flex justify-center px-3">
-                    <a href="/" className="hover:opacity-80 transition-opacity cursor-pointer">
+                    <a href={logoHref} className="hover:opacity-80 transition-opacity cursor-pointer">
                         <img src="/images/logos/nolia-logo-icon.png" alt="Nolia" className="size-8" />
                     </a>
                 </div>
