@@ -364,7 +364,14 @@ function BaseCreatedContent() {
 
                         {status.documents.length > 0 && (
                             <div className="space-y-2">
-                                <h4 className="text-sm font-medium text-primary">Uploaded Files</h4>
+                                <div className="flex items-center gap-3">
+                                    <h4 className="text-sm font-medium text-primary">Uploaded Files</h4>
+                                    {status.brainBuilding.status === 'COMPLETED' && (
+                                        <a href="#" className="text-sm text-brand-600 hover:text-brand-700 underline transition-colors">
+                                            edit
+                                        </a>
+                                    )}
+                                </div>
                                 <div className="space-y-2 max-h-64 overflow-y-auto">
                                     {status.documents.map((doc) => (
                                         <div key={doc.id} className="flex items-center justify-between gap-3 rounded-lg border border-secondary bg-primary p-3">

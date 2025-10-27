@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { ArrowLeft, CheckDone01, Edit05, CheckCircle, Shield01, FileCheck02 } from "@untitledui/icons";
+import { ArrowLeft, CheckDone01, Edit05, CheckCircle, Shield01, FileCheck02, Download01 } from "@untitledui/icons";
 import { SidebarNavigationSlim } from "@/components/application/app-navigation/sidebar-navigation/sidebar-slim";
 import { Button } from "@/components/base/buttons/button";
 import { Badge } from "@/components/base/badges/badges";
@@ -14,40 +14,76 @@ const useTypewriter = (text: string, speed: number = 3, delay: number = 2000) =>
     const [isComplete, setIsComplete] = useState(false);
 
     useEffect(() => {
+        const effectId = Math.random().toString(36).substr(2, 9);
+        console.log(`[${effectId}] useTypewriter: text length =`, text?.length || 0, 'speed =', speed, 'delay =', delay);
+
         if (!text) {
+            console.log(`[${effectId}] useTypewriter: NO TEXT! Setting isComplete = true`);
             setIsComplete(true);
             return;
         }
 
+        console.log(`[${effectId}] useTypewriter: Starting animation, setting isComplete = false`);
         setDisplayedText('');
         setIsComplete(false);
 
+        let cancelled = false;
+        let timer: NodeJS.Timeout | null = null;
+
         // Add initial delay before starting typewriter
         const delayTimeout = setTimeout(() => {
-            let currentIndex = 0;
+            if (cancelled) {
+                console.log(`[${effectId}] useTypewriter: Cancelled before starting interval`);
+                return;
+            }
 
-            const timer = setInterval(() => {
+            let currentIndex = 0;
+            console.log(`[${effectId}] useTypewriter: Starting interval`);
+
+            timer = setInterval(() => {
+                if (cancelled) {
+                    console.log(`[${effectId}] useTypewriter: Cancelled during interval`);
+                    if (timer) clearInterval(timer);
+                    return;
+                }
+
                 if (currentIndex < text.length) {
                     setDisplayedText(text.substring(0, currentIndex + 1));
                     currentIndex++;
                 } else {
+                    console.log(`[${effectId}] useTypewriter: Animation complete! currentIndex =`, currentIndex, 'text.length =', text.length);
                     setIsComplete(true);
-                    clearInterval(timer);
+                    if (timer) clearInterval(timer);
                 }
             }, speed);
-
-            return () => clearInterval(timer);
         }, delay);
 
-        return () => clearTimeout(delayTimeout);
+        return () => {
+            console.log(`[${effectId}] useTypewriter: Cleanup function called`);
+            cancelled = true;
+            clearTimeout(delayTimeout);
+            if (timer) {
+                console.log(`[${effectId}] useTypewriter: Clearing interval in cleanup`);
+                clearInterval(timer);
+            }
+        };
     }, [text, speed, delay]);
 
     return { displayedText, isComplete };
 };
 
 // TypewriterTemplate component with markdown-like parsing
-const TypewriterTemplate: React.FC<{ content: string }> = ({ content }) => {
+const TypewriterTemplate: React.FC<{ content: string; onComplete?: (complete: boolean) => void }> = ({ content, onComplete }) => {
     const { displayedText, isComplete } = useTypewriter(content, 8);
+
+    useEffect(() => {
+        console.log('TypewriterTemplate: isComplete =', isComplete);
+        // Only call onComplete when animation finishes (isComplete becomes true)
+        if (onComplete && isComplete) {
+            console.log('TypewriterTemplate: Calling onComplete(true)');
+            onComplete(true);
+        }
+    }, [isComplete, onComplete]);
 
     return (
         <div className="space-y-2">
@@ -179,9 +215,20 @@ function WorldBankGroupAssessmentDetailPage() {
     const assessmentId = searchParams?.get('assessmentId') || '';
 
     const [mounted, setMounted] = useState(false);
+    const [contentComplete, setContentComplete] = useState(false);
 
     useEffect(() => {
         setMounted(true);
+    }, []);
+
+    useEffect(() => {
+        console.log('WorldBankGroupAssessmentDetailPage: contentComplete =', contentComplete);
+    }, [contentComplete]);
+
+    // Stable callback for when content completes
+    const handleContentComplete = useCallback((complete: boolean) => {
+        console.log('handleContentComplete called with:', complete);
+        setContentComplete(complete);
     }, []);
 
     // Get the content for this assessment
@@ -189,6 +236,24 @@ function WorldBankGroupAssessmentDetailPage() {
 
     // Extract project name from first line
     const projectName = content.split('\n')[0].replace('# ', '').split(' - ')[0];
+
+    // Handle PDF download
+    const handleDownloadPDF = () => {
+        // Map assessment IDs to their PDF filenames
+        const pdfMap: Record<string, string> = {
+            "wbg-assessment-01": "TER Assessment - Cathlab Equipment.pdf",
+        };
+
+        const pdfFilename = pdfMap[assessmentId];
+        if (pdfFilename) {
+            const link = document.createElement('a');
+            link.href = `/assessments/${pdfFilename}`;
+            link.download = pdfFilename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    };
 
     return (
         <div className="flex flex-col bg-primary lg:flex-row">
@@ -248,7 +313,22 @@ function WorldBankGroupAssessmentDetailPage() {
                     <div className="max-w-none">
                         {/* Output Template - White Background */}
                         <div className="rounded-xl bg-white p-8 shadow-sm ring-1 ring-gray-200 ring-inset">
-                            <TypewriterTemplate content={content} />
+                            <TypewriterTemplate content={content} onComplete={handleContentComplete} />
+
+                            {/* Download PDF Button */}
+                            <div className="mt-8 pt-6 border-t border-gray-200">
+                                {mounted && (
+                                    <Button
+                                        size="md"
+                                        color="secondary"
+                                        iconLeading={Download01}
+                                        isDisabled={!contentComplete}
+                                        onClick={handleDownloadPDF}
+                                    >
+                                        Download as PDF
+                                    </Button>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -252,17 +252,27 @@ function KnowledgeBaseContent() {
                 <div className="px-4 lg:px-8">
                     <div className="rounded-lg border border-secondary bg-primary p-6">
                         {typingStage >= 1 && (
-                            <div className="flex items-center gap-3 mb-6">
-                                <FeaturedIcon icon={BookOpen01} color="brand" size="md" />
-                                <div>
-                                    <h3 className="text-lg font-semibold text-primary">
-                                        {typingStage === 1 ? displayedText : "World Bank IPF Procurement Rules"}
-                                        {typingStage === 1 && <span className="animate-pulse">|</span>}
-                                    </h3>
-                                    {typingStage >= 2 && (
-                                        <p className="text-sm text-tertiary">Comprehensive list with document citations</p>
-                                    )}
+                            <div className="flex items-center justify-between mb-6">
+                                <div className="flex items-center gap-3">
+                                    <FeaturedIcon icon={BookOpen01} color="brand" size="md" />
+                                    <div>
+                                        <h3 className="text-lg font-semibold text-primary">
+                                            {typingStage === 1 ? displayedText : "World Bank IPF Procurement Rules"}
+                                            {typingStage === 1 && <span className="animate-pulse">|</span>}
+                                        </h3>
+                                        {typingStage >= 2 && (
+                                            <p className="text-sm text-tertiary">Comprehensive list with document citations</p>
+                                        )}
+                                    </div>
                                 </div>
+                                <Button
+                                    href="#"
+                                    color="secondary"
+                                    size="md"
+                                    iconLeading={Edit05}
+                                >
+                                    Edit rule
+                                </Button>
                             </div>
                         )}
 

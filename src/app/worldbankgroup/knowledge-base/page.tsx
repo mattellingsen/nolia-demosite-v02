@@ -223,14 +223,24 @@ function KnowledgeBaseContent() {
                 {/* Procurement Rules Content */}
                 <div className="px-4 lg:px-8">
                     <div className="rounded-lg border border-secondary bg-primary p-6">
-                        <div className="flex items-center gap-3 mb-6">
-                            <FeaturedIcon icon={BookOpen01} color="brand" size="md" />
-                            <div>
-                                <h3 className="text-lg font-semibold text-primary">
-                                    Cathlab Procurement Evaluation Rules
-                                </h3>
-                                <p className="text-sm text-tertiary">Comprehensive list with document citations</p>
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center gap-3">
+                                <FeaturedIcon icon={BookOpen01} color="brand" size="md" />
+                                <div>
+                                    <h3 className="text-lg font-semibold text-primary">
+                                        Cathlab Procurement Evaluation Rules
+                                    </h3>
+                                    <p className="text-sm text-tertiary">Comprehensive list with document citations</p>
+                                </div>
                             </div>
+                            <Button
+                                href="#"
+                                color="secondary"
+                                size="md"
+                                iconLeading={Edit05}
+                            >
+                                Edit rule
+                            </Button>
                         </div>
 
                         {/* Document Reference Header */}
